@@ -95,12 +95,13 @@ object AdaptiveHaptics {
     }
 
     private fun oneShot(vibrator: Vibrator, kind: Kind): VibrationEffect {
-        val (ms, amp) = when (kind) {
-            Kind.TICK -> 12L to 80
-            Kind.SELECTION -> 20L to 120
-            Kind.LONG -> 30L to 180
+        val (targetMs, amp) = when (kind) {
+            Kind.TICK -> 4L to 28
+            Kind.SELECTION -> 8L to 48
+            Kind.LONG -> 18L to 85
         }
-        val amplitude = if (vibrator.hasAmplitudeControl()) amp else VibrationEffect.DEFAULT_AMPLITUDE
+        val ms = if (vibrator.hasAmplitudeControl()) targetMs else minOf(targetMs, 5L)
+        val amplitude = if (vibrator.hasAmplitudeControl()) amp else 45
         return VibrationEffect.createOneShot(ms, amplitude)
     }
 
@@ -114,14 +115,12 @@ object AdaptiveHaptics {
         val view = context.findActivity()?.window?.decorView ?: return
         val constant = when (kind) {
             Kind.LONG -> HapticFeedbackConstants.LONG_PRESS
-            else -> HapticFeedbackConstants.VIRTUAL_KEY
+            Kind.TICK -> if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O_MR1) HapticFeedbackConstants.TEXT_HANDLE_MOVE else HapticFeedbackConstants.KEYBOARD_TAP
+            Kind.SELECTION -> HapticFeedbackConstants.KEYBOARD_TAP
         }
         view.isHapticFeedbackEnabled = true
         onMain {
-            view.performHapticFeedback(
-                constant,
-                HapticFeedbackConstants.FLAG_IGNORE_VIEW_SETTING or FLAG_IGNORE_GLOBAL
-            )
+            view.performHapticFeedback(constant)
         }
     }
 

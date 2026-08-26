@@ -2,10 +2,10 @@ package com.ray.iptv.ui.input
 
 import kotlin.math.abs
 
-/** Kaydırma titreşimi: kare başına değil, biriken mesafe + minimum aralık. */
+/** Kaydırma titreşimi: kare başına değil, biriken mesafe + minimum aralık (yumuşak eşik). */
 class HapticScrollGate(
-    private val minDeltaPx: Float = 58f,
-    private val minIntervalMs: Long = 118L
+    private val minDeltaPx: Float = 150f,
+    private val minIntervalMs: Long = 180L
 ) {
     private var accum = 0f
     private var lastAt = 0L
@@ -27,7 +27,7 @@ class HapticScrollGate(
 
 /** Dokunma titreşimi: peş peşe tıklamalarda motoru boğmamak için. */
 class HapticTapGate(
-    private val minIntervalMs: Long = 95L
+    private val minIntervalMs: Long = 120L
 ) {
     private var lastAt = 0L
 
