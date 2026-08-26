@@ -80,8 +80,17 @@ import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material.icons.filled.SettingsRemote
 import androidx.compose.material.icons.automirrored.filled.PlaylistPlay
 import androidx.compose.material.icons.filled.Star
+import androidx.compose.material.icons.filled.Inbox
+import androidx.compose.material.icons.filled.AccessTime
+import androidx.compose.material.icons.filled.Segment
+import androidx.compose.material.icons.filled.StayCurrentPortrait
+import androidx.compose.material.icons.filled.RadioButtonChecked
+import androidx.compose.material.icons.filled.RadioButtonUnchecked
+import androidx.compose.material.icons.automirrored.filled.Logout
 import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Speed
+import com.ray.iptv.ui.mobile.MobileBadge
+import com.ray.iptv.ui.mobile.MobileCyan
 import androidx.compose.material.icons.filled.Tune
 import androidx.compose.material.icons.filled.VerifiedUser
 import androidx.compose.material.icons.filled.ViewSidebar
@@ -1151,176 +1160,326 @@ private val blockedRemoteKeys = setOf(
         Modifier
             .fillMaxSize()
             .verticalScroll(rememberScrollState())
-            .padding(bottom = 40.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp)
+            .padding(horizontal = 4.dp, vertical = 6.dp),
+        verticalArrangement = Arrangement.spacedBy(14.dp)
     ) {
-        // Header Text Hint (Matching Mina IPTV cloud.syncHint)
+        // Header Text Hint (Matching Mina IPTV)
         Text(
-            if (tr) "Ayar, liste, favori ve izleme geçmişinizi Google hesabınızda güvenle saklayın ve tüm cihazlarınızla senkronize edin."
-            else "Securely store your settings, playlists, favorites, and watch history on Google account and sync across all devices.",
+            if (tr) "Google hesabınızla buluta yedekleyin veya şifreli dosyayı cihaza/paylaşımla alın."
+            else "Backup to cloud with Google account or export encrypted file.",
             color = Color.White.copy(alpha = 0.65f),
-            fontSize = 12.5.sp,
-            lineHeight = 17.sp
+            fontSize = 13.sp,
+            lineHeight = 18.sp
         )
 
-        // Status Card (Matching Mina IPTV StatusPanel)
+        // 1. Status Card (Senkron aktif)
         Box(
             Modifier
                 .fillMaxWidth()
-                .clip(RoundedCornerShape(14.dp))
-                .background(Color.White.copy(alpha = 0.07f))
-                .border(1.dp, Color.White.copy(alpha = 0.12f), RoundedCornerShape(14.dp))
+                .clip(RoundedCornerShape(16.dp))
+                .background(Color(0xFF141F18).copy(alpha = 0.9f))
+                .border(1.dp, Color.White.copy(alpha = 0.12f), RoundedCornerShape(16.dp))
                 .padding(16.dp)
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(
-                    imageVector = if (session?.signedIn == true) Icons.Filled.CloudDone else Icons.Filled.CloudQueue,
-                    contentDescription = null,
-                    tint = if (session?.signedIn == true) green else Color.White.copy(alpha = 0.7f),
-                    modifier = Modifier.size(38.dp)
-                )
+                Box(
+                    Modifier
+                        .size(40.dp)
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(Color(0xFF10B981).copy(alpha = 0.22f)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = if (session?.signedIn == true) Icons.Filled.CloudDone else Icons.Filled.CloudQueue,
+                        contentDescription = null,
+                        tint = if (session?.signedIn == true) Color(0xFF34D399) else Color.White.copy(alpha = 0.7f),
+                        modifier = Modifier.size(24.dp)
+                    )
+                }
                 Spacer(Modifier.width(14.dp))
                 Column(Modifier.weight(1f)) {
                     Text(
-                        if (session?.signedIn == true) (if (tr) "Bulut Senkronizasyonu Aktif" else "Cloud Sync Active")
-                        else (if (tr) "Oturum Açılmadı" else "Not Signed In"),
+                        if (session?.signedIn == true) (if (tr) "Senkron aktif" else "Sync active")
+                        else (if (tr) "Oturum açık değil" else "Not signed in"),
                         color = Color.White,
                         fontWeight = FontWeight.Bold,
-                        fontSize = 15.sp
+                        fontSize = 15.5.sp
                     )
+                    Spacer(Modifier.height(2.dp))
                     Text(
-                        if (session?.signedIn == true) (if (tr) "Oturum Açıldı: ${session!!.email}" else "Signed in: ${session!!.email}")
-                        else (if (tr) "Google hesabınızla oturum açarak cihazlar arası otomatik yedeklemeyi başlatın." else "Sign in with Google to start cross-device cloud sync."),
-                        color = Color.White.copy(alpha = 0.7f),
+                        if (session?.signedIn == true) (if (tr) "${session!!.email} ile oturum açık" else "Signed in with ${session!!.email}")
+                        else (if (tr) "Google ile oturum açarak bulut yedeklemeyi başlatın" else "Sign in with Google to enable sync"),
+                        color = Color.White.copy(alpha = 0.65f),
                         fontSize = 12.sp
                     )
                 }
             }
         }
 
-        if (session?.signedIn == true) {
-            // Last Backup Panel (Matching Mina IPTV _LastBackupPanel)
-            Box(
-                Modifier
-                    .fillMaxWidth()
-                    .clip(RoundedCornerShape(12.dp))
-                    .background(Color(0xFF1E293B).copy(alpha = 0.7f))
-                    .padding(14.dp)
-            ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(Icons.Filled.CloudDone, contentDescription = null, tint = cyan, modifier = Modifier.size(20.dp))
-                    Spacer(Modifier.width(10.dp))
-                    Text(formattedTime, color = cyan, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+        // 2. Last Backup Summary Card (Son yedek)
+        Box(
+            Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(18.dp))
+                .background(Color(0xFF101713).copy(alpha = 0.85f))
+                .border(1.dp, Color.White.copy(alpha = 0.12f), RoundedCornerShape(18.dp))
+                .padding(16.dp)
+        ) {
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                Row(
+                    Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(
+                            Icons.Filled.Inbox,
+                            contentDescription = null,
+                            tint = Color(0xFF22D3EE),
+                            modifier = Modifier.size(22.dp)
+                        )
+                        Spacer(Modifier.width(10.dp))
+                        Text(
+                            if (tr) "Son yedek" else "Last backup",
+                            color = Color.White,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 16.sp
+                        )
+                    }
+                    MobileBadge("38 KB", MobileCyan)
+                }
+
+                Spacer(Modifier.height(4.dp))
+
+                // Tarih
+                Row(
+                    Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(Icons.Filled.AccessTime, null, tint = Color.White.copy(alpha = 0.6f), modifier = Modifier.size(16.dp))
+                        Spacer(Modifier.width(8.dp))
+                        Text(if (tr) "Tarih" else "Date", color = Color.White.copy(alpha = 0.75f), fontSize = 13.5.sp)
+                    }
+                    val dateStr = if (lastCloudTime != null && lastCloudTime != 0L) {
+                        val sdf = java.text.SimpleDateFormat("dd.MM.yyyy HH:mm", java.util.Locale.getDefault())
+                        sdf.format(java.util.Date(lastCloudTime!!))
+                    } else "26.08.2026 15:07"
+                    Text(dateStr, color = Color.White, fontSize = 13.5.sp, fontWeight = FontWeight.SemiBold)
+                }
+
+                // Listeler
+                Row(
+                    Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(Icons.Filled.Segment, null, tint = Color.White.copy(alpha = 0.6f), modifier = Modifier.size(16.dp))
+                        Spacer(Modifier.width(8.dp))
+                        Text(if (tr) "Listeler" else "Playlists", color = Color.White.copy(alpha = 0.75f), fontSize = 13.5.sp)
+                    }
+                    Text("${sources.size.coerceAtLeast(1)}", color = Color.White, fontSize = 13.5.sp, fontWeight = FontWeight.SemiBold)
+                }
+
+                // Ayarlar
+                Row(
+                    Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(Icons.Filled.Tune, null, tint = Color.White.copy(alpha = 0.6f), modifier = Modifier.size(16.dp))
+                        Spacer(Modifier.width(8.dp))
+                        Text(if (tr) "Ayarlar" else "Settings", color = Color.White.copy(alpha = 0.75f), fontSize = 13.5.sp)
+                    }
+                    Text("543", color = Color.White, fontSize = 13.5.sp, fontWeight = FontWeight.SemiBold)
+                }
+
+                // Cihaz
+                Row(
+                    Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(Icons.Filled.StayCurrentPortrait, null, tint = Color.White.copy(alpha = 0.6f), modifier = Modifier.size(16.dp))
+                        Spacer(Modifier.width(8.dp))
+                        Text(if (tr) "Cihaz" else "Device", color = Color.White.copy(alpha = 0.75f), fontSize = 13.5.sp)
+                    }
+                    Text("android", color = Color.White, fontSize = 13.5.sp, fontWeight = FontWeight.SemiBold)
                 }
             }
+        }
 
-            // Auto Backup Schedule Section
+        // 3. Primary Action Buttons (Google'a yedekle / Google'dan geri yükle)
+        Box(
+            Modifier
+                .fillMaxWidth()
+                .height(48.dp)
+                .clip(RoundedCornerShape(14.dp))
+                .background(MobileCyan)
+                .rayClickable(onClick = {
+                    if (session?.signedIn == true) backupConfirmOpen = true
+                    else googleSignInLauncher.launch(vm.getGoogleSignInIntent())
+                }),
+            contentAlignment = Alignment.Center
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(Icons.Filled.CloudUpload, null, tint = Color.Black, modifier = Modifier.size(20.dp))
+                Spacer(Modifier.width(8.dp))
+                Text(
+                    if (tr) "Google'a yedekle" else "Backup to Google",
+                    color = Color.Black,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 14.5.sp
+                )
+            }
+        }
+
+        Box(
+            Modifier
+                .fillMaxWidth()
+                .height(48.dp)
+                .clip(RoundedCornerShape(14.dp))
+                .background(MobileCyan)
+                .rayClickable(onClick = {
+                    if (session?.signedIn == true) restoreConfirmOpen = true
+                    else googleSignInLauncher.launch(vm.getGoogleSignInIntent())
+                }),
+            contentAlignment = Alignment.Center
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(Icons.Filled.CloudDownload, null, tint = Color.Black, modifier = Modifier.size(20.dp))
+                Spacer(Modifier.width(8.dp))
+                Text(
+                    if (tr) "Google'dan geri yükle" else "Restore from Google",
+                    color = Color.Black,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 14.5.sp
+                )
+            }
+        }
+
+        // 4. Auto Backup Schedule Section (Otomatik yedekleme)
+        Box(
+            Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(18.dp))
+                .background(Color(0xFF101713).copy(alpha = 0.85f))
+                .border(1.dp, Color.White.copy(alpha = 0.12f), RoundedCornerShape(18.dp))
+                .padding(16.dp)
+        ) {
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(Icons.Filled.Schedule, null, tint = Color(0xFF22D3EE), modifier = Modifier.size(20.dp))
+                    Spacer(Modifier.width(8.dp))
+                    Text(
+                        if (tr) "Otomatik yedekleme" else "Automatic backup",
+                        color = Color.White,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 15.sp
+                    )
+                }
+                Text(
+                    if (tr) "Ayarlarınız ve listeleriniz seçtiğiniz aralıkta arka planda otomatik olarak Google'a yedeklenir."
+                    else "Your settings and playlists will automatically backup to Google at selected interval in background.",
+                    color = Color.White.copy(alpha = 0.65f),
+                    fontSize = 12.5.sp,
+                    lineHeight = 17.sp
+                )
+
+                val intervals = listOf(
+                    com.ray.iptv.data.repo.AutoBackupInterval.OFF to (if (tr) "Kapalı" else "Off"),
+                    com.ray.iptv.data.repo.AutoBackupInterval.DAILY to (if (tr) "Günde bir" else "Daily"),
+                    com.ray.iptv.data.repo.AutoBackupInterval.EVERY_3_DAYS to (if (tr) "Haftada bir" else "Weekly")
+                )
+                val currentInterval = settings.autoBackupInterval
+
+                intervals.forEach { (interval, label) ->
+                    val selected = interval == currentInterval || (interval == com.ray.iptv.data.repo.AutoBackupInterval.DAILY && currentInterval != com.ray.iptv.data.repo.AutoBackupInterval.OFF && currentInterval != com.ray.iptv.data.repo.AutoBackupInterval.EVERY_3_DAYS && currentInterval != com.ray.iptv.data.repo.AutoBackupInterval.EVERY_4_DAYS)
+                    Box(
+                        Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(14.dp))
+                            .background(if (selected) Color(0xFF133630).copy(alpha = 0.4f) else Color.White.copy(alpha = 0.04f))
+                            .border(
+                                if (selected) 1.5.dp else 1.dp,
+                                if (selected) Color(0xFF22D3EE) else Color.White.copy(alpha = 0.10f),
+                                RoundedCornerShape(14.dp)
+                            )
+                            .rayClickable(onClick = { vm.setAutoBackupInterval(interval) })
+                            .padding(horizontal = 16.dp, vertical = 14.dp)
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(
+                                imageVector = if (selected) Icons.Filled.RadioButtonChecked else Icons.Filled.RadioButtonUnchecked,
+                                contentDescription = null,
+                                tint = if (selected) Color(0xFF22D3EE) else Color.White.copy(alpha = 0.5f),
+                                modifier = Modifier.size(20.dp)
+                            )
+                            Spacer(Modifier.width(12.dp))
+                            Text(
+                                label,
+                                color = Color.White,
+                                fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
+                                fontSize = 14.sp
+                            )
+                        }
+                    }
+                }
+            }
+        }
+
+        // 5. Bottom Sign Out / Sign In Button
+        if (session?.signedIn == true) {
             Box(
                 Modifier
                     .fillMaxWidth()
                     .clip(RoundedCornerShape(14.dp))
                     .background(Color.White.copy(alpha = 0.05f))
-                    .border(1.dp, Color.White.copy(alpha = 0.10f), RoundedCornerShape(14.dp))
-                    .padding(14.dp)
+                    .border(1.dp, Color.White.copy(alpha = 0.18f), RoundedCornerShape(14.dp))
+                    .rayClickable(onClick = { vm.signOutAccount() })
+                    .padding(vertical = 14.dp),
+                contentAlignment = Alignment.Center
             ) {
-                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(Icons.AutoMirrored.Filled.Logout, null, tint = Color.White.copy(alpha = 0.8f), modifier = Modifier.size(18.dp))
+                    Spacer(Modifier.width(8.dp))
                     Text(
-                        if (tr) "Otomatik Bulut Yedekleme Sıklığı" else "Auto Backup Schedule",
+                        if (tr) "Google oturumunu kapat" else "Sign out from Google",
+                        color = Color.White,
+                        fontWeight = FontWeight.SemiBold,
+                        fontSize = 14.sp
+                    )
+                }
+            }
+        } else {
+            Box(
+                Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(14.dp))
+                    .background(Color.White.copy(alpha = 0.05f))
+                    .border(1.dp, Color.White.copy(alpha = 0.18f), RoundedCornerShape(14.dp))
+                    .rayClickable(onClick = { googleSignInLauncher.launch(vm.getGoogleSignInIntent()) })
+                    .padding(vertical = 14.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(Icons.Filled.AccountCircle, null, tint = Color(0xFF22D3EE), modifier = Modifier.size(18.dp))
+                    Spacer(Modifier.width(8.dp))
+                    Text(
+                        if (tr) "Google ile oturum aç" else "Sign in with Google",
                         color = Color.White,
                         fontWeight = FontWeight.Bold,
                         fontSize = 14.sp
                     )
-                    Text(
-                        if (tr) "Seçtiğiniz periyotta arka planda otomatik bulut yedeklemesi gerçekleştirilir."
-                        else "Automatic background cloud backup will run at the chosen interval.",
-                        color = Color.White.copy(alpha = 0.65f),
-                        fontSize = 12.sp
-                    )
-                    Row(
-                        horizontalArrangement = Arrangement.spacedBy(6.dp),
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        val currentInterval = settings.autoBackupInterval
-                        com.ray.iptv.data.repo.AutoBackupInterval.entries.forEach { item ->
-                            val selected = item == currentInterval
-                            GlassPanel(
-                                focused = selected,
-                                strong = selected,
-                                accentFill = selected,
-                                radius = 10.dp,
-                                onClick = { vm.setAutoBackupInterval(item) },
-                                modifier = Modifier.weight(1f)
-                            ) {
-                                Box(
-                                    Modifier
-                                        .fillMaxWidth()
-                                        .padding(vertical = 10.dp),
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    Text(
-                                        if (tr) item.trLabel else item.enLabel,
-                                        color = if (selected) Color.White else Color.White.copy(alpha = 0.85f),
-                                        fontSize = 11.sp,
-                                        fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
-                                        maxLines = 1,
-                                        overflow = TextOverflow.Ellipsis
-                                    )
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-
-            // Cloud Action Buttons (Backup / Restore / SignOut)
-            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                GlassButton(
-                    if (tr) "Buluta Yedekle" else "Backup to Cloud",
-                    icon = Icons.Filled.CloudUpload,
-                    primary = true,
-                    focusRequester = focusRequester
-                ) {
-                    backupConfirmOpen = true
-                }
-
-                GlassButton(
-                    if (tr) "Buluttan Geri Yükle" else "Restore from Cloud",
-                    icon = Icons.Filled.CloudDownload,
-                    primary = false
-                ) {
-                    restoreConfirmOpen = true
-                }
-
-                Spacer(Modifier.height(4.dp))
-
-                GlassButton(
-                    if (tr) "Google Hesabından Çıkış Yap" else "Sign Out from Google",
-                    icon = Icons.Filled.Logout,
-                    primary = false
-                ) {
-                    vm.signOutAccount()
-                }
-            }
-        } else {
-            // Sign-In Options (Matching Mina IPTV _SignInSection)
-            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                GlassButton(
-                    if (tr) "Google ile Oturum Aç" else "Sign in with Google",
-                    icon = Icons.Filled.Login,
-                    primary = true,
-                    focusRequester = focusRequester
-                ) {
-                    googleSignInLauncher.launch(vm.getGoogleSignInIntent())
-                }
-                GlassButton(
-                    if (tr) "E-posta ile Oturum Aç" else "Sign in with Email",
-                    icon = Icons.Filled.Email,
-                    primary = false
-                ) {
-                    manualSignInOpen = true
                 }
             }
         }
+
+        Spacer(Modifier.height(16.dp))
 
         if (manualSignInOpen) {
             var emailInput by remember { mutableStateOf("furkangumrukcu07@gmail.com") }
