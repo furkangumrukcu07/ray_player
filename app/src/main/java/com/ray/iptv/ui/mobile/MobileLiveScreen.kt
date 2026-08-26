@@ -48,7 +48,10 @@ import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Replay
 import androidx.compose.material.icons.filled.Share
+import androidx.compose.material.icons.filled.Segment
+import androidx.compose.material.icons.filled.ScreenRotation
 import androidx.compose.material.icons.filled.SwapHoriz
+import com.ray.iptv.ui.player.toggleScreenOrientation
 import androidx.compose.material.icons.filled.ViewStream
 import androidx.compose.material.icons.filled.ViewTimeline
 import androidx.compose.foundation.clickable
@@ -855,15 +858,45 @@ fun MobileLiveWatchScreen(
                     .padding(14.dp)
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(playback.title, color = Color.White, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f), maxLines = 1, overflow = TextOverflow.Ellipsis)
-                    MobileBadge(streamLabel, Color(0xFF6B4B9A))
-                    Spacer(Modifier.width(6.dp))
+                    Text(
+                        playback.title,
+                        color = Color.White,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 15.sp,
+                        modifier = Modifier.weight(1f),
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                    // Stream format badge (TS / HLS) with segment icon
                     Row(
                         Modifier
                             .clip(RoundedCornerShape(8.dp))
-                            .background(Color(0xFF1565C0))
+                            .background(Color(0xFF9C27B0))
+                            .padding(horizontal = 7.dp, vertical = 3.5.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            Icons.Filled.Segment,
+                            null,
+                            tint = Color.White,
+                            modifier = Modifier.size(12.dp)
+                        )
+                        Spacer(Modifier.width(3.dp))
+                        Text(
+                            streamLabel,
+                            color = Color.White,
+                            fontSize = 10.sp,
+                            fontWeight = FontWeight.ExtraBold
+                        )
+                    }
+                    Spacer(Modifier.width(6.dp))
+                    // Better / MediaKit Engine Badge
+                    Row(
+                        Modifier
+                            .clip(RoundedCornerShape(8.dp))
+                            .background(Color(0xFF1976D2))
                             .rayClickable(onClick = { onToggleEngine?.invoke() })
-                            .padding(horizontal = 6.dp, vertical = 3.dp),
+                            .padding(horizontal = 7.dp, vertical = 3.5.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Icon(
@@ -871,10 +904,28 @@ fun MobileLiveWatchScreen(
                             null, tint = Color.White, modifier = Modifier.size(12.dp)
                         )
                         Spacer(Modifier.width(3.dp))
-                        Text(if (st.engine == PlaybackEngine.MEDIA_KIT) "MediaKit" else "Better", color = Color.White, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                        Text(
+                            if (st.engine == PlaybackEngine.MEDIA_KIT) "MediaKit" else "Better",
+                            color = Color.White,
+                            fontSize = 10.sp,
+                            fontWeight = FontWeight.Bold
+                        )
                     }
                     Spacer(Modifier.width(6.dp))
-                    MobileBadge(if (st.videoSize.isNotBlank()) st.videoSize else "HD", Color(0xFF455A64))
+                    // Resolution Badge
+                    Box(
+                        Modifier
+                            .clip(RoundedCornerShape(8.dp))
+                            .background(Color(0xFF37474F))
+                            .padding(horizontal = 7.dp, vertical = 3.5.dp)
+                    ) {
+                        Text(
+                            if (st.videoSize.isNotBlank()) st.videoSize else "FHD",
+                            color = Color.White,
+                            fontSize = 10.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
                 }
 
                 Spacer(Modifier.height(14.dp))
@@ -897,7 +948,7 @@ fun MobileLiveWatchScreen(
                         Modifier.size(44.dp).clip(CircleShape).background(MobileCyan).rayClickable(onClick = onPausePlay),
                         contentAlignment = Alignment.Center
                     ) {
-                        Icon(if (st.playing) Icons.Filled.Pause else Icons.Filled.PlayArrow, null, tint = Color.White, modifier = Modifier.size(24.dp))
+                        Icon(if (st.playing) Icons.Filled.Pause else Icons.Filled.PlayArrow, null, tint = Color.Black, modifier = Modifier.size(24.dp))
                     }
 
                     // Sonraki Kanal (Next Channel)
@@ -932,20 +983,22 @@ fun MobileLiveWatchScreen(
                         modifier = Modifier.size(24.dp).rayClickable(onClick = { showQualitySheet = true })
                     )
 
-                    // Yayın Bilgisi (Info Dialog)
-                    Icon(
-                        Icons.Filled.Info,
-                        null,
-                        tint = if (showInfoDialog) MobileCyan else Color.White,
-                        modifier = Modifier.size(22.dp).rayClickable(onClick = { showInfoDialog = true })
-                    )
-
                     // Ekran Boyutu / Aspect Ratio (Resize)
                     Icon(
                         Icons.Filled.AspectRatio,
                         null,
                         tint = if (aspect != AspectMode.FIT) MobileCyan else Color.White,
                         modifier = Modifier.size(24.dp).rayClickable(onClick = onAspect)
+                    )
+
+                    // Yatay / Dikey Ekran Döndürme (Rotate / Fullscreen)
+                    Icon(
+                        Icons.Filled.ScreenRotation,
+                        null,
+                        tint = Color.White,
+                        modifier = Modifier
+                            .size(24.dp)
+                            .rayClickable(onClick = { context.toggleScreenOrientation() })
                     )
                 }
             }

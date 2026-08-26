@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.material.icons.filled.HighQuality
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -39,6 +40,8 @@ import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material.icons.filled.Memory
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.ScreenRotation
+import com.ray.iptv.ui.player.toggleScreenOrientation
 import androidx.compose.material.icons.filled.SkipNext
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -106,6 +109,7 @@ fun MobileVodWatchScreen(
     onCancelNext: () -> Unit,
     introTargetMs: Long
 ) {
+    val context = LocalContext.current
     var st by remember(playback.url) { mutableStateOf(rayPlayer.snapshot()) }
     LaunchedEffect(playback.url) {
         while (true) {
@@ -261,6 +265,12 @@ fun MobileVodWatchScreen(
                 Icon(Icons.Filled.HighQuality, null, tint = if (showQualitySheet) MobileCyan else Color.White, modifier = Modifier.size(22.dp).rayClickable(onClick = { showQualitySheet = true }))
                 Icon(Icons.Filled.ClosedCaption, null, tint = Color.White, modifier = Modifier.size(22.dp).rayClickable(onClick = { subSheet = true }))
                 Icon(Icons.Filled.AspectRatio, null, tint = Color.White, modifier = Modifier.size(22.dp).rayClickable(onAspect))
+                Icon(
+                    Icons.Filled.ScreenRotation,
+                    null,
+                    tint = Color.White,
+                    modifier = Modifier.size(22.dp).rayClickable(onClick = { context.toggleScreenOrientation() })
+                )
                 Icon(
                     if (favorite) Icons.Filled.Favorite else Icons.Filled.FavoriteBorder,
                     null,
