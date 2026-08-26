@@ -713,35 +713,62 @@ fun GlassConfirmDialog(
     onDismiss: () -> Unit,
     onConfirm: () -> Unit
 ) {
-    val g = LocalGlass.current
     Dialog(onDismissRequest = onDismiss) {
-        GlassPanel(strong = true, radius = 20.dp, modifier = Modifier.fillMaxWidth()) {
-            Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                Text(title, color = g.text, style = MaterialTheme.typography.headlineSmall)
-                Text(body, color = g.muted, style = MaterialTheme.typography.bodyMedium)
-                if (LocalMobileSettingsChrome.current) {
-                    Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        GlassButton(
-                            confirm,
-                            primary = true,
-                            destructive = confirm == "Sil" || confirm.equals("Delete", true),
-                            modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp)
-                        ) {
-                            onConfirm()
-                            onDismiss()
-                        }
-                        GlassButton(cancel, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) { onDismiss() }
-                    }
-                } else {
-                    Row(
-                        horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.End),
-                        modifier = Modifier.fillMaxWidth()
+        Box(
+            Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(22.dp))
+                .background(Color(0xFF111714))
+                .border(1.2.dp, Color.White.copy(alpha = 0.16f), RoundedCornerShape(22.dp))
+                .padding(22.dp)
+        ) {
+            Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(14.dp)) {
+                Text(
+                    title,
+                    color = Color.White,
+                    fontSize = 19.sp,
+                    fontWeight = FontWeight.Bold
+                )
+                Text(
+                    body,
+                    color = Color.White.copy(alpha = 0.82f),
+                    fontSize = 14.sp,
+                    lineHeight = 20.sp
+                )
+                val destructive = confirm == "Sil" || confirm.equals("Delete", true)
+                Row(
+                    Modifier.fillMaxWidth().padding(top = 8.dp),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp, Alignment.End),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Box(
+                        Modifier
+                            .clip(RoundedCornerShape(12.dp))
+                            .background(Color.White.copy(alpha = 0.06f))
+                            .border(1.dp, Color.White.copy(alpha = 0.20f), RoundedCornerShape(12.dp))
+                            .rayClickable(onClick = onDismiss)
+                            .padding(horizontal = 20.dp, vertical = 10.dp),
+                        contentAlignment = Alignment.Center
                     ) {
-                        GlassButton(cancel) { onDismiss() }
-                        GlassButton(confirm, primary = true, destructive = confirm == "Sil" || confirm.equals("Delete", true)) {
-                            onConfirm()
-                            onDismiss()
-                        }
+                        Text(cancel, color = Color.White, fontWeight = FontWeight.SemiBold, fontSize = 13.5.sp)
+                    }
+                    Box(
+                        Modifier
+                            .clip(RoundedCornerShape(12.dp))
+                            .background(if (destructive) Color(0xFF8B1D1D) else Color(0xFF133630))
+                            .border(
+                                1.dp,
+                                if (destructive) Color(0xFFEF5350) else Color(0xFF22D3EE).copy(alpha = 0.65f),
+                                RoundedCornerShape(12.dp)
+                            )
+                            .rayClickable(onClick = {
+                                onConfirm()
+                                onDismiss()
+                            })
+                            .padding(horizontal = 22.dp, vertical = 10.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(confirm, color = Color.White, fontWeight = FontWeight.Bold, fontSize = 13.5.sp)
                     }
                 }
             }

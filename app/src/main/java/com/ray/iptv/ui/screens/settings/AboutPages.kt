@@ -24,6 +24,9 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.ui.unit.sp
+import androidx.compose.ui.unit.dp
+import com.ray.iptv.ui.input.rayClickable
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.AdminPanelSettings
@@ -578,20 +581,60 @@ private fun UpdateResultDialog(
 
 @Composable
 private fun ScrollTextDialog(title: String, body: String, close: String, onDismiss: () -> Unit) {
-    val g = LocalGlass.current
     Dialog(onDismissRequest = onDismiss) {
-        GlassPanel(strong = true, radius = 20.dp, modifier = Modifier.fillMaxWidth().heightIn(max = 520.dp)) {
-            Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                Text(title, color = g.text, style = MaterialTheme.typography.headlineSmall)
+        Box(
+            Modifier
+                .fillMaxWidth()
+                .heightIn(max = 560.dp)
+                .clip(RoundedCornerShape(22.dp))
+                .background(Color(0xFF111714))
+                .border(1.2.dp, Color.White.copy(alpha = 0.16f), RoundedCornerShape(22.dp))
+                .padding(20.dp)
+        ) {
+            Column(
+                Modifier.fillMaxWidth(),
+                verticalArrangement = Arrangement.spacedBy(14.dp)
+            ) {
+                Text(
+                    title,
+                    color = Color.White,
+                    fontSize = 20.sp,
+                    fontWeight = FontWeight.Bold
+                )
                 Column(
                     Modifier
                         .weight(1f, fill = false)
-                        .heightIn(max = 380.dp)
+                        .fillMaxWidth()
                         .verticalScroll(rememberScrollState())
                 ) {
-                    Text(body, color = g.muted, style = MaterialTheme.typography.bodyMedium)
+                    Text(
+                        body,
+                        color = Color.White.copy(alpha = 0.85f),
+                        fontSize = 13.5.sp,
+                        lineHeight = 20.sp
+                    )
                 }
-                GlassButton(close) { onDismiss() }
+                Row(
+                    Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.End
+                ) {
+                    Box(
+                        Modifier
+                            .clip(RoundedCornerShape(12.dp))
+                            .background(Color(0xFF133630))
+                            .border(1.dp, Color(0xFF22D3EE).copy(alpha = 0.6f), RoundedCornerShape(12.dp))
+                            .rayClickable(onClick = onDismiss)
+                            .padding(horizontal = 24.dp, vertical = 10.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            close,
+                            color = Color.White,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 14.sp
+                        )
+                    }
+                }
             }
         }
     }
