@@ -780,7 +780,7 @@ class RayPlayer @Inject constructor(
             .setEnableDecoderFallback(true)
             .setEnableAudioTrackPlaybackParams(true)
             .setAllowedVideoJoiningTimeMs(5000)
-            .setExtensionRendererMode(DefaultRenderersFactory.EXTENSION_RENDERER_MODE_OFF)
+            .setExtensionRendererMode(DefaultRenderersFactory.EXTENSION_RENDERER_MODE_PREFER)
             .setMediaCodecSelector { mime, secure, tunnel ->
                 val all = runCatching {
                     androidx.media3.exoplayer.mediacodec.MediaCodecUtil.getDecoderInfos(mime, secure, false)
@@ -789,7 +789,19 @@ class RayPlayer @Inject constructor(
             }
         val trackParams = trackSelector.buildUponParameters()
             .setTunnelingEnabled(false)
-            .setPreferredAudioMimeTypes(MimeTypes.AUDIO_AAC, MimeTypes.AUDIO_MPEG, MimeTypes.AUDIO_OPUS)
+            .setPreferredAudioMimeTypes(
+                MimeTypes.AUDIO_E_AC3,
+                MimeTypes.AUDIO_E_AC3_JOC,
+                MimeTypes.AUDIO_AC3,
+                MimeTypes.AUDIO_AC4,
+                MimeTypes.AUDIO_DTS,
+                MimeTypes.AUDIO_DTS_HD,
+                MimeTypes.AUDIO_TRUEHD,
+                MimeTypes.AUDIO_AAC,
+                MimeTypes.AUDIO_MPEG,
+                MimeTypes.AUDIO_OPUS,
+                MimeTypes.AUDIO_FLAC
+            )
         val maxH = socHints.adaptiveMaxVideoHeightHint()
         if (maxH != null) {
             val maxW = if (maxH <= 720) 1280 else 1920
