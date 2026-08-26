@@ -22,6 +22,7 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -212,7 +213,7 @@ fun MobileWrappedScreen(
     Column(
         Modifier
             .fillMaxSize()
-            .background(Color(0xFF090E0B))
+            .navigationBarsPadding()
             .verticalScroll(rememberScrollState())
             .padding(bottom = 36.dp)
     ) {
@@ -220,7 +221,7 @@ fun MobileWrappedScreen(
         Row(
             Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 14.dp, vertical = 10.dp),
+                .padding(horizontal = 14.dp, vertical = 6.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Box(
@@ -505,8 +506,8 @@ fun MobileWrappedScreen(
                 .padding(horizontal = 14.dp, vertical = 6.dp)
                 .fillMaxWidth()
                 .clip(RoundedCornerShape(20.dp))
-                .background(Color(0xFF101713).copy(alpha = 0.88f))
-                .border(1.dp, Color.White.copy(alpha = 0.12f), RoundedCornerShape(20.dp))
+                .background(Color(0xFF16382B).copy(alpha = 0.45f))
+                .border(1.dp, Color(0xFF4ADE80).copy(alpha = 0.20f), RoundedCornerShape(20.dp))
                 .padding(16.dp)
         ) {
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -610,8 +611,8 @@ fun MobileWrappedScreen(
                 .padding(horizontal = 14.dp, vertical = 6.dp)
                 .fillMaxWidth()
                 .clip(RoundedCornerShape(20.dp))
-                .background(Color(0xFF101713).copy(alpha = 0.88f))
-                .border(1.dp, Color.White.copy(alpha = 0.12f), RoundedCornerShape(20.dp))
+                .background(Color(0xFF16382B).copy(alpha = 0.45f))
+                .border(1.dp, Color(0xFF4ADE80).copy(alpha = 0.20f), RoundedCornerShape(20.dp))
                 .padding(16.dp)
         ) {
             Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
@@ -766,8 +767,8 @@ fun MobileWrappedScreen(
                         Modifier
                             .fillMaxWidth()
                             .clip(RoundedCornerShape(14.dp))
-                            .background(Color(0xFF101713).copy(alpha = 0.88f))
-                            .border(1.dp, Color.White.copy(alpha = 0.08f), RoundedCornerShape(14.dp))
+                            .background(Color(0xFF16382B).copy(alpha = 0.45f))
+                            .border(1.dp, Color(0xFF4ADE80).copy(alpha = 0.20f), RoundedCornerShape(14.dp))
                             .padding(horizontal = 14.dp, vertical = 12.dp)
                     ) {
                         Row(verticalAlignment = Alignment.CenterVertically) {

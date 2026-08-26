@@ -170,7 +170,7 @@ fun MobileHost(
             vodWatch || liveWatch -> vm.backFromPlayer()
             vodDetail -> vm.closeDetail()
             dest == Dest.LIVE && livePhase == LiveBrowsePhase.CONTENT -> vm.backFromLiveContent()
-            dest == Dest.WRAPPED || dest == Dest.LIVE || dest == Dest.MOVIES || dest == Dest.SERIES || dest == Dest.PLAYLISTS ->
+            dest == Dest.WRAPPED || dest == Dest.EPG_MIX || dest == Dest.LIVE || dest == Dest.MOVIES || dest == Dest.SERIES || dest == Dest.PLAYLISTS ->
                 vm.go(Dest.CONTINUE)
             dest == Dest.SETTINGS || dest == Dest.ADMIN -> vm.go(Dest.CONTINUE)
             dest == Dest.CONTINUE -> requestExit()
@@ -357,6 +357,13 @@ fun MobileHost(
                     )
                     dest == Dest.ADMIN -> AdminHost(vm, tr) { vm.go(Dest.CONTINUE) }
                     dest == Dest.WRAPPED -> MobileWrappedScreen(vm, tr) { vm.go(Dest.CONTINUE) }
+                    dest == Dest.EPG_MIX -> MobileEpgMixScreen(
+                        vm = vm,
+                        tr = tr,
+                        onBack = { vm.go(Dest.CONTINUE) },
+                        onPlayLive = vm::playChannel,
+                        onCatchup = { ch, p -> vm.playCatchup(ch, p) }
+                    )
                     dest == Dest.LIVE -> MobileLiveBrowseScreen(
                         tr = tr,
                         categories = visibleLiveCats,
@@ -451,32 +458,9 @@ fun MobileHost(
                     },
                     onSearch = { vm.showOverlay(Overlay.SEARCH) },
                     onLastWatched = vm::playLastWatched,
-                    onGuide = { vm.showOverlay(Overlay.GUIDE) },
+                    onGuide = { vm.go(Dest.EPG_MIX) },
                     style = settings.dockbarStyle,
                     showLastWatched = settings.homeLastWatchedButton
-                )
-            }
-        }
-        if (overlay == Overlay.GUIDE) {
-            Box(
-                Modifier
-                    .fillMaxSize()
-                    .statusBarsPadding()
-                    .clipToBounds()
-                    .rayBounceOverscroll()
-            ) {
-                MobileEpgMixScreen(
-                    vm = vm,
-                    tr = tr,
-                    onBack = vm::closeOverlay,
-                    onPlayLive = {
-                        vm.closeOverlay()
-                        vm.playChannel(it)
-                    },
-                    onCatchup = { ch, p ->
-                        vm.closeOverlay()
-                        vm.playCatchup(ch, p)
-                    }
                 )
             }
         }

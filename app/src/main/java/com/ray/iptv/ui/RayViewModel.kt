@@ -416,7 +416,7 @@ class RayViewModel @Inject constructor(
                     seriesPhase.value = LiveBrowsePhase.CATEGORIES
                 }
                 Dest.PLAYLISTS -> railExpanded.value = false
-                Dest.CONTINUE, Dest.SETTINGS, Dest.WRAPPED, Dest.CHAT, Dest.ADMIN -> railExpanded.value = true
+                Dest.CONTINUE, Dest.SETTINGS, Dest.WRAPPED, Dest.EPG_MIX, Dest.CHAT, Dest.ADMIN -> railExpanded.value = true
                 Dest.PLAYER -> Unit
             }
             if (s.startup == StartupScreen.GUIDE) overlay.value = Overlay.GUIDE
@@ -505,7 +505,7 @@ class RayViewModel @Inject constructor(
                 closeDetail()
             }
             Dest.PLAYLISTS, Dest.SETTINGS, Dest.CONTINUE -> railExpanded.value = false
-            Dest.WRAPPED, Dest.CHAT, Dest.ADMIN -> railExpanded.value = true
+            Dest.WRAPPED, Dest.EPG_MIX, Dest.CHAT, Dest.ADMIN -> railExpanded.value = true
             Dest.PLAYER -> Unit
         }
     }

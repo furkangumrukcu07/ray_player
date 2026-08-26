@@ -355,6 +355,13 @@ fun RayRoot(vm: RayViewModel = hiltViewModel()) {
                         )
                         Dest.PLAYER -> Unit
                         Dest.WRAPPED -> MobileWrappedScreen(vm, settings.lang == AppLang.TR) { vm.go(Dest.CONTINUE) }
+                        Dest.EPG_MIX -> MobileEpgMixScreen(
+                            vm = vm,
+                            tr = settings.lang == AppLang.TR,
+                            onBack = { vm.go(Dest.CONTINUE) },
+                            onPlayLive = vm::playChannel,
+                            onCatchup = { ch, p -> vm.playCatchup(ch, p) }
+                        )
                         Dest.CHAT, Dest.ADMIN -> Unit
                     }
                     }

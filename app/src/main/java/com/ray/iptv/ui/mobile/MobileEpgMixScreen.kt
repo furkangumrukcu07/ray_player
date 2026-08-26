@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -128,13 +129,13 @@ fun MobileEpgMixScreen(
     Column(
         Modifier
             .fillMaxSize()
-            .background(Color(0xFF090E0B))
+            .navigationBarsPadding()
     ) {
         // Top Header
         Row(
             Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 14.dp, vertical = 10.dp),
+                .padding(horizontal = 14.dp, vertical = 6.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Box(
@@ -413,8 +414,8 @@ fun MobileEpgMixScreen(
                         Modifier
                             .fillMaxWidth()
                             .clip(RoundedCornerShape(18.dp))
-                            .background(Color(0xFF101713).copy(alpha = 0.88f))
-                            .border(1.dp, Color.White.copy(alpha = 0.12f), RoundedCornerShape(18.dp))
+                            .background(Color(0xFF16382B).copy(alpha = 0.45f))
+                            .border(1.dp, Color(0xFF4ADE80).copy(alpha = 0.20f), RoundedCornerShape(18.dp))
                             .rayClickable(onClick = {
                                 if (isCatchup) {
                                     onCatchup(row.channel, p)

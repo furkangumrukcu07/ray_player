@@ -206,7 +206,7 @@ private fun isPop(from: Any?, to: Any?): Boolean = pageRank(to) < pageRank(from)
 
 private fun pageRank(v: Any?): Int = when (v) {
     Dest.CONTINUE -> 0
-    Dest.LIVE, Dest.MOVIES, Dest.SERIES, Dest.PLAYLISTS, Dest.WRAPPED -> 1
+    Dest.LIVE, Dest.MOVIES, Dest.SERIES, Dest.PLAYLISTS, Dest.WRAPPED, Dest.EPG_MIX -> 1
     Dest.SETTINGS, Dest.CHAT, Dest.ADMIN -> 2
     Dest.PLAYER -> 3
     is Enum<*> -> v.ordinal
