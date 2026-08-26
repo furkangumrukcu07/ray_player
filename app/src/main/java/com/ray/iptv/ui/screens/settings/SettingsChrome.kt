@@ -78,12 +78,13 @@ fun SettingsSectionLabel(text: String) {
     val g = LocalGlass.current
     val mobile = LocalMobileSettingsChrome.current
     Text(
-        if (mobile) text else text.uppercase(),
-        color = g.muted,
-        fontSize = if (mobile) 14.sp else MaterialTheme.typography.labelMedium.fontSize,
-        fontWeight = if (mobile) FontWeight.SemiBold else FontWeight.Medium,
+        text.uppercase(),
+        color = if (mobile) Color(0xFF22D3EE) else g.muted,
+        fontSize = if (mobile) 12.5.sp else MaterialTheme.typography.labelMedium.fontSize,
+        fontWeight = if (mobile) FontWeight.Bold else FontWeight.Medium,
+        letterSpacing = if (mobile) 0.5.sp else 0.sp,
         style = MaterialTheme.typography.labelMedium,
-        modifier = Modifier.padding(top = 10.dp, bottom = 8.dp, start = if (mobile) 2.dp else 6.dp)
+        modifier = Modifier.padding(top = 16.dp, bottom = 8.dp, start = if (mobile) 4.dp else 6.dp)
     )
 }
 
@@ -96,23 +97,16 @@ fun MobileSettingsTile(
     danger: Boolean = false
 ) {
     val g = LocalGlass.current
-    val accent = if (danger) g.danger else g.accent
-    val fg = if (danger) accent else g.capsuleForeground().takeIf { g.usesLightChrome } ?: g.text
-    val muted = fg.copy(alpha = 0.70f)
-    val fill = if (g.usesLightChrome) {
-        Brush.linearGradient(g.capsuleGradient())
-    } else {
-        Brush.linearGradient(listOf(g.panel.copy(alpha = 0.42f), g.panel.copy(alpha = 0.42f)))
-    }
-    val stroke = if (g.usesLightChrome) g.capsuleStroke() else g.stroke.copy(alpha = 0.7f)
+    val accent = if (danger) g.danger else Color(0xFF22D3EE)
+    val shape = RoundedCornerShape(20.dp)
     Row(
         Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(16.dp))
-            .background(fill, RoundedCornerShape(16.dp))
-            .border(1.dp, stroke, RoundedCornerShape(16.dp))
+            .clip(shape)
+            .background(Color(0xFF16382B).copy(alpha = 0.38f), shape)
+            .border(1.dp, Color(0xFF4ADE80).copy(alpha = 0.18f), shape)
             .rayClickable(onClick)
-            .padding(horizontal = 12.dp, vertical = 12.dp),
+            .padding(horizontal = 14.dp, vertical = 13.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Box(
@@ -120,30 +114,37 @@ fun MobileSettingsTile(
                 .size(42.dp)
                 .clip(RoundedCornerShape(12.dp))
                 .background(accent.copy(alpha = 0.14f))
-                .border(0.8.dp, accent.copy(alpha = 0.22f), RoundedCornerShape(12.dp)),
+                .border(0.8.dp, accent.copy(alpha = 0.25f), RoundedCornerShape(12.dp)),
             contentAlignment = Alignment.Center
         ) {
             Icon(icon, null, tint = accent, modifier = Modifier.size(22.dp))
         }
-        Spacer(Modifier.width(12.dp))
+        Spacer(Modifier.width(14.dp))
         Column(Modifier.weight(1f)) {
             Text(
                 title,
-                color = fg,
+                color = Color.White,
                 fontWeight = FontWeight.Bold,
-                fontSize = 15.sp,
+                fontSize = 15.5.sp,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )
+            Spacer(Modifier.height(2.dp))
             Text(
                 subtitle,
-                color = muted,
+                color = Color.White.copy(alpha = 0.65f),
                 fontSize = 12.sp,
                 fontWeight = FontWeight.Medium,
                 maxLines = 2,
                 overflow = TextOverflow.Ellipsis
             )
         }
+        Icon(
+            Icons.AutoMirrored.Filled.KeyboardArrowRight,
+            contentDescription = null,
+            tint = Color.White.copy(alpha = 0.45f),
+            modifier = Modifier.size(20.dp)
+        )
     }
 }
 
@@ -153,13 +154,13 @@ fun MobileSettingsFrame(
     onClick: (() -> Unit)? = null,
     content: @Composable () -> Unit
 ) {
-    val shape = RoundedCornerShape(22.dp)
+    val shape = RoundedCornerShape(20.dp)
     Box(
         modifier
             .fillMaxWidth()
             .clip(shape)
-            .background(Color(0xFF16382B).copy(alpha = 0.45f), shape)
-            .border(1.dp, Color(0xFF4ADE80).copy(alpha = 0.20f), shape)
+            .background(Color(0xFF16382B).copy(alpha = 0.38f), shape)
+            .border(1.dp, Color(0xFF4ADE80).copy(alpha = 0.18f), shape)
             .then(if (onClick != null) Modifier.rayClickable(onClick) else Modifier)
     ) {
         content()
@@ -194,61 +195,106 @@ fun MobileOptionTile(
     onClick: () -> Unit,
     showSwitch: Boolean = false,
     checked: Boolean = false,
+    valueTrailing: String? = null,
+    actionButtonText: String? = null,
+    onActionClick: (() -> Unit)? = null,
     enabled: Boolean = true,
     accent: Color? = null
 ) {
-    val resolvedAccent = accent ?: LocalGlass.current.accent
-    MobileSettingsFrame(onClick = if (enabled) onClick else null) {
+    val resolvedAccent = accent ?: Color(0xFF22D3EE)
+    MobileSettingsFrame(onClick = if (enabled && actionButtonText == null) onClick else null) {
         Row(
             Modifier
                 .alpha(if (enabled) 1f else 0.42f)
-                .padding(start = 14.dp, top = 12.dp, end = 12.dp, bottom = 12.dp),
+                .padding(start = 16.dp, top = 14.dp, end = 14.dp, bottom = 14.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             if (icon != null) {
                 Box(
                     Modifier
-                        .size(42.dp)
+                        .size(40.dp)
                         .clip(RoundedCornerShape(12.dp))
                         .background(resolvedAccent.copy(alpha = 0.14f))
                         .border(0.8.dp, resolvedAccent.copy(alpha = 0.22f), RoundedCornerShape(12.dp)),
                     contentAlignment = Alignment.Center
                 ) {
-                    Icon(icon, contentDescription = null, tint = resolvedAccent, modifier = Modifier.size(22.dp))
+                    Icon(icon, contentDescription = null, tint = resolvedAccent, modifier = Modifier.size(20.dp))
                 }
-                Spacer(Modifier.width(12.dp))
+                Spacer(Modifier.width(14.dp))
             }
             Column(Modifier.weight(1f)) {
                 Text(
                     title,
                     color = Color.White,
-                    fontWeight = FontWeight.ExtraBold,
+                    fontWeight = FontWeight.Bold,
                     fontSize = 15.sp,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
                 if (subtitle.isNotBlank()) {
-                    Spacer(Modifier.height(2.dp))
+                    Spacer(Modifier.height(3.dp))
                     Text(
                         subtitle,
-                        color = Color.White.copy(alpha = 0.65f),
-                        fontSize = 12.5.sp,
+                        color = Color.White.copy(alpha = 0.60f),
+                        fontSize = 12.sp,
                         fontWeight = FontWeight.Medium,
+                        lineHeight = 16.sp,
                         maxLines = 2,
                         overflow = TextOverflow.Ellipsis
                     )
                 }
             }
-            if (showSwitch) {
-                Spacer(Modifier.width(8.dp))
-                MobileSwitch(checked)
-            } else {
-                Icon(
-                    Icons.AutoMirrored.Filled.KeyboardArrowRight,
-                    contentDescription = null,
-                    tint = Color.White.copy(alpha = 0.55f),
-                    modifier = Modifier.size(22.dp)
-                )
+            Spacer(Modifier.width(10.dp))
+            when {
+                showSwitch -> {
+                    MobileSwitch(checked)
+                }
+                actionButtonText != null -> {
+                    Box(
+                        Modifier
+                            .clip(RoundedCornerShape(12.dp))
+                            .background(Color(0xFF133E37).copy(alpha = 0.85f))
+                            .border(1.dp, Color(0xFF22D3EE).copy(alpha = 0.65f), RoundedCornerShape(12.dp))
+                            .rayClickable(onClick = { onActionClick?.invoke() ?: onClick() })
+                            .padding(horizontal = 16.dp, vertical = 8.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            actionButtonText,
+                            color = Color(0xFF22D3EE),
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 13.5.sp
+                        )
+                    }
+                }
+                valueTrailing != null -> {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(4.dp),
+                        modifier = Modifier.rayClickable(onClick)
+                    ) {
+                        Text(
+                            valueTrailing,
+                            color = Color(0xFF22D3EE),
+                            fontWeight = FontWeight.SemiBold,
+                            fontSize = 13.5.sp
+                        )
+                        Icon(
+                            Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                            contentDescription = null,
+                            tint = Color(0xFF22D3EE),
+                            modifier = Modifier.size(18.dp)
+                        )
+                    }
+                }
+                else -> {
+                    Icon(
+                        Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                        contentDescription = null,
+                        tint = Color.White.copy(alpha = 0.45f),
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
             }
         }
     }
@@ -412,7 +458,17 @@ fun <T> SettingsPickerRow(
     onPick: (T) -> Unit
 ) {
     var open by remember { mutableStateOf(false) }
-    SettingsNavRow(title, valueLabel, icon) { open = true }
+    if (LocalMobileSettingsChrome.current) {
+        MobileOptionTile(
+            icon = icon,
+            title = title,
+            subtitle = body ?: "",
+            valueTrailing = valueLabel,
+            onClick = { open = true }
+        )
+    } else {
+        SettingsNavRow(title, valueLabel, icon) { open = true }
+    }
     if (open) {
         GlassChoiceDialog(
             title = title,

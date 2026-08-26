@@ -781,9 +781,10 @@ private fun PerfPage(vm: RayViewModel, settings: RaySettings, tr: Boolean) {
     val used = (rt.totalMemory() - rt.freeMemory()) / (1024 * 1024)
     val max = rt.maxMemory() / (1024 * 1024)
     val ctx = LocalContext.current
+    val isMobile = LocalMobileSettingsChrome.current
     val cleanLabel = if (settings.imageCleanDays <= 0) (if (tr) "Kapalı" else "Off") else if (tr) "${settings.imageCleanDays} gün" else "${settings.imageCleanDays} days"
     val cacheLabel = when (settings.imageCacheMb) {
-        0 -> if (tr) "Otomatik" else "Auto"
+        0 -> if (tr) "Otomatik (Cihaza göre)" else "Auto (Device-based)"
         50 -> if (tr) "Düşük (50 MB)" else "Low (50 MB)"
         150 -> if (tr) "Orta (150 MB)" else "Medium (150 MB)"
         300 -> if (tr) "Yüksek (300 MB)" else "High (300 MB)"
@@ -792,7 +793,7 @@ private fun PerfPage(vm: RayViewModel, settings: RaySettings, tr: Boolean) {
     }
     val cacheOptions = listOf(0, 50, 150, 300, 512).map {
         it to when (it) {
-            0 -> if (tr) "Otomatik" else "Auto"
+            0 -> if (tr) "Otomatik (Cihaza göre)" else "Auto (Device-based)"
             50 -> if (tr) "Düşük (50 MB)" else "Low (50 MB)"
             150 -> if (tr) "Orta (150 MB)" else "Medium (150 MB)"
             300 -> if (tr) "Yüksek (300 MB)" else "High (300 MB)"
@@ -802,39 +803,42 @@ private fun PerfPage(vm: RayViewModel, settings: RaySettings, tr: Boolean) {
     LazyColumn(verticalArrangement = Arrangement.spacedBy(12.dp)) {
         item {
             Section(if (tr) "Cihaz" else "Device") {
-                if (LocalMobileSettingsChrome.current) {
+                if (isMobile) {
                     MobileSettingsFrame {
-                        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                        Column(Modifier.padding(horizontal = 16.dp, vertical = 14.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
                                 Text(if (tr) "Kullanılan RAM" else "RAM used", color = Color.White.copy(alpha = 0.70f), fontSize = 15.sp)
-                                Text("$used MB", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 15.sp)
+                                Text("$used MB", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 15.5.sp)
                             }
-                            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                                Text(if (tr) "RAM limiti" else "RAM limit", color = Color.White.copy(alpha = 0.70f), fontSize = 15.sp)
-                                Text("$max MB", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 15.sp)
+                            Box(Modifier.fillMaxWidth().height(1.dp).background(Color.White.copy(alpha = 0.08f)))
+                            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                                Text(if (tr) "Uygulama bellek limiti" else "App memory limit", color = Color.White.copy(alpha = 0.70f), fontSize = 15.sp)
+                                Text("$max MB", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 15.5.sp)
                             }
                         }
                     }
                 } else {
                     Text(if (tr) "Kullanılan RAM  ${used} / ${max} MB" else "RAM used  ${used} / ${max} MB", color = LocalGlass.current.text)
                 }
-                SettingsToggleRow(
-                    if (tr) "Düşük donanım" else "Low-end mode",
-                    if (tr) "Sade grafik, blur/gölge kapalı, bellek öncelikli" else "Simple graphics, blur/shadow off, memory first",
-                    settings.lowEndMode,
-                    icon = Icons.Filled.Memory
-                ) { vm.setLowEnd(!settings.lowEndMode) }
+                if (!isMobile) {
+                    SettingsToggleRow(
+                        if (tr) "Düşük donanım" else "Low-end mode",
+                        if (tr) "Sade grafik, blur/gölge kapalı, bellek öncelikli" else "Simple graphics, blur/shadow off, memory first",
+                        settings.lowEndMode,
+                        icon = Icons.Filled.Memory
+                    ) { vm.setLowEnd(!settings.lowEndMode) }
+                }
             }
         }
         item {
-            Section(if (tr) "Önbellek" else "Cache") {
+            Section(if (tr) "Önbellek Ayarları" else "Cache Settings") {
                 SettingsPickerRow(
                     if (tr) "Görsel Önbellek Sınırı" else "Image cache limit",
                     cacheLabel,
                     cacheOptions,
                     settings.imageCacheMb,
-                    body = if (tr) "Poster ve logo disk önbelleği. Otomatik cihaz belleğine göre ayarlar." else "Poster and logo disk cache. Auto follows device memory.",
-                    icon = Icons.Filled.PhotoLibrary,
+                    body = if (tr) "RAM'de tutulacak kanal logosu ve afiş görsellerinin limiti" else "Limit of channel logos and poster images kept in RAM",
+                    icon = if (isMobile) null else Icons.Filled.PhotoLibrary,
                     onPick = vm::setImageCacheMb
                 )
                 SettingsPickerRow(
@@ -849,27 +853,58 @@ private fun PerfPage(vm: RayViewModel, settings: RaySettings, tr: Boolean) {
                         }
                     },
                     settings.imageCleanDays,
-                    body = if (tr) "Görsel disk önbelleğini otomatik silme aralığı." else "How often the image disk cache is cleared automatically.",
-                    icon = Icons.Filled.Schedule,
+                    body = if (tr) "Depolama önbelleğini belirli aralıklarla otomatik olarak temizler" else "How often storage cache is cleared automatically",
+                    icon = if (isMobile) null else Icons.Filled.Schedule,
                     onPick = vm::setImageCleanDays
                 )
             }
         }
         item {
             Section(if (tr) "Bakım" else "Maintenance") {
-                SettingsNavRow(
-                    if (tr) "RAM bakımı" else "RAM maintenance",
-                    if (tr) "Görsel bellek önbelleğini boşaltır" else "Clears the in-memory image cache",
-                    icon = Icons.Filled.Memory
-                ) { vm.clearRamCache() }
-                SettingsNavRow(
-                    if (tr) "Depolama temizleme" else "Clear storage",
-                    if (tr) "Kanal önbelleği + görsel disk önbelleği + geçici dosyalar" else "Channel cache + image disk cache + temp files",
-                    icon = Icons.Filled.DeleteForever
-                ) {
-                    ctx.cacheDir.deleteRecursively()
-                    vm.clearRamCache()
-                    vm.toast.value = if (tr) "Önbellek temizlendi" else "Cache cleared"
+                if (isMobile) {
+                    MobileOptionTile(
+                        icon = null,
+                        title = if (tr) "RAM Bakımı" else "RAM Maintenance",
+                        subtitle = if (tr) "Görsel önbelleğini boşaltır, çöp toplayıcıyı çalıştırır" else "Clears image cache and runs garbage collector",
+                        onClick = { vm.clearRamCache() },
+                        actionButtonText = if (tr) "Çalıştır" else "Run",
+                        onActionClick = {
+                            vm.clearRamCache()
+                            vm.toast.value = if (tr) "RAM bakımı tamamlandı" else "RAM maintenance completed"
+                        }
+                    )
+                    Spacer(Modifier.height(4.dp))
+                    MobileOptionTile(
+                        icon = null,
+                        title = if (tr) "Bellek Temizleme" else "Storage Clean",
+                        subtitle = if (tr) "Kanal önbelleği + görsel disk önbelleği + geçici dosyalar • 18.19 MB" else "Channel cache + image disk cache + temp files • 18.19 MB",
+                        onClick = {
+                            ctx.cacheDir.deleteRecursively()
+                            vm.clearRamCache()
+                            vm.toast.value = if (tr) "Bellek temizlendi" else "Memory cleared"
+                        },
+                        actionButtonText = if (tr) "Temizle" else "Clean",
+                        onActionClick = {
+                            ctx.cacheDir.deleteRecursively()
+                            vm.clearRamCache()
+                            vm.toast.value = if (tr) "Bellek temizlendi" else "Memory cleared"
+                        }
+                    )
+                } else {
+                    SettingsNavRow(
+                        if (tr) "RAM bakımı" else "RAM maintenance",
+                        if (tr) "Görsel bellek önbelleğini boşaltır" else "Clears the in-memory image cache",
+                        icon = Icons.Filled.Memory
+                    ) { vm.clearRamCache() }
+                    SettingsNavRow(
+                        if (tr) "Depolama temizleme" else "Clear storage",
+                        if (tr) "Kanal önbelleği + görsel disk önbelleği + geçici dosyalar" else "Channel cache + image disk cache + temp files",
+                        icon = Icons.Filled.DeleteForever
+                    ) {
+                        ctx.cacheDir.deleteRecursively()
+                        vm.clearRamCache()
+                        vm.toast.value = if (tr) "Önbellek temizlendi" else "Cache cleared"
+                    }
                 }
             }
         }
