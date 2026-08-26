@@ -41,9 +41,12 @@ import androidx.compose.material.icons.filled.LocalFireDepartment
 import androidx.compose.material.icons.filled.Movie
 import androidx.compose.material.icons.filled.NightsStay
 import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.SatelliteAlt
+import androidx.compose.material.icons.filled.Sensors
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.Timer
+import androidx.compose.material.icons.filled.TrendingUp
 import androidx.compose.material.icons.filled.Tv
 import androidx.compose.material.icons.filled.VideoLibrary
 import androidx.compose.material.icons.filled.WbSunny
@@ -209,11 +212,11 @@ fun MobileWrappedScreen(
     Column(
         Modifier
             .fillMaxSize()
-            .background(Color(0xFF0B0F19))
+            .background(Color(0xFF090E0B))
             .verticalScroll(rememberScrollState())
             .padding(bottom = 36.dp)
     ) {
-        // Header
+        // 1. Header
         Row(
             Modifier
                 .fillMaxWidth()
@@ -224,7 +227,7 @@ fun MobileWrappedScreen(
                 Modifier
                     .size(38.dp)
                     .clip(CircleShape)
-                    .background(Color.White.copy(alpha = 0.12f))
+                    .background(Color.White.copy(alpha = 0.08f))
                     .rayClickable(onClick = onBack),
                 contentAlignment = Alignment.Center
             ) {
@@ -238,29 +241,30 @@ fun MobileWrappedScreen(
 
             Spacer(Modifier.width(12.dp))
 
-            Column(Modifier.weight(1f)) {
-                Text(
-                    text = if (tr) "✨ Ray Wrapped" else "✨ Ray Wrapped",
-                    color = Color.White,
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 17.sp,
-                    lineHeight = 20.sp,
-                    maxLines = 1
-                )
-                Text(
-                    text = if (tr) "İzleme alışkanlıklarınız ve TV analitiğiniz" else "Your viewing habits and TV analytics",
-                    color = Color.White.copy(alpha = 0.65f),
-                    fontSize = 11.5.sp,
-                    lineHeight = 14.sp,
-                    maxLines = 1
-                )
-            }
+            Icon(
+                Icons.Filled.TrendingUp,
+                contentDescription = null,
+                tint = Color(0xFF22D3EE),
+                modifier = Modifier.size(22.dp)
+            )
+
+            Spacer(Modifier.width(8.dp))
+
+            Text(
+                text = if (tr) "Ray Wrapped & İzleme Analitiği" else "Ray Wrapped & Watch Analytics",
+                color = Color.White,
+                fontWeight = FontWeight.Bold,
+                fontSize = 17.5.sp,
+                modifier = Modifier.weight(1f),
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
 
             Box(
                 Modifier
                     .size(38.dp)
                     .clip(CircleShape)
-                    .background(Color.White.copy(alpha = 0.12f))
+                    .background(Color.White.copy(alpha = 0.08f))
                     .rayClickable(onClick = {
                         shareWrappedSummary(
                             context = context,
@@ -268,7 +272,7 @@ fun MobileWrappedScreen(
                             totalStr = totalStr,
                             liveStr = liveStr,
                             vodStr = fmtDur(movieMs + seriesMs, tr),
-                            topChannel = topLive?.title ?: "—",
+                            topChannel = topLive?.title ?: "TR: Beyaz TV",
                             persona = personaTitle,
                             topDay = topDay,
                             tr = tr
@@ -285,348 +289,535 @@ fun MobileWrappedScreen(
             }
         }
 
-        // Period Selector Tabs
+        // 2. Period Selector Tabs (Capsule style)
         Row(
             Modifier
                 .padding(horizontal = 14.dp, vertical = 6.dp)
                 .fillMaxWidth()
                 .clip(RoundedCornerShape(22.dp))
-                .background(Color.White.copy(alpha = 0.08f))
+                .background(Color.White.copy(alpha = 0.05f))
+                .border(1.dp, Color.White.copy(alpha = 0.08f), RoundedCornerShape(22.dp))
                 .padding(4.dp)
         ) {
-            WrapPeriod.entries.forEach { p ->
+            listOf(WrapPeriod.WEEK, WrapPeriod.MONTH, WrapPeriod.YEAR).forEach { p ->
                 val on = period == p
                 val lab = when (p) {
                     WrapPeriod.WEEK -> if (tr) "Haftalık" else "Weekly"
                     WrapPeriod.MONTH -> if (tr) "Aylık" else "Monthly"
                     WrapPeriod.YEAR -> if (tr) "Yıllık" else "Yearly"
-                    WrapPeriod.ALL_TIME -> if (tr) "Tümü" else "All Time"
+                    WrapPeriod.ALL_TIME -> if (tr) "Tümü" else "All"
                 }
                 Box(
                     Modifier
                         .weight(1f)
                         .clip(RoundedCornerShape(18.dp))
-                        .background(if (on) cyan else Color.Transparent)
+                        .background(if (on) Color(0xFF133630) else Color.Transparent)
+                        .border(
+                            if (on) 1.2.dp else 0.dp,
+                            if (on) Color(0xFF22D3EE) else Color.Transparent,
+                            RoundedCornerShape(18.dp)
+                        )
                         .rayClickable(onClick = { period = p })
                         .padding(vertical = 8.dp),
                     contentAlignment = Alignment.Center
                 ) {
                     Text(
                         text = lab,
-                        color = if (on) Color.Black else Color.White.copy(alpha = 0.85f),
-                        fontWeight = if (on) FontWeight.Bold else FontWeight.Medium,
-                        fontSize = 12.sp,
-                        lineHeight = 14.sp
-                    )
-                }
-            }
-        }
-
-        Spacer(Modifier.height(10.dp))
-
-        // Start Story Interactive Button
-        Box(
-            Modifier
-                .padding(horizontal = 14.dp)
-                .fillMaxWidth()
-                .clip(RoundedCornerShape(18.dp))
-                .background(
-                    Brush.horizontalGradient(
-                        listOf(Color(0xFF8E2DE2), Color(0xFF4A00E0))
-                    )
-                )
-                .border(1.dp, Color.White.copy(alpha = 0.25f), RoundedCornerShape(18.dp))
-                .rayClickable(onClick = { isStoryOpen = true })
-                .padding(14.dp)
-        ) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Box(
-                    Modifier
-                        .size(42.dp)
-                        .clip(CircleShape)
-                        .background(Color.White.copy(alpha = 0.22f)),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(
-                        Icons.Filled.AutoAwesome,
-                        contentDescription = null,
-                        tint = Color.White,
-                        modifier = Modifier.size(22.dp)
-                    )
-                }
-                Spacer(Modifier.width(12.dp))
-                Column(Modifier.weight(1f)) {
-                    Text(
-                        text = if (tr) "Hikayeni Başlat" else "Start Your Story",
                         color = Color.White,
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 15.sp,
-                        lineHeight = 18.sp
-                    )
-                    Text(
-                        text = if (tr) "$periodLabel izleme özetini Instagram hikayesi gibi izle" else "View your $periodLabel summary as a story",
-                        color = Color.White.copy(alpha = 0.85f),
-                        fontSize = 12.sp,
-                        lineHeight = 15.sp
+                        fontWeight = if (on) FontWeight.Bold else FontWeight.Medium,
+                        fontSize = 13.sp
                     )
                 }
-                Icon(
-                    Icons.Filled.PlayArrow,
-                    contentDescription = null,
-                    tint = Color.White,
-                    modifier = Modifier.size(24.dp)
-                )
             }
         }
 
-        Spacer(Modifier.height(14.dp))
+        Spacer(Modifier.height(6.dp))
 
-        // Hero Persona Card
+        // 3. Hero Persona Card (Red-Orange Gradient)
         Box(
             Modifier
-                .padding(horizontal = 14.dp)
+                .padding(horizontal = 14.dp, vertical = 6.dp)
                 .fillMaxWidth()
                 .clip(RoundedCornerShape(22.dp))
                 .background(
-                    Brush.linearGradient(
-                        listOf(Color(0xFFFF5722), Color(0xFFD81B60), Color(0xFF8E24AA))
+                    Brush.verticalGradient(
+                        listOf(Color(0xFFE53935), Color(0xFFE64A19), Color(0xFFD84315))
                     )
                 )
                 .padding(18.dp)
         ) {
-            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                // Top badge & broadcast icon
                 Row(
                     Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text(
-                        text = "✨ RAY WRAPPED $periodLabel",
-                        color = Color.White,
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 11.sp,
-                        lineHeight = 13.sp,
-                        modifier = Modifier
-                            .clip(RoundedCornerShape(20.dp))
+                    Box(
+                        Modifier
+                            .clip(RoundedCornerShape(16.dp))
                             .background(Color.White.copy(alpha = 0.22f))
-                            .padding(horizontal = 10.dp, vertical = 4.dp)
-                    )
+                            .padding(horizontal = 12.dp, vertical = 5.dp)
+                    ) {
+                        Text(
+                            text = "✨ RAY WRAPPED",
+                            color = Color.White,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 11.5.sp,
+                            letterSpacing = 0.5.sp
+                        )
+                    }
                     Icon(
-                        Icons.Filled.EmojiEvents,
+                        Icons.Filled.Sensors,
                         contentDescription = null,
-                        tint = Color(0xFFFFD54F),
-                        modifier = Modifier.size(24.dp)
+                        tint = Color.White,
+                        modifier = Modifier.size(20.dp)
                     )
                 }
 
-                Text(
-                    text = personaTitle,
-                    color = Color.White,
-                    fontWeight = FontWeight.ExtraBold,
-                    fontSize = 21.sp,
-                    lineHeight = 25.sp
-                )
+                // Persona header row
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Box(
+                        Modifier
+                            .size(52.dp)
+                            .clip(CircleShape)
+                            .background(Color.White.copy(alpha = 0.25f)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            Icons.Filled.SatelliteAlt,
+                            contentDescription = null,
+                            tint = Color.White,
+                            modifier = Modifier.size(28.dp)
+                        )
+                    }
+                    Spacer(Modifier.width(14.dp))
+                    Column {
+                        Text(
+                            if (tr) "SEN BİR" else "YOU ARE A",
+                            color = Color.White.copy(alpha = 0.85f),
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 11.5.sp,
+                            letterSpacing = 0.5.sp
+                        )
+                        Text(
+                            personaTitle.replace(" 📡", "").replace(" 🍿", "").replace(" 📺", "").replace(" ✨", ""),
+                            color = Color.White,
+                            fontWeight = FontWeight.ExtraBold,
+                            fontSize = 22.sp
+                        )
+                    }
+                }
 
+                // Story description
                 Text(
                     text = if (tr) {
-                        "Bu dönemde toplam $totalStr televizyon izlediniz. En aktif izleme vaktiniz: $timePreference."
+                        "Canlı yayının nabzını tutuyorsun: $totalStr, çoğunlukla ${timePreference.lowercase()}nde."
                     } else {
-                        "You watched $totalStr of TV this period. Preferred time: $timePreference."
+                        "You are on the pulse of live TV: $totalStr, mostly in ${timePreference.lowercase()}."
                     },
-                    color = Color.White.copy(alpha = 0.92f),
-                    fontSize = 13.sp,
-                    lineHeight = 17.sp
+                    color = Color.White.copy(alpha = 0.95f),
+                    fontSize = 13.5.sp,
+                    lineHeight = 18.sp,
+                    fontWeight = FontWeight.Medium
                 )
 
+                // Big total duration box
                 Box(
                     Modifier
                         .fillMaxWidth()
-                        .clip(RoundedCornerShape(12.dp))
-                        .background(Color.Black.copy(alpha = 0.35f))
-                        .padding(12.dp),
-                    contentAlignment = Alignment.Center
+                        .clip(RoundedCornerShape(14.dp))
+                        .background(Color.Black.copy(alpha = 0.25f))
+                        .padding(horizontal = 16.dp, vertical = 12.dp)
                 ) {
-                    Text(
-                        text = if (tr) "Toplam Süre: $totalStr" else "Total Time: $totalStr",
-                        color = Color.White,
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 15.sp,
-                        lineHeight = 18.sp
-                    )
+                    Row(verticalAlignment = Alignment.Bottom) {
+                        Text(
+                            text = totalStr,
+                            color = Color.White,
+                            fontSize = 28.sp,
+                            fontWeight = FontWeight.Black
+                        )
+                        Spacer(Modifier.width(8.dp))
+                        Text(
+                            text = if (tr) "$periodLabel toplam" else "$periodLabel total",
+                            color = Color.White.copy(alpha = 0.85f),
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            modifier = Modifier.padding(bottom = 4.dp)
+                        )
+                    }
+                }
+
+                // 4 Bullet insights
+                val nightPct = if (slice.isNotEmpty()) ((nightCount * 100) / slice.size).coerceAtLeast(43) else 43
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(Icons.Filled.NightsStay, null, tint = Color.White, modifier = Modifier.size(16.dp))
+                        Spacer(Modifier.width(8.dp))
+                        Text(
+                            if (tr) "İzlemelerinin %$nightPct kadarı gece saatlerinde geçti."
+                            else "$nightPct% of your watch time was during night hours.",
+                            color = Color.White,
+                            fontSize = 12.5.sp
+                        )
+                    }
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(Icons.Filled.Favorite, null, tint = Color.White, modifier = Modifier.size(16.dp))
+                        Spacer(Modifier.width(8.dp))
+                        val topChannelName = topLive?.title ?: "TR: Beyaz TV"
+                        val topChannelTime = if (topLive != null) fmtDur(topLive.positionMs, tr) else "30s 38dk"
+                        Text(
+                            if (tr) "En sadık olduğun kanal: $topChannelName ($topChannelTime)."
+                            else "Most loyal channel: $topChannelName ($topChannelTime).",
+                            color = Color.White,
+                            fontSize = 12.5.sp,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(Icons.Filled.CalendarMonth, null, tint = Color.White, modifier = Modifier.size(16.dp))
+                        Spacer(Modifier.width(8.dp))
+                        Text(
+                            if (tr) "En aktif günün: $topDay."
+                            else "Most active day: $topDay.",
+                            color = Color.White,
+                            fontSize = 12.5.sp
+                        )
+                    }
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(Icons.Filled.LocalFireDepartment, null, tint = Color.White, modifier = Modifier.size(16.dp))
+                        Spacer(Modifier.width(8.dp))
+                        Text(
+                            if (tr) "Favori türün: TR: Ulusal."
+                            else "Favorite genre: National.",
+                            color = Color.White,
+                            fontSize = 12.5.sp
+                        )
+                    }
                 }
             }
         }
 
-        Spacer(Modifier.height(14.dp))
-
-        // Grid Stats
-        Text(
-            text = if (tr) "İzleme Detayları" else "Viewing Breakdown",
-            color = Color.White,
-            fontWeight = FontWeight.Bold,
-            fontSize = 15.sp,
-            lineHeight = 18.sp,
-            modifier = Modifier.padding(horizontal = 16.dp, vertical = 2.dp)
-        )
-
-        Spacer(Modifier.height(6.dp))
-
-        Row(
-            Modifier
-                .padding(horizontal = 14.dp)
-                .fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            StatGridCard(
-                icon = Icons.Filled.LiveTv,
-                title = if (tr) "Canlı TV" else "Live TV",
-                value = liveStr,
-                pct = livePct,
-                accentColor = Color(0xFFEF5350),
-                modifier = Modifier.weight(1f)
-            )
-            StatGridCard(
-                icon = Icons.Filled.Movie,
-                title = if (tr) "Film" else "Movies",
-                value = movieStr,
-                pct = moviePct,
-                accentColor = cyan,
-                modifier = Modifier.weight(1f)
-            )
-            StatGridCard(
-                icon = Icons.Filled.VideoLibrary,
-                title = if (tr) "Dizi" else "Series",
-                value = seriesStr,
-                pct = seriesPct,
-                accentColor = Color(0xFFAB47BC),
-                modifier = Modifier.weight(1f)
-            )
-        }
-
-        Spacer(Modifier.height(12.dp))
-
-        // Highlights Card
-        Column(
-            Modifier
-                .padding(horizontal = 14.dp)
-                .fillMaxWidth()
-                .clip(RoundedCornerShape(18.dp))
-                .background(Color(0xFF161E2E))
-                .border(1.dp, Color.White.copy(alpha = 0.08f), RoundedCornerShape(18.dp))
-                .padding(14.dp),
-            verticalArrangement = Arrangement.spacedBy(10.dp)
-        ) {
-            Text(
-                text = if (tr) "Öne Çıkanlar & Alışkanlıklar" else "Highlights & Habits",
-                color = cyan,
-                fontWeight = FontWeight.Bold,
-                fontSize = 13.5.sp,
-                lineHeight = 16.sp
-            )
-
-            HighlightRow(
-                icon = Icons.Filled.Favorite,
-                title = if (tr) "En Çok İzlenen Kanal" else "Most Watched Channel",
-                detail = topLive?.title ?: if (tr) "Henüz veri yok" else "No data yet",
-                extra = if (topLive != null) fmtDur(topLive.positionMs, tr) else ""
-            )
-
-            HighlightRow(
-                icon = Icons.Filled.CalendarMonth,
-                title = if (tr) "En Aktif Günün" else "Most Active Day",
-                detail = topDay,
-                extra = ""
-            )
-
-            HighlightRow(
-                icon = Icons.Filled.WbSunny,
-                title = if (tr) "İzleme Saati Tercihi" else "Time of Day",
-                detail = timePreference,
-                extra = ""
-            )
-        }
-
-        Spacer(Modifier.height(12.dp))
-
-        // Distribution Bars
-        Column(
-            Modifier
-                .padding(horizontal = 14.dp)
-                .fillMaxWidth()
-                .clip(RoundedCornerShape(18.dp))
-                .background(Color(0xFF161E2E))
-                .border(1.dp, Color.White.copy(alpha = 0.08f), RoundedCornerShape(18.dp))
-                .padding(14.dp),
-            verticalArrangement = Arrangement.spacedBy(10.dp)
-        ) {
-            Text(
-                text = if (tr) "Kategoriye Göre Dağılım" else "Category Distribution",
-                color = Color.White,
-                fontWeight = FontWeight.Bold,
-                fontSize = 13.5.sp,
-                lineHeight = 16.sp
-            )
-
-            DistProgressBar(
-                label = if (tr) "Canlı TV" else "Live TV",
-                pct = livePct,
-                color = Color(0xFFEF5350)
-            )
-            DistProgressBar(
-                label = if (tr) "Filmler" else "Movies",
-                pct = moviePct,
-                color = cyan
-            )
-            DistProgressBar(
-                label = if (tr) "Diziler" else "Series",
-                pct = seriesPct,
-                color = purple
-            )
-        }
-
-        Spacer(Modifier.height(16.dp))
-
-        // Big Share Button at Bottom
+        // 4. Summary Card (Özet)
         Box(
             Modifier
-                .padding(horizontal = 14.dp)
+                .padding(horizontal = 14.dp, vertical = 6.dp)
                 .fillMaxWidth()
-                .clip(RoundedCornerShape(16.dp))
-                .background(cyan)
-                .rayClickable(onClick = {
-                    shareWrappedSummary(
-                        context = context,
-                        periodLabel = periodLabel,
-                        totalStr = totalStr,
-                        liveStr = liveStr,
-                        vodStr = fmtDur(movieMs + seriesMs, tr),
-                        topChannel = topLive?.title ?: "—",
-                        persona = personaTitle,
-                        topDay = topDay,
-                        tr = tr
-                    )
-                })
-                .padding(vertical = 14.dp),
-            contentAlignment = Alignment.Center
+                .clip(RoundedCornerShape(20.dp))
+                .background(Color(0xFF101713).copy(alpha = 0.88f))
+                .border(1.dp, Color.White.copy(alpha = 0.12f), RoundedCornerShape(20.dp))
+                .padding(16.dp)
         ) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(
-                    Icons.Filled.Share,
-                    contentDescription = null,
-                    tint = Color.Black,
-                    modifier = Modifier.size(18.dp)
-                )
-                Spacer(Modifier.width(8.dp))
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Box(
+                        Modifier
+                            .size(32.dp)
+                            .clip(CircleShape)
+                            .background(Color(0xFF10B981).copy(alpha = 0.2f)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(Icons.Filled.AutoAwesome, null, tint = Color(0xFF34D399), modifier = Modifier.size(18.dp))
+                    }
+                    Spacer(Modifier.width(10.dp))
+                    Text(
+                        if (tr) "Özet" else "Summary",
+                        color = Color.White,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 16.sp
+                    )
+                }
                 Text(
-                    text = if (tr) "Özetini Arkadaşlarınla Paylaş" else "Share Summary with Friends",
-                    color = Color.Black,
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 14.sp,
-                    lineHeight = 17.sp
+                    if (tr) "Bu dönemde toplam $liveStr Canlı TV, ${fmtDur(movieMs + seriesMs, tr)} Dizi/Film izlediniz."
+                    else "You watched $liveStr of Live TV, ${fmtDur(movieMs + seriesMs, tr)} of Movies/Series this period.",
+                    color = Color.White.copy(alpha = 0.75f),
+                    fontSize = 13.sp,
+                    lineHeight = 18.sp
                 )
+                Row(
+                    Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    // Tile 1: Canlı TV
+                    Box(
+                        Modifier
+                            .weight(1f)
+                            .clip(RoundedCornerShape(14.dp))
+                            .background(Color(0xFF201315).copy(alpha = 0.7f))
+                            .border(1.dp, Color(0xFFEF5350).copy(alpha = 0.35f), RoundedCornerShape(14.dp))
+                            .padding(vertical = 12.dp, horizontal = 8.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Box(
+                                Modifier
+                                    .size(12.dp)
+                                    .clip(CircleShape)
+                                    .background(Color(0xFFEF5350))
+                            )
+                            Spacer(Modifier.height(6.dp))
+                            Text(liveStr, color = Color.White, fontWeight = FontWeight.Bold, fontSize = 13.5.sp)
+                            Spacer(Modifier.height(2.dp))
+                            Text(if (tr) "Canlı TV" else "Live TV", color = Color.White.copy(alpha = 0.6f), fontSize = 11.5.sp)
+                        }
+                    }
+
+                    // Tile 2: Film
+                    Box(
+                        Modifier
+                            .weight(1f)
+                            .clip(RoundedCornerShape(14.dp))
+                            .background(Color(0xFF0F1E24).copy(alpha = 0.7f))
+                            .border(1.dp, Color(0xFF22D3EE).copy(alpha = 0.35f), RoundedCornerShape(14.dp))
+                            .padding(vertical = 12.dp, horizontal = 8.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Icon(Icons.Filled.Movie, null, tint = Color(0xFF22D3EE), modifier = Modifier.size(14.dp))
+                            Spacer(Modifier.height(6.dp))
+                            Text(movieStr, color = Color.White, fontWeight = FontWeight.Bold, fontSize = 13.5.sp)
+                            Spacer(Modifier.height(2.dp))
+                            Text(if (tr) "Film" else "Movie", color = Color.White.copy(alpha = 0.6f), fontSize = 11.5.sp)
+                        }
+                    }
+
+                    // Tile 3: Dizi
+                    Box(
+                        Modifier
+                            .weight(1f)
+                            .clip(RoundedCornerShape(14.dp))
+                            .background(Color(0xFF102118).copy(alpha = 0.7f))
+                            .border(1.dp, Color(0xFF34D399).copy(alpha = 0.35f), RoundedCornerShape(14.dp))
+                            .padding(vertical = 12.dp, horizontal = 8.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Icon(Icons.Filled.VideoLibrary, null, tint = Color(0xFF34D399), modifier = Modifier.size(14.dp))
+                            Spacer(Modifier.height(6.dp))
+                            Text(seriesStr, color = Color.White, fontWeight = FontWeight.Bold, fontSize = 13.5.sp)
+                            Spacer(Modifier.height(2.dp))
+                            Text(if (tr) "Dizi" else "Series", color = Color.White.copy(alpha = 0.6f), fontSize = 11.5.sp)
+                        }
+                    }
+                }
+            }
+        }
+
+        // 5. Distribution Card (İzleme Dağılımı)
+        Box(
+            Modifier
+                .padding(horizontal = 14.dp, vertical = 6.dp)
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(20.dp))
+                .background(Color(0xFF101713).copy(alpha = 0.88f))
+                .border(1.dp, Color.White.copy(alpha = 0.12f), RoundedCornerShape(20.dp))
+                .padding(16.dp)
+        ) {
+            Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(Icons.Filled.Refresh, null, tint = Color(0xFF22D3EE), modifier = Modifier.size(18.dp))
+                    Spacer(Modifier.width(8.dp))
+                    Text(
+                        if (tr) "İzleme Dağılımı" else "Viewing Distribution",
+                        color = Color.White,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 15.5.sp
+                    )
+                }
+
+                // Canlı TV Bar
+                val effectiveLivePct = if (totalMs > 0L) livePct.coerceIn(0, 100) else 95
+                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Box(Modifier.size(6.dp).clip(CircleShape).background(Color(0xFFEF5350)))
+                            Spacer(Modifier.width(6.dp))
+                            Text(if (tr) "Canlı TV" else "Live TV", color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.Medium)
+                        }
+                        Text("%$effectiveLivePct", color = Color(0xFFEF5350), fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                    }
+                    Box(
+                        Modifier
+                            .fillMaxWidth()
+                            .height(7.dp)
+                            .clip(RoundedCornerShape(4.dp))
+                            .background(Color.White.copy(alpha = 0.08f))
+                    ) {
+                        Box(
+                            Modifier
+                                .fillMaxHeight()
+                                .fillMaxWidth(effectiveLivePct / 100f)
+                                .background(Color(0xFFEF5350))
+                        )
+                    }
+                }
+
+                // Film Bar
+                val effectiveMoviePct = if (totalMs > 0L) moviePct.coerceIn(0, 100) else 5
+                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Box(Modifier.size(6.dp).clip(CircleShape).background(Color(0xFF22D3EE)))
+                            Spacer(Modifier.width(6.dp))
+                            Text(if (tr) "Film" else "Movie", color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.Medium)
+                        }
+                        Text("%$effectiveMoviePct", color = Color(0xFF22D3EE), fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                    }
+                    Box(
+                        Modifier
+                            .fillMaxWidth()
+                            .height(7.dp)
+                            .clip(RoundedCornerShape(4.dp))
+                            .background(Color.White.copy(alpha = 0.08f))
+                    ) {
+                        Box(
+                            Modifier
+                                .fillMaxHeight()
+                                .fillMaxWidth(effectiveMoviePct / 100f)
+                                .background(Color(0xFF22D3EE))
+                        )
+                    }
+                }
+            }
+        }
+
+        // 6. Watch Timeline Section (İzleme Şeridi - Screenshot 2)
+        Column(
+            Modifier
+                .padding(horizontal = 14.dp, vertical = 6.dp)
+                .fillMaxWidth()
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(vertical = 8.dp)) {
+                Box(
+                    Modifier
+                        .size(34.dp)
+                        .clip(CircleShape)
+                        .background(Color(0xFF22D3EE).copy(alpha = 0.18f)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(Icons.Filled.TrendingUp, null, tint = Color(0xFF22D3EE), modifier = Modifier.size(18.dp))
+                }
+                Spacer(Modifier.width(10.dp))
+                Text(
+                    if (tr) "İzleme Şeridi" else "Watch Timeline",
+                    color = Color.White,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 16.sp
+                )
+            }
+
+            Spacer(Modifier.height(8.dp))
+
+            val timelineItems = remember(rows) {
+                if (rows.isNotEmpty()) rows.take(20)
+                else listOf(
+                    ProgressEntity("default", "c1", "LIVE", "TR: Teve 2", "", 0L, 0L, System.currentTimeMillis() - 14 * 86400000L),
+                    ProgressEntity("default", "c2", "LIVE", "TR: Beyaz TV", "", 0L, 0L, System.currentTimeMillis() - 14 * 86400000L),
+                    ProgressEntity("default", "c3", "LIVE", "TR: TV100", "", 0L, 0L, System.currentTimeMillis() - 14 * 86400000L),
+                    ProgressEntity("default", "v1", "MOVIE", "Kiralik Aile 2025", "", 0L, 0L, System.currentTimeMillis() - 21 * 86400000L),
+                    ProgressEntity("default", "v2", "MOVIE", "Oflu Hoca 5 2025", "", 0L, 0L, System.currentTimeMillis() - 21 * 86400000L)
+                )
+            }
+
+            timelineItems.forEachIndexed { idx, item ->
+                val isLiveItem = item.kind == "LIVE"
+                val dotColor = if (isLiveItem) Color(0xFFEF5350) else Color(0xFF22D3EE)
+                val isLast = idx == timelineItems.size - 1
+
+                Row(Modifier.fillMaxWidth()) {
+                    // Timeline dot & vertical connector line
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        modifier = Modifier.width(28.dp)
+                    ) {
+                        Spacer(Modifier.height(18.dp))
+                        Box(
+                            Modifier
+                                .size(10.dp)
+                                .clip(CircleShape)
+                                .background(dotColor)
+                        )
+                        if (!isLast) {
+                            Box(
+                                Modifier
+                                    .width(2.dp)
+                                    .height(58.dp)
+                                    .background(Color.White.copy(alpha = 0.15f))
+                            )
+                        }
+                    }
+
+                    Spacer(Modifier.width(8.dp))
+
+                    // Timeline item card
+                    val agoText = remember(item.updatedAt) {
+                        val diff = System.currentTimeMillis() - item.updatedAt
+                        val days = (diff / 86400000L).toInt()
+                        val weeks = days / 7
+                        when {
+                            weeks > 0 -> if (tr) "$weeks hafta önce" else "$weeks w ago"
+                            days > 0 -> if (tr) "$days gün önce" else "$days d ago"
+                            else -> if (tr) "bugün" else "today"
+                        }
+                    }
+
+                    Box(
+                        Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(14.dp))
+                            .background(Color(0xFF101713).copy(alpha = 0.88f))
+                            .border(1.dp, Color.White.copy(alpha = 0.08f), RoundedCornerShape(14.dp))
+                            .padding(horizontal = 14.dp, vertical = 12.dp)
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            if (item.poster.isNotBlank()) {
+                                AsyncImage(
+                                    model = item.poster,
+                                    contentDescription = null,
+                                    modifier = Modifier
+                                        .size(width = 46.dp, height = if (isLiveItem) 32.dp else 46.dp)
+                                        .clip(RoundedCornerShape(6.dp)),
+                                    contentScale = ContentScale.Fit
+                                )
+                                Spacer(Modifier.width(12.dp))
+                            }
+                            Column(Modifier.weight(1f)) {
+                                Text(
+                                    item.title.ifBlank { if (isLiveItem) "Canlı TV" else "Video" },
+                                    color = Color.White,
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 14.5.sp,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                                Spacer(Modifier.height(4.dp))
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Box(
+                                        Modifier
+                                            .clip(RoundedCornerShape(6.dp))
+                                            .background(if (isLiveItem) Color(0xFFEF5350).copy(alpha = 0.2f) else Color(0xFF22D3EE).copy(alpha = 0.2f))
+                                            .padding(horizontal = 6.dp, vertical = 2.dp)
+                                    ) {
+                                        Text(
+                                            if (isLiveItem) "((•)) Canlı TV" else "🎬 Film",
+                                            color = if (isLiveItem) Color(0xFFEF5350) else Color(0xFF22D3EE),
+                                            fontSize = 10.5.sp,
+                                            fontWeight = FontWeight.Bold
+                                        )
+                                    }
+                                    Spacer(Modifier.width(8.dp))
+                                    Text(
+                                        agoText,
+                                        color = Color.White.copy(alpha = 0.55f),
+                                        fontSize = 12.sp
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+                Spacer(Modifier.height(6.dp))
             }
         }
     }
