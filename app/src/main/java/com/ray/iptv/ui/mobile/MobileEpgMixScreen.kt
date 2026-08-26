@@ -73,13 +73,13 @@ import java.util.Date
 import java.util.Locale
 
 private val MixOrder = listOf(
-    EpgMixKind.ALL,
     EpgMixKind.REPLAY,
     EpgMixKind.SPORT,
     EpgMixKind.DOCUMENTARY,
     EpgMixKind.FILM,
     EpgMixKind.SERIES,
-    EpgMixKind.NEWS
+    EpgMixKind.NEWS,
+    EpgMixKind.ALL
 )
 
 @Composable
@@ -90,7 +90,7 @@ fun MobileEpgMixScreen(
     onPlayLive: (ChannelEntity) -> Unit,
     onCatchup: (ChannelEntity, EpgEntity) -> Unit
 ) {
-    var selectedKind by remember { mutableStateOf(EpgMixKind.ALL) }
+    var selectedKind by remember { mutableStateOf(EpgMixKind.REPLAY) }
     var selectedDayOffset by remember { mutableIntStateOf(0) }
     var searchQuery by remember { mutableStateOf("") }
     var isSearchOpen by remember { mutableStateOf(false) }
@@ -125,14 +125,10 @@ fun MobileEpgMixScreen(
     val now = remember { System.currentTimeMillis() }
     val timeFmt = remember { SimpleDateFormat("HH:mm", Locale.getDefault()) }
 
-    val cyan = Color(0xFF00E5FF)
-    val purple = Color(0xFFAB47BC)
-    val red = Color(0xFFEF4444)
-
     Column(
         Modifier
             .fillMaxSize()
-            .background(Color(0xFF0B0F19))
+            .background(Color(0xFF090E0B))
     ) {
         // Top Header
         Row(
@@ -145,7 +141,7 @@ fun MobileEpgMixScreen(
                 Modifier
                     .size(38.dp)
                     .clip(CircleShape)
-                    .background(Color.White.copy(alpha = 0.12f))
+                    .background(Color.White.copy(alpha = 0.08f))
                     .rayClickable(onClick = onBack),
                 contentAlignment = Alignment.Center
             ) {
@@ -159,29 +155,20 @@ fun MobileEpgMixScreen(
 
             Spacer(Modifier.width(12.dp))
 
-            Column(Modifier.weight(1f)) {
-                Text(
-                    text = if (tr) "Tekrar & EPG Rehberi" else "Replay & EPG Guide",
-                    color = Color.White,
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 17.sp,
-                    lineHeight = 20.sp,
-                    maxLines = 1
-                )
-                Text(
-                    text = if (tr) "Yayın akışı, canlı TV ve geriye dönük tekrarlar" else "TV guide, live broadcasts and catch-up",
-                    color = Color.White.copy(alpha = 0.65f),
-                    fontSize = 11.5.sp,
-                    lineHeight = 14.sp,
-                    maxLines = 1
-                )
-            }
+            Text(
+                text = if (tr) "Tekrar & EPG Mix" else "Replay & EPG Mix",
+                color = Color.White,
+                fontWeight = FontWeight.Bold,
+                fontSize = 18.sp,
+                lineHeight = 22.sp,
+                modifier = Modifier.weight(1f)
+            )
 
             Box(
                 Modifier
                     .size(38.dp)
                     .clip(CircleShape)
-                    .background(if (isSearchOpen) cyan else Color.White.copy(alpha = 0.12f))
+                    .background(if (isSearchOpen) MobileCyan else Color.White.copy(alpha = 0.08f))
                     .rayClickable(onClick = {
                         isSearchOpen = !isSearchOpen
                         if (!isSearchOpen) searchQuery = ""
@@ -203,19 +190,19 @@ fun MobileEpgMixScreen(
                 Modifier
                     .fillMaxWidth()
                     .padding(horizontal = 14.dp, vertical = 4.dp)
-                    .clip(RoundedCornerShape(12.dp))
-                    .background(Color.White.copy(alpha = 0.08f))
-                    .border(1.dp, cyan.copy(alpha = 0.4f), RoundedCornerShape(12.dp))
+                    .clip(RoundedCornerShape(14.dp))
+                    .background(Color(0xFF101713))
+                    .border(1.dp, MobileCyan.copy(alpha = 0.5f), RoundedCornerShape(14.dp))
                     .padding(horizontal = 12.dp, vertical = 10.dp)
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(Icons.Filled.Search, contentDescription = null, tint = cyan, modifier = Modifier.size(18.dp))
+                    Icon(Icons.Filled.Search, contentDescription = null, tint = MobileCyan, modifier = Modifier.size(18.dp))
                     Spacer(Modifier.width(8.dp))
                     BasicTextField(
                         value = searchQuery,
                         onValueChange = { searchQuery = it },
                         textStyle = TextStyle(color = Color.White, fontSize = 14.sp),
-                        cursorBrush = SolidColor(cyan),
+                        cursorBrush = SolidColor(MobileCyan),
                         singleLine = true,
                         keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
                         keyboardActions = KeyboardActions(onSearch = { focusManager.clearFocus() }),
@@ -247,40 +234,59 @@ fun MobileEpgMixScreen(
             Spacer(Modifier.height(6.dp))
         }
 
-        // Category Filter Chips
+        // Category Filter Chips (Matching Mina IPTV style with Count Badge)
         LazyRow(
             contentPadding = PaddingValues(horizontal = 14.dp),
             horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             items(MixOrder) { kind ->
                 val selected = selectedKind == kind
+                val count = if (selected) filteredItems.size else null
                 Row(
                     Modifier
                         .clip(RoundedCornerShape(20.dp))
-                        .background(if (selected) cyan else Color.White.copy(alpha = 0.08f))
+                        .background(if (selected) Color(0xFF133630) else Color.White.copy(alpha = 0.05f))
                         .border(
-                            1.dp,
-                            if (selected) cyan else Color.White.copy(alpha = 0.12f),
+                            if (selected) 1.2.dp else 1.dp,
+                            if (selected) Color(0xFF22D3EE) else Color.White.copy(alpha = 0.12f),
                             RoundedCornerShape(20.dp)
                         )
                         .rayClickable(onClick = { selectedKind = kind })
-                        .padding(horizontal = 13.dp, vertical = 7.dp),
+                        .padding(start = 12.dp, top = 6.dp, end = 12.dp, bottom = 6.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Icon(
                         kind.icon(),
                         contentDescription = null,
-                        tint = if (selected) Color.Black else Color.White,
+                        tint = if (selected) Color(0xFF22D3EE) else Color.White,
                         modifier = Modifier.size(15.dp)
                     )
                     Spacer(Modifier.width(6.dp))
                     Text(
                         kind.label(tr),
-                        color = if (selected) Color.Black else Color.White,
+                        color = Color.White,
                         fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
-                        fontSize = 12.5.sp,
-                        lineHeight = 15.sp
+                        fontSize = 13.sp,
+                        lineHeight = 16.sp
                     )
+                    if (count != null && count > 0) {
+                        Spacer(Modifier.width(6.dp))
+                        Box(
+                            Modifier
+                                .clip(RoundedCornerShape(10.dp))
+                                .background(Color(0xFF22D3EE).copy(alpha = 0.25f))
+                                .padding(horizontal = 6.dp, vertical = 2.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                "$count",
+                                color = Color(0xFF22D3EE),
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Bold,
+                                lineHeight = 13.sp
+                            )
+                        }
+                    }
                 }
             }
         }
@@ -304,10 +310,10 @@ fun MobileEpgMixScreen(
                     Box(
                         Modifier
                             .clip(RoundedCornerShape(10.dp))
-                            .background(if (selected) purple.copy(alpha = 0.35f) else Color.White.copy(alpha = 0.05f))
+                            .background(if (selected) Color(0xFF133630).copy(alpha = 0.7f) else Color.White.copy(alpha = 0.04f))
                             .border(
                                 1.dp,
-                                if (selected) purple else Color.White.copy(alpha = 0.08f),
+                                if (selected) Color(0xFF22D3EE).copy(alpha = 0.7f) else Color.White.copy(alpha = 0.08f),
                                 RoundedCornerShape(10.dp)
                             )
                             .rayClickable(onClick = { selectedDayOffset = offset })
@@ -377,7 +383,7 @@ fun MobileEpgMixScreen(
         } else {
             LazyColumn(
                 contentPadding = PaddingValues(start = 14.dp, end = 14.dp, top = 4.dp, bottom = 24.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp),
+                verticalArrangement = Arrangement.spacedBy(10.dp),
                 modifier = Modifier.fillMaxSize()
             ) {
                 items(filteredItems, key = { it.channel.id + "_" + it.programme.id + "_" + it.programme.startMs }) { row ->
@@ -389,16 +395,26 @@ fun MobileEpgMixScreen(
                     val startStr = timeFmt.format(Date(p.startMs))
                     val endStr = timeFmt.format(Date(p.endMs))
 
-                    val liveProgress = if (isLive && p.endMs > p.startMs) {
-                        ((now - p.startMs).toFloat() / (p.endMs - p.startMs).toFloat()).coerceIn(0f, 1f)
-                    } else 0f
+                    val timeAgoStr = remember(p.endMs, now) {
+                        val diffMs = (now - p.endMs).coerceAtLeast(0L)
+                        val diffMins = (diffMs / (1000 * 60)).toInt()
+                        val diffHours = diffMins / 60
+                        val diffDays = diffHours / 24
+
+                        when {
+                            diffDays > 0 -> if (tr) "$diffDays gün önce" else "$diffDays d ago"
+                            diffHours > 0 -> if (tr) "$diffHours saat önce" else "$diffHours h ago"
+                            diffMins > 0 -> if (tr) "$diffMins dk önce" else "$diffMins min ago"
+                            else -> if (tr) "az önce" else "just now"
+                        }
+                    }
 
                     Box(
                         Modifier
                             .fillMaxWidth()
-                            .clip(RoundedCornerShape(14.dp))
-                            .background(Color(0xFF161E2E))
-                            .border(1.dp, if (isLive) red.copy(alpha = 0.35f) else Color.White.copy(alpha = 0.08f), RoundedCornerShape(14.dp))
+                            .clip(RoundedCornerShape(18.dp))
+                            .background(Color(0xFF101713).copy(alpha = 0.88f))
+                            .border(1.dp, Color.White.copy(alpha = 0.12f), RoundedCornerShape(18.dp))
                             .rayClickable(onClick = {
                                 if (isCatchup) {
                                     onCatchup(row.channel, p)
@@ -406,48 +422,20 @@ fun MobileEpgMixScreen(
                                     onPlayLive(row.channel)
                                 }
                             })
-                            .padding(12.dp)
+                            .padding(horizontal = 16.dp, vertical = 14.dp)
                     ) {
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
                             modifier = Modifier.fillMaxWidth()
                         ) {
-                            // Channel Logo Box
-                            Box(
-                                Modifier
-                                    .size(46.dp)
-                                    .clip(RoundedCornerShape(10.dp))
-                                    .background(Color.Black.copy(alpha = 0.4f))
-                                    .border(0.5.dp, Color.White.copy(alpha = 0.1f), RoundedCornerShape(10.dp)),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                if (row.channel.logo.isNotBlank()) {
-                                    AsyncImage(
-                                        model = row.channel.logo,
-                                        contentDescription = null,
-                                        modifier = Modifier.size(36.dp),
-                                        contentScale = ContentScale.Fit
-                                    )
-                                } else {
-                                    Icon(
-                                        Icons.Filled.LiveTv,
-                                        contentDescription = null,
-                                        tint = Color.White.copy(alpha = 0.5f),
-                                        modifier = Modifier.size(22.dp)
-                                    )
-                                }
-                            }
-
-                            Spacer(Modifier.width(12.dp))
-
-                            // Programme Info Column (No Overlap)
+                            // Programme Info Column (Matching Mina IPTV Layout)
                             Column(Modifier.weight(1f)) {
-                                // Channel Name
+                                // 1. Title (Program Adı)
                                 Text(
-                                    text = row.channel.name,
-                                    color = cyan,
-                                    fontSize = 12.5.sp,
-                                    lineHeight = 15.sp,
+                                    text = p.title.ifBlank { if (tr) "Program Bilgisi Yok" else "No Program Info" },
+                                    color = Color.White,
+                                    fontSize = 15.5.sp,
+                                    lineHeight = 19.sp,
                                     fontWeight = FontWeight.Bold,
                                     maxLines = 1,
                                     overflow = TextOverflow.Ellipsis
@@ -455,111 +443,96 @@ fun MobileEpgMixScreen(
 
                                 Spacer(Modifier.height(3.dp))
 
-                                // Programme Title
-                                Text(
-                                    text = p.title.ifBlank { if (tr) "Program Bilgisi Yok" else "No Program Info" },
-                                    color = Color.White,
-                                    fontSize = 13.sp,
-                                    lineHeight = 17.sp,
-                                    fontWeight = FontWeight.SemiBold,
-                                    maxLines = 2,
-                                    overflow = TextOverflow.Ellipsis
-                                )
-
-                                Spacer(Modifier.height(4.dp))
-
-                                // Progress Bar if Live
-                                if (isLive) {
-                                    Box(
-                                        Modifier
-                                            .fillMaxWidth()
-                                            .height(3.dp)
-                                            .clip(RoundedCornerShape(2.dp))
-                                            .background(Color.White.copy(alpha = 0.15f))
-                                    ) {
-                                        Box(
-                                            Modifier
-                                                .fillMaxHeight()
-                                                .fillMaxWidth(liveProgress)
-                                                .background(red)
-                                        )
-                                    }
-                                    Spacer(Modifier.height(4.dp))
-                                }
-
-                                // Time Interval
+                                // 2. Channel Name (Kanal İsmi with Cyan TV icon)
                                 Row(verticalAlignment = Alignment.CenterVertically) {
                                     Icon(
-                                        Icons.Filled.Schedule,
+                                        Icons.Filled.LiveTv,
                                         contentDescription = null,
-                                        tint = Color.White.copy(alpha = 0.5f),
-                                        modifier = Modifier.size(12.dp)
+                                        tint = Color(0xFF22D3EE),
+                                        modifier = Modifier.size(14.dp)
                                     )
-                                    Spacer(Modifier.width(4.dp))
+                                    Spacer(Modifier.width(6.dp))
                                     Text(
-                                        text = "$startStr - $endStr",
-                                        color = Color.White.copy(alpha = 0.65f),
-                                        fontSize = 11.5.sp,
-                                        lineHeight = 14.sp
+                                        text = row.channel.name,
+                                        color = Color.White.copy(alpha = 0.85f),
+                                        fontSize = 13.sp,
+                                        lineHeight = 16.sp,
+                                        fontWeight = FontWeight.Medium,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis
                                     )
+                                }
+
+                                Spacer(Modifier.height(3.dp))
+
+                                // 3. Time Interval (Saat Aralığı)
+                                Text(
+                                    text = "$startStr — $endStr",
+                                    color = Color.White.copy(alpha = 0.55f),
+                                    fontSize = 12.sp,
+                                    lineHeight = 15.sp
+                                )
+
+                                Spacer(Modifier.height(3.dp))
+
+                                // 4. Tekrar / Canlı Durumu
+                                if (isLive) {
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Box(
+                                            Modifier
+                                                .size(6.dp)
+                                                .clip(CircleShape)
+                                                .background(Color(0xFFEF4444))
+                                        )
+                                        Spacer(Modifier.width(5.dp))
+                                        Text(
+                                            text = if (tr) "Canlı Yayın · Şimdi" else "Live · Now",
+                                            color = Color(0xFFEF4444),
+                                            fontSize = 11.5.sp,
+                                            fontWeight = FontWeight.Bold
+                                        )
+                                    }
+                                } else {
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Icon(
+                                            Icons.Filled.Replay,
+                                            contentDescription = null,
+                                            tint = Color(0xFF22D3EE),
+                                            modifier = Modifier.size(12.dp)
+                                        )
+                                        Spacer(Modifier.width(4.dp))
+                                        Text(
+                                            text = if (tr) "Tekrar · $timeAgoStr" else "Replay · $timeAgoStr",
+                                            color = Color.White.copy(alpha = 0.65f),
+                                            fontSize = 11.5.sp,
+                                            lineHeight = 14.sp
+                                        )
+                                    }
                                 }
                             }
 
-                            Spacer(Modifier.width(10.dp))
+                            Spacer(Modifier.width(12.dp))
 
-                            // Action Badge
+                            // Right Side: Channel Logo (Mina IPTV style)
                             Box(
                                 Modifier
-                                    .clip(RoundedCornerShape(10.dp))
-                                    .background(
-                                        when {
-                                            isLive -> red.copy(alpha = 0.2f)
-                                            isCatchup -> purple.copy(alpha = 0.25f)
-                                            else -> Color.White.copy(alpha = 0.08f)
-                                        }
-                                    )
-                                    .border(
-                                        1.dp,
-                                        when {
-                                            isLive -> red.copy(alpha = 0.6f)
-                                            isCatchup -> purple.copy(alpha = 0.6f)
-                                            else -> Color.White.copy(alpha = 0.15f)
-                                        },
-                                        RoundedCornerShape(10.dp)
-                                    )
-                                    .padding(horizontal = 9.dp, vertical = 6.dp),
-                                contentAlignment = Alignment.Center
+                                    .width(60.dp)
+                                    .height(38.dp),
+                                contentAlignment = Alignment.CenterEnd
                             ) {
-                                Row(verticalAlignment = Alignment.CenterVertically) {
-                                    Icon(
-                                        imageVector = when {
-                                            isLive -> Icons.Filled.PlayArrow
-                                            isCatchup -> Icons.Filled.Replay
-                                            else -> Icons.Filled.Schedule
-                                        },
+                                if (row.channel.logo.isNotBlank()) {
+                                    AsyncImage(
+                                        model = row.channel.logo,
                                         contentDescription = null,
-                                        tint = when {
-                                            isLive -> red
-                                            isCatchup -> Color(0xFFE1BEE7)
-                                            else -> Color.White.copy(alpha = 0.8f)
-                                        },
-                                        modifier = Modifier.size(14.dp)
+                                        modifier = Modifier.size(width = 56.dp, height = 36.dp),
+                                        contentScale = ContentScale.Fit
                                     )
-                                    Spacer(Modifier.width(4.dp))
-                                    Text(
-                                        text = when {
-                                            isLive -> if (tr) "CANLI" else "LIVE"
-                                            isCatchup -> if (tr) "TEKRAR" else "REPLAY"
-                                            else -> startStr
-                                        },
-                                        color = when {
-                                            isLive -> red
-                                            isCatchup -> Color(0xFFE1BEE7)
-                                            else -> Color.White.copy(alpha = 0.85f)
-                                        },
-                                        fontSize = 11.sp,
-                                        lineHeight = 13.sp,
-                                        fontWeight = FontWeight.Bold
+                                } else {
+                                    Icon(
+                                        Icons.Filled.LiveTv,
+                                        contentDescription = null,
+                                        tint = Color.White.copy(alpha = 0.35f),
+                                        modifier = Modifier.size(24.dp)
                                     )
                                 }
                             }
@@ -572,21 +545,21 @@ fun MobileEpgMixScreen(
 }
 
 private fun EpgMixKind.label(tr: Boolean): String = when (this) {
-    EpgMixKind.ALL -> if (tr) "Tümü" else "All"
-    EpgMixKind.REPLAY -> if (tr) "Tekrar (Catch-up)" else "Replay"
+    EpgMixKind.REPLAY -> if (tr) "Tekrar" else "Replay"
     EpgMixKind.SPORT -> if (tr) "Spor" else "Sport"
     EpgMixKind.DOCUMENTARY -> if (tr) "Belgesel" else "Documentary"
     EpgMixKind.FILM -> if (tr) "Film" else "Film"
     EpgMixKind.SERIES -> if (tr) "Dizi" else "Series"
     EpgMixKind.NEWS -> if (tr) "Haber" else "News"
+    EpgMixKind.ALL -> if (tr) "Tümü" else "All"
 }
 
 private fun EpgMixKind.icon(): ImageVector = when (this) {
-    EpgMixKind.ALL -> Icons.Filled.ViewTimeline
     EpgMixKind.REPLAY -> Icons.Filled.Replay
     EpgMixKind.SPORT -> Icons.Filled.SportsSoccer
     EpgMixKind.DOCUMENTARY -> Icons.AutoMirrored.Filled.MenuBook
     EpgMixKind.FILM -> Icons.Filled.Movie
     EpgMixKind.SERIES -> Icons.Filled.Tv
     EpgMixKind.NEWS -> Icons.Filled.Newspaper
+    EpgMixKind.ALL -> Icons.Filled.ViewTimeline
 }
