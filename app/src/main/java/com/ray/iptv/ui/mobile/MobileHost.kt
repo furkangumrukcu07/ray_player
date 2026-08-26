@@ -247,7 +247,7 @@ fun MobileHost(
                     onBrand = vm::refresh,
                     onSettings = { vm.go(Dest.SETTINGS) },
                     onSearch = if (dest == Dest.LIVE || dest == Dest.MOVIES || dest == Dest.SERIES) ({ vm.showOverlay(Overlay.SEARCH) }) else null,
-                    onList = if (dest == Dest.LIVE) ({ vm.enterLiveContent() }) else null,
+                    onList = null,
                     onPlaylist = if (sources.size > 1) ({ showPlaylistPicker = true }) else null,
                     avatarUrl = account.photoUrl.takeIf { it.isNotBlank() && account.signedIn }
                 )
