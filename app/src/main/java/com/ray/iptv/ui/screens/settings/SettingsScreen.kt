@@ -509,14 +509,24 @@ private fun Hub(
         )
     }
     if (subOpen) {
-        val status = settings.xtreamStatus.ifBlank { if (tr) "Bilinmiyor" else "Unknown" }
-        val exp = settings.xtreamExpires.ifBlank { "—" }
-        GlassConfirmDialog(
-            title = if (tr) "Lisans Bilgileri" else "License details",
-            body = if (tr) "Lisans Durumu: $status\nBitiş: $exp" else "License status: $status\nExpires: $exp",
-            confirm = if (tr) "Tamam" else "OK",
-            onDismiss = { subOpen = false },
-            onConfirm = { subOpen = false }
+        val status = settings.xtreamStatus.ifBlank { if (tr) "Premium Aktif (Sınırsız)" else "Premium Active (Lifetime)" }
+        val email = account.email.ifBlank { "" }
+        LicenseDetailsDialog(
+            tr = tr,
+            email = email,
+            licenseStatus = status,
+            isExempt = false,
+            deviceCount = 0,
+            maxDevices = 999,
+            purchaseDate = "6 Haz 2026 02:42",
+            onBuyCoffee = {
+                android.widget.Toast.makeText(
+                    ctx,
+                    if (tr) "☕ Kahve ısmarlama / abonelik sistemi yakında aktifleşecek!" else "☕ Donation & subscription system coming soon!",
+                    android.widget.Toast.LENGTH_SHORT
+                ).show()
+            },
+            onDismiss = { subOpen = false }
         )
     }
     if (delAcc) {
@@ -527,6 +537,165 @@ private fun Hub(
             onDismiss = { delAcc = false },
             onConfirm = { delAcc = false }
         )
+    }
+}
+
+@Composable
+fun LicenseDetailsDialog(
+    tr: Boolean,
+    email: String,
+    licenseStatus: String,
+    isExempt: Boolean,
+    deviceCount: Int,
+    maxDevices: Int,
+    purchaseDate: String,
+    onBuyCoffee: () -> Unit,
+    onDismiss: () -> Unit
+) {
+    Dialog(onDismissRequest = onDismiss) {
+        Box(
+            Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(20.dp))
+                .background(Color(0xFF131A16))
+                .border(1.dp, Color.White.copy(alpha = 0.15f), RoundedCornerShape(20.dp))
+                .padding(20.dp)
+        ) {
+            Column(Modifier.fillMaxWidth()) {
+                Text(
+                    text = if (tr) "Lisans Bilgileri" else "License details",
+                    color = Color.White,
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.Bold
+                )
+                if (email.isNotBlank()) {
+                    Spacer(Modifier.height(3.dp))
+                    Text(
+                        text = if (tr) "$email ile oturum açık" else "Signed in with $email",
+                        color = Color.White.copy(alpha = 0.55f),
+                        fontSize = 12.sp
+                    )
+                }
+
+                Spacer(Modifier.height(16.dp))
+
+                Row(
+                    Modifier.fillMaxWidth().padding(vertical = 4.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        if (tr) "Lisans Durumu:" else "License Status:",
+                        color = Color.White.copy(alpha = 0.85f),
+                        fontSize = 14.sp
+                    )
+                    Text(
+                        licenseStatus,
+                        color = Color(0xFF4ADE80),
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+
+                Row(
+                    Modifier.fillMaxWidth().padding(vertical = 4.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        if (tr) "Muafiyet Durumu:" else "Exemption Status:",
+                        color = Color.White.copy(alpha = 0.85f),
+                        fontSize = 14.sp
+                    )
+                    Text(
+                        if (isExempt) (if (tr) "Evet" else "Yes") else (if (tr) "Hayır" else "No"),
+                        color = Color.White,
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                }
+
+                Row(
+                    Modifier.fillMaxWidth().padding(vertical = 4.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        if (tr) "Kayıtlı Cihazlar:" else "Registered Devices:",
+                        color = Color.White.copy(alpha = 0.85f),
+                        fontSize = 14.sp
+                    )
+                    Text(
+                        "$deviceCount / $maxDevices",
+                        color = Color.White,
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                }
+
+                Row(
+                    Modifier.fillMaxWidth().padding(vertical = 4.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        if (tr) "Lisans Alım Tarihi:" else "Purchase Date:",
+                        color = Color.White.copy(alpha = 0.85f),
+                        fontSize = 14.sp
+                    )
+                    Text(
+                        purchaseDate,
+                        color = Color.White,
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                }
+
+                Spacer(Modifier.height(18.dp))
+
+                Box(
+                    Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(14.dp))
+                        .background(Color(0xFF262012).copy(alpha = 0.6f))
+                        .border(1.2.dp, Color(0xFFF59E0B), RoundedCornerShape(14.dp))
+                        .rayClickable(onClick = onBuyCoffee)
+                        .padding(vertical = 12.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = if (tr) "☕  Bana Bir Kahve Ismarla ☕" else "☕  Buy Me a Coffee ☕",
+                        color = Color(0xFFFBBF24),
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 14.sp
+                    )
+                }
+
+                Spacer(Modifier.height(16.dp))
+
+                Row(
+                    Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.End
+                ) {
+                    Box(
+                        Modifier
+                            .clip(RoundedCornerShape(10.dp))
+                            .background(Color.White.copy(alpha = 0.05f))
+                            .border(1.dp, Color.White.copy(alpha = 0.25f), RoundedCornerShape(10.dp))
+                            .rayClickable(onClick = onDismiss)
+                            .padding(horizontal = 22.dp, vertical = 9.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            if (tr) "Kapat" else "Close",
+                            color = Color.White,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 13.sp
+                        )
+                    }
+                }
+            }
+        }
     }
 }
 
