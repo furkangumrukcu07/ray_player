@@ -1,6 +1,7 @@
 package com.ray.iptv.ui.screens.player
 
 import com.ray.iptv.ui.player.playerGestureDrag
+import com.ray.iptv.ui.player.unifiedPlayerGestures
 
 import android.graphics.Typeface
 import android.graphics.Color as AndroidColor
@@ -553,13 +554,11 @@ fun PlayerScreen(
                     Modifier
                         .fillMaxSize()
                         .windowInsetsPadding(chromeInsets)
-                        .then(com.ray.iptv.ui.player.playerGestureDrag(gestureState))
-                        .playerTouch(
+                        .unifiedPlayerGestures(
+                            state = gestureState,
                             onTap = { showOsd() },
-                            onSwipeUp = { showOsd(); onZapUp() },
-                            onSwipeDown = { showOsd(); onZapDown() },
                             onSwipeLeft = {
-                                if (playback.kind == "LIVE") { peek = true; overlay = false }
+                                if (playback.kind == "LIVE" || playback.live) { peek = true; overlay = false }
                                 else { showOsd(); onRewind(-SkipMs) }
                             },
                             onSwipeRight = { showOsd(); onRewind(SkipMs) }
@@ -662,10 +661,9 @@ fun PlayerScreen(
                     Box(
                         Modifier
                             .fillMaxSize()
-                            .playerTouch(
+                            .unifiedPlayerGestures(
+                                state = gestureState,
                                 onTap = { overlay = false },
-                                onSwipeUp = { showOsd(); onZapUp() },
-                                onSwipeDown = { showOsd(); onZapDown() },
                                 onSwipeLeft = {
                                     if (playback.kind == "LIVE" || playback.live) {
                                         peek = true

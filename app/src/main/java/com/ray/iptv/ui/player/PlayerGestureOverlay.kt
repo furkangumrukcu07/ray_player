@@ -11,7 +11,8 @@ import androidx.compose.animation.*
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.gestures.detectVerticalDragGestures
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -31,12 +32,14 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.pointer.changedToUpIgnoreConsumed
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.delay
+import kotlin.math.abs
 import kotlin.math.roundToInt
 
 private val MobileCyan = Color(0xFF00E5FF)
@@ -97,16 +100,27 @@ fun Context.setStreamVolumeFraction(frac: Float): Float {
     return (targetVol.toFloat() / max.toFloat()).coerceIn(0f, 1f)
 }
 
+fun Context.setPortrait(): Boolean {
+    val activity = findActivity() ?: return false
+    activity.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
+    return false
+}
+
+fun Context.setLandscape(): Boolean {
+    val activity = findActivity() ?: return false
+    activity.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
+    return true
+}
+
 fun Context.toggleScreenOrientation(): Boolean {
     val activity = findActivity() ?: return false
     val currentOrientation = activity.resources.configuration.orientation
     val isLandscape = currentOrientation == Configuration.ORIENTATION_LANDSCAPE
-    if (isLandscape) {
-        activity.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
+    return if (isLandscape) {
+        setPortrait()
     } else {
-        activity.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
+        setLandscape()
     }
-    return !isLandscape
 }
 
 class PlayerGestureState(val context: Context) {
@@ -115,7 +129,6 @@ class PlayerGestureState(val context: Context) {
     var level by mutableFloatStateOf(0.5f)
     var isNowLandscape by mutableStateOf(false)
 
-    private var startLevel = 0.5f
     private var totalDy = 0f
     private var isCenterGesture = false
     private var orientationToggledInCurrentDrag = false
@@ -123,17 +136,15 @@ class PlayerGestureState(val context: Context) {
     fun onDragStart(xFraction: Float) {
         totalDy = 0f
         orientationToggledInCurrentDrag = false
-        if (xFraction < 0.30f) {
+        if (xFraction < 0.35f) {
             isCenterGesture = false
             gestureType = PlayerGestureType.BRIGHTNESS
-            startLevel = context.getScreenBrightness()
-            level = startLevel
+            level = context.getScreenBrightness()
             isVisible = true
-        } else if (xFraction > 0.70f) {
+        } else if (xFraction > 0.65f) {
             isCenterGesture = false
             gestureType = PlayerGestureType.VOLUME
-            startLevel = context.getStreamVolumeFraction()
-            level = startLevel
+            level = context.getStreamVolumeFraction()
             isVisible = true
         } else {
             isCenterGesture = true
@@ -144,14 +155,21 @@ class PlayerGestureState(val context: Context) {
     fun onDrag(dragAmountPx: Float, heightPx: Float) {
         if (isCenterGesture) {
             totalDy += dragAmountPx
-            if (totalDy > 80f && !orientationToggledInCurrentDrag) {
+            // Center swipe down (> 60px): switch to portrait mode
+            if (totalDy > 60f && !orientationToggledInCurrentDrag) {
                 orientationToggledInCurrentDrag = true
-                isNowLandscape = context.toggleScreenOrientation()
+                isNowLandscape = context.setPortrait()
+                isVisible = true
+            }
+            // Center swipe up (< -60px): switch to landscape mode
+            else if (totalDy < -60f && !orientationToggledInCurrentDrag) {
+                orientationToggledInCurrentDrag = true
+                isNowLandscape = context.setLandscape()
                 isVisible = true
             }
         } else {
             val safeHeight = heightPx.coerceAtLeast(200f)
-            val deltaFraction = -dragAmountPx / (safeHeight * 0.75f)
+            val deltaFraction = -dragAmountPx / (safeHeight * 0.70f)
             val nextLevel = (level + deltaFraction).coerceIn(0f, 1f)
             if (gestureType == PlayerGestureType.BRIGHTNESS) {
                 level = context.setScreenBrightness(nextLevel)
@@ -174,27 +192,88 @@ fun rememberPlayerGestureState(): PlayerGestureState {
     val state = remember(context) { PlayerGestureState(context) }
     LaunchedEffect(state.isVisible, state.level, state.gestureType, state.isNowLandscape) {
         if (state.isVisible) {
-            delay(1300)
+            delay(1200)
             state.isVisible = false
         }
     }
     return state
 }
 
-fun playerGestureDrag(state: PlayerGestureState): Modifier = Modifier.pointerInput(state) {
-    detectVerticalDragGestures(
-        onDragStart = { offset ->
-            val xFraction = offset.x / size.width.toFloat()
-            state.onDragStart(xFraction)
-        },
-        onDragEnd = { state.onDragEnd() },
-        onDragCancel = { state.onDragEnd() },
-        onVerticalDrag = { change, dragAmount ->
-            change.consume()
-            state.onDrag(dragAmount, size.height.toFloat())
+fun Modifier.unifiedPlayerGestures(
+    state: PlayerGestureState,
+    onTap: () -> Unit,
+    onSwipeLeft: () -> Unit = {},
+    onSwipeRight: () -> Unit = {}
+): Modifier = pointerInput(state, onTap, onSwipeLeft, onSwipeRight) {
+    val slop = 16.dp.toPx()
+    val swipeMin = 48.dp.toPx()
+    val edgeSafe = 24.dp.toPx()
+
+    awaitEachGesture {
+        val down = awaitFirstDown(requireUnconsumed = false)
+        val startPos = down.position
+        val xFraction = (startPos.x / size.width.toFloat()).coerceIn(0f, 1f)
+
+        // Prevent intercepting OS navigation gestures at the extreme screen edges
+        if (startPos.x <= edgeSafe || startPos.x >= size.width - edgeSafe) {
+            while (true) {
+                val event = awaitPointerEvent()
+                val change = event.changes.firstOrNull() ?: break
+                if (change.changedToUpIgnoreConsumed() || !change.pressed) break
+            }
+            return@awaitEachGesture
         }
-    )
+
+        var isDragStarted = false
+        var isHorizontalSwipe = false
+        var isVerticalDrag = false
+        var lastPos = startPos
+
+        while (true) {
+            val event = awaitPointerEvent()
+            val change = event.changes.firstOrNull() ?: break
+            lastPos = change.position
+            val totalDx = lastPos.x - startPos.x
+            val totalDy = lastPos.y - startPos.y
+            val dist = (lastPos - startPos).getDistance()
+
+            if (!isDragStarted && dist > slop) {
+                isDragStarted = true
+                if (abs(totalDx) > abs(totalDy)) {
+                    isHorizontalSwipe = true
+                } else {
+                    isVerticalDrag = true
+                    state.onDragStart(xFraction)
+                }
+            }
+
+            if (isDragStarted) {
+                change.consume()
+                if (isVerticalDrag) {
+                    val dragY = change.position.y - change.previousPosition.y
+                    state.onDrag(dragY, size.height.toFloat())
+                }
+            }
+
+            if (change.changedToUpIgnoreConsumed() || !change.pressed) break
+        }
+
+        if (!isDragStarted) {
+            onTap()
+        } else {
+            if (isVerticalDrag) {
+                state.onDragEnd()
+            } else if (isHorizontalSwipe) {
+                val totalDx = lastPos.x - startPos.x
+                if (abs(totalDx) > swipeMin) {
+                    if (totalDx < 0) onSwipeLeft() else onSwipeRight()
+                }
+            }
+        }
+    }
 }
+
+fun playerGestureDrag(state: PlayerGestureState): Modifier = Modifier.unifiedPlayerGestures(state = state, onTap = {})
 
 @Composable
 fun PlayerGlassLevelOverlay(
