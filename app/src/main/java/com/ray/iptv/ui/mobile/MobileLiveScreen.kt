@@ -19,6 +19,7 @@ import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
@@ -286,13 +287,19 @@ fun MobileLiveBrowseScreen(
                         )
                     }
                 }
+                val timeFmt = remember { java.text.SimpleDateFormat("HH:mm", java.util.Locale.getDefault()) }
                 LazyColumn(Modifier.weight(1f).padding(horizontal = if (pills) 12.dp else 8.dp), verticalArrangement = Arrangement.spacedBy(if (pills) 10.dp else 6.dp)) {
                     items(channels, key = { it.id }) { ch ->
                         val name = if (stripPrefix) ch.name.substringAfter(':').trim().ifBlank { ch.name } else ch.name
+                        val epg = nowByChannel[ch.id]
+                        val nowStr = if (epg != null && epg.title.isNotBlank()) {
+                            val time = if (epg.startMs > 0L) " " + timeFmt.format(java.util.Date(epg.startMs)) else ""
+                            "${epg.title}$time"
+                        } else ""
                         LiveChannelRow(
                             name = name,
                             logo = ch.logo,
-                            now = if (pills) "" else nowByChannel[ch.id]?.title.orEmpty(),
+                            now = nowStr,
                             playing = ch.id == playingId,
                             onClick = { onPlay(ch) },
                             pills = pills,
@@ -687,79 +694,77 @@ private fun LiveChannelRow(
     pills: Boolean = false,
     number: Int = 0
 ) {
-    val shape = RoundedCornerShape(if (pills) 50.dp else 12.dp)
+    val shape = RoundedCornerShape(16.dp)
     Row(
         Modifier
             .fillMaxWidth()
             .clip(shape)
             .background(
-                if (pills) Color.White.copy(alpha = 0.07f)
-                else if (playing) MobileCyan.copy(alpha = 0.18f)
+                if (playing) MobileCyan.copy(alpha = 0.16f)
                 else Color.White.copy(alpha = 0.05f)
             )
-            .then(
-                if (!pills) Modifier.border(
-                    if (playing) 1.2.dp else 1.dp,
-                    if (playing) MobileCyan.copy(alpha = 0.55f) else Color.White.copy(alpha = 0.08f),
-                    shape
-                )
-                else if (pills) Modifier.border(1.dp, Color.White.copy(alpha = 0.10f), shape)
-                else Modifier
+            .border(
+                1.dp,
+                if (playing) MobileCyan.copy(alpha = 0.55f) else Color.White.copy(alpha = 0.08f),
+                shape
             )
             .rayClickable(onClick)
-            .padding(horizontal = if (pills) 12.dp else 10.dp, vertical = if (pills) 8.dp else 10.dp),
+            .padding(horizontal = 14.dp, vertical = if (now.isNotBlank()) 10.dp else 12.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        if (pills) {
+        Text(
+            "%03d".format(number.coerceAtLeast(0)),
+            color = MobileCyan,
+            fontWeight = FontWeight.ExtraBold,
+            fontSize = 14.sp,
+            modifier = Modifier.width(42.dp)
+        )
+        Column(Modifier.weight(1f)) {
             Text(
-                "%03d".format(number.coerceAtLeast(0)),
-                color = MobileCyan,
-                fontWeight = FontWeight.ExtraBold,
-                fontSize = 14.sp,
-                modifier = Modifier.width(40.dp)
+                name,
+                color = Color.White,
+                fontWeight = FontWeight.Bold,
+                fontSize = 15.sp,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
             )
-            Text(name, color = Color.White, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f), maxLines = 1, overflow = TextOverflow.Ellipsis)
-            AsyncImage(
-                logo, null,
-                Modifier.size(36.dp).clip(RoundedCornerShape(8.dp)).background(Color(0xFF111111)),
-                contentScale = ContentScale.Fit
-            )
-            Spacer(Modifier.width(10.dp))
-            Box(
-                Modifier.size(34.dp).clip(CircleShape).background(MobileCyan),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(Icons.Filled.PlayArrow, null, tint = Color.White, modifier = Modifier.size(18.dp))
-            }
-        } else {
-            AsyncImage(
-                logo, null,
-                Modifier.size(44.dp).clip(RoundedCornerShape(8.dp)).background(Color.White.copy(alpha = 0.06f)),
-                contentScale = ContentScale.Fit
-            )
-            Spacer(Modifier.width(12.dp))
-            Column(Modifier.weight(1f)) {
+            if (now.isNotBlank()) {
+                Spacer(Modifier.height(3.dp))
                 Text(
-                    name,
-                    color = Color.White,
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 14.sp,
+                    now,
+                    color = Color.White.copy(alpha = 0.65f),
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Normal,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
-                Spacer(Modifier.height(2.dp))
-                if (now.isNotBlank()) {
-                    Text(now, color = Color.White.copy(alpha = 0.72f), fontSize = 12.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                } else {
-                    Text("EPG —", color = Color.White.copy(alpha = 0.42f), fontSize = 11.sp)
-                }
             }
-            Spacer(Modifier.width(6.dp))
-            if (playing) {
-                Icon(Icons.Filled.PlayArrow, null, tint = MobileCyan, modifier = Modifier.size(22.dp))
-            } else {
-                Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, null, tint = Color.White.copy(alpha = 0.55f), modifier = Modifier.size(18.dp))
-            }
+        }
+        Spacer(Modifier.width(8.dp))
+        if (logo.isNotBlank()) {
+            AsyncImage(
+                logo,
+                null,
+                Modifier
+                    .height(28.dp)
+                    .widthIn(max = 52.dp),
+                contentScale = ContentScale.Fit
+            )
+            Spacer(Modifier.width(10.dp))
+        }
+        Box(
+            Modifier
+                .size(34.dp)
+                .clip(CircleShape)
+                .background(MobileCyan),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(
+                Icons.Filled.PlayArrow,
+                null,
+                tint = Color.Black,
+                modifier = Modifier.size(20.dp)
+            )
         }
     }
 }
