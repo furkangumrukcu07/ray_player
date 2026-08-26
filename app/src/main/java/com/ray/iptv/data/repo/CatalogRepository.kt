@@ -82,7 +82,11 @@ data class XtreamVodDetail(
     val year: String = "",
     val cast: String = "",
     val poster: String = "",
-    val trailer: String = ""
+    val backdrop: String = "",
+    val runtime: String = "",
+    val trailer: String = "",
+    val tmdbId: String = "",
+    val imdbId: String = ""
 )
 
 data class EpgSuggestion(
@@ -1582,7 +1586,7 @@ https://test-streams.mux.dev/dai-discontinuity-deltatre/manifest.m3u8
                 val v = runCatching { o.str(k).trim() }.getOrDefault("")
                 if (v.isNotBlank() && !v.equals("N/A", true)) return v
             }
-            for (nest in listOf("info", "movie_data", "movie", "data", "series")) {
+            for (nest in listOf("info", "movie_data", "series_info", "movie", "data", "series")) {
                 val child = o[nest]
                 if (child is JsonObject) {
                     val p = scanPlot(child)
@@ -1598,7 +1602,7 @@ https://test-streams.mux.dev/dai-discontinuity-deltatre/manifest.m3u8
                     return v.substringBefore('/').trim()
                 }
             }
-            for (nest in listOf("info", "movie_data", "movie", "data")) {
+            for (nest in listOf("info", "movie_data", "series_info", "movie", "data", "series")) {
                 val child = o[nest]
                 if (child is JsonObject) {
                     val v = scanField(child, keys)
@@ -1613,14 +1617,30 @@ https://test-streams.mux.dev/dai-discontinuity-deltatre/manifest.m3u8
             trailerRaw.matches(Regex("""^[a-zA-Z0-9_-]{8,}$""")) -> "https://www.youtube.com/watch?v=$trailerRaw"
             else -> ""
         }
+        val durationRaw = scanField(root, listOf("duration_secs", "duration", "episode_run_time", "runtime"))
+        val runtimeStr = when {
+            durationRaw.toIntOrNull() != null -> {
+                val sec = durationRaw.toInt()
+                if (sec > 300) "${sec / 60} min" else if (sec > 0) "$sec min" else ""
+            }
+            durationRaw.isNotBlank() -> durationRaw
+            else -> ""
+        }
+        val backdropRaw = scanField(root, listOf("backdrop_path", "backdrop", "backdrops", "cover_big", "movie_image"))
+        val tmdbRaw = scanField(root, listOf("tmdb_id", "tmdbId", "tmdb"))
+        val imdbRaw = scanField(root, listOf("imdb_id", "imdbId", "imdb"))
         return XtreamVodDetail(
             plot = scanPlot(root),
-            rating = scanField(root, listOf("rating_imdb", "imdb_rating", "rating", "imdb")),
-            genre = scanField(root, listOf("genre", "genres")),
-            year = scanField(root, listOf("releasedate", "releaseDate", "year")).take(4),
-            cast = scanField(root, listOf("cast", "actors", "stars")),
+            rating = scanField(root, listOf("rating_imdb", "imdb_rating", "rating_5based", "rating", "imdb", "vote_average")),
+            genre = scanField(root, listOf("genre", "genres", "category_name")),
+            year = scanField(root, listOf("releasedate", "releaseDate", "release_date", "first_air_date", "year")).take(4),
+            cast = scanField(root, listOf("cast", "actors", "stars", "director")),
             poster = scanField(root, listOf("movie_image", "cover_big", "cover", "stream_icon")),
-            trailer = trailer
+            backdrop = backdropRaw,
+            runtime = runtimeStr,
+            trailer = trailer,
+            tmdbId = tmdbRaw,
+            imdbId = if (imdbRaw.startsWith("tt")) imdbRaw else ""
         )
     }
 

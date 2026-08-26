@@ -97,13 +97,24 @@ class TmdbOmdbService @Inject constructor(
         val series = seeded.kind.equals("SERIES", true)
         val cacheKey = cacheKey(seeded, settings)
         synchronized(mem) { mem[cacheKey] }?.let { cached ->
-            return@withContext finish(seeded, cached.copy(trailerUrl = cached.trailerUrl.ifBlank { xtream.trailer }), settings.vodInfoEngine)
+            val cachedMeta = cached.copy(
+                trailerUrl = cached.trailerUrl.ifBlank { xtream.trailer },
+                backdrop = cached.backdrop.ifBlank { xtream.backdrop },
+                runtime = cached.runtime.ifBlank { xtream.runtime }
+            )
+            return@withContext finish(seeded, cachedMeta, settings.vodInfoEngine)
         }
 
         val cleaned = cleanNameAndYear(seeded.name, series, seeded.year)
         val tmdbLang = settings.lang.tmdbLanguage()
-        val imdbHint = imdbIdIn(seeded.streamUrl)
-        val tmdb = searchTmdb(cleaned.name, cleaned.year, series, tmdbLang)
+        val directTmdbId = xtream.tmdbId.toIntOrNull() ?: 0
+        val imdbHint = xtream.imdbId.ifBlank { imdbIdIn(seeded.streamUrl) }
+
+        val tmdb = when {
+            directTmdbId > 0 -> fetchTmdbById(directTmdbId, series, tmdbLang)
+            else -> searchTmdb(cleaned.name, cleaned.year, series, tmdbLang)
+        }
+
         var omdb = when {
             !imdbHint.isNullOrBlank() -> fetchOmdbByImdb(imdbHint)
             tmdb.imdbId.isNotBlank() -> fetchOmdbByImdb(tmdb.imdbId)
@@ -145,12 +156,12 @@ class TmdbOmdbService @Inject constructor(
             rating = pick(omdb.rating, tmdb.rating, seeded.rating),
             genre = genre,
             year = pick(tmdb.year, omdb.year, cleaned.year, seeded.year),
-            backdrop = tmdb.backdrop,
-            runtime = tmdb.runtime.ifBlank { omdb.runtime },
+            backdrop = tmdb.backdrop.ifBlank { xtream.backdrop },
+            runtime = tmdb.runtime.ifBlank { xtream.runtime }.ifBlank { omdb.runtime },
             cast = tmdb.cast.ifBlank { omdb.cast }.ifBlank { xtream.cast }.ifBlank { people.joinToString(", ") { it.name } },
             people = people,
             trailerUrl = tmdb.trailerUrl.ifBlank { xtream.trailer },
-            tmdbId = tmdb.tmdbId
+            tmdbId = if (tmdb.tmdbId > 0) tmdb.tmdbId else directTmdbId
         )
         synchronized(mem) {
             if (mem.size > 60) mem.remove(mem.keys.first())
@@ -261,16 +272,34 @@ class TmdbOmdbService @Inject constructor(
         val attempts = buildList {
             add(name to year)
             if (year.length == 4) add(name to "")
+            if (name.contains(':')) add(name.substringBefore(':').trim() to year)
+            if (name.contains('-')) add(name.substringBefore('-').trim() to year)
             if (folded != name) {
                 add(folded to year)
                 if (year.length == 4) add(folded to "")
+                if (folded.contains(':')) add(folded.substringBefore(':').trim() to year)
+                if (folded.contains('-')) add(folded.substringBefore('-').trim() to year)
             }
         }
         for ((q, y) in attempts.distinct()) {
+            if (q.isBlank()) continue
             val hit = searchTmdbOnce(q, y, series, language)
             if (hit.tmdbId > 0) return hit
         }
         return TmdbHit()
+    }
+
+    private fun fetchTmdbById(id: Int, series: Boolean, language: String): TmdbHit {
+        if (id <= 0) return TmdbHit()
+        val mediaType = if (series) "tv" else "movie"
+        val detail = tmdbGet(
+            "/$mediaType/$id",
+            mapOf(
+                "language" to language,
+                "append_to_response" to "credits,videos,external_ids"
+            )
+        ) ?: return TmdbHit()
+        return parseTmdbDetail(detail, mediaType, language, id)
     }
 
     private fun searchTmdbOnce(name: String, year: String, series: Boolean, language: String): TmdbHit {
@@ -306,7 +335,7 @@ class TmdbOmdbService @Inject constructor(
         if (id <= 0) return TmdbHit()
         val mediaType = jsonStr(match, "media_type").ifBlank { want }
 
-        var detail = tmdbGet(
+        val detail = tmdbGet(
             "/$mediaType/$id",
             mapOf(
                 "language" to language,
@@ -314,6 +343,11 @@ class TmdbOmdbService @Inject constructor(
             )
         ) ?: match ?: return TmdbHit()
 
+        return parseTmdbDetail(detail, mediaType, language, id)
+    }
+
+    private fun parseTmdbDetail(rawDetail: JSONObject, mediaType: String, language: String, id: Int): TmdbHit {
+        var detail = rawDetail
         var plot = na(jsonStr(detail, "overview"))
         if (!usable(plot) && !language.startsWith("en")) {
             tmdbGet("/$mediaType/$id", mapOf("language" to "en-US"))?.let {
@@ -614,23 +648,38 @@ class TmdbOmdbService @Inject constructor(
         }
     }.getOrDefault(0 to null)
 
+    private val PREFIX_REGEX = Regex(
+        """^(TR|TUR|EN|DE|FR|IT|ES|AR|RU|AZ|NL|VIP|4K|FHD|HD|SD|SINEMA|SİNEMA|YERLİ|YERLI|YABANCI|NETFLIX|EXXEN|DISNEY\+?|BLUTV|AMAZON|PRIME|TOD|GAIN|APPLE\s?TV|BEIN|SMART|DUBLAJ|ALTYAZI(LI)?|TR-DUB|TR-ALT|TR\s*DUBLAJ|TR\s*ALTYAZILI)[\s|:_\-\\/]+""",
+        RegexOption.IGNORE_CASE
+    )
+
+    private val QUALITY_TAGS_REGEX = Regex(
+        """\b(4K|UHD|FHD|HD|SD|1080[pi]?|720[pi]?|2160[pi]?|480[pi]?|576[pi]?|H\.?264|H\.?265|HEVC|X264|X265|HDR10\+?|HDR|DV|DOLBY|ATMOS|5\.1|7\.1|DUBLAJ|DUB|ALTYAZILI|ALT|MULTI|SUB|BLURAY|WEB-?DL|WEBRIP|HDTV|BDRIP|DVDRIP)\b""",
+        RegexOption.IGNORE_CASE
+    )
+
     private data class Cleaned(val name: String, val year: String)
 
     private fun cleanNameAndYear(raw: String, series: Boolean, itemYear: String): Cleaned {
         var s = raw
+        while (PREFIX_REGEX.containsMatchIn(s)) {
+            s = s.replace(PREFIX_REGEX, "")
+        }
         if (series) {
             s = s.replace(Regex("""[sS]\d{1,2}\s?[eE]\d{1,2}"""), "")
                 .replace(Regex("""[sS]\d{1,2}"""), "")
                 .replace(Regex("""[eE]\d{1,2}"""), "")
                 .replace(Regex("""\d{1,2}\.\s?(Sezon|Bölüm)""", RegexOption.IGNORE_CASE), "")
                 .replace(Regex("""(Sezon|Bölüm)\s?\d{1,2}""", RegexOption.IGNORE_CASE), "")
+                .replace(Regex("""Season\s*\d+""", RegexOption.IGNORE_CASE), "")
+                .replace(Regex("""Episode\s*\d+""", RegexOption.IGNORE_CASE), "")
         }
         val yearFromName = Regex("""\b(19|20)\d{2}\b""").find(s)?.value.orEmpty()
         if (yearFromName.isNotBlank()) s = s.replaceFirst(yearFromName, "")
-        s = s.replace(Regex("""\b(4K|UHD|FHD|HD|H\.?265|HEVC|HDR|DV|Atmos)\b""", RegexOption.IGNORE_CASE), "")
+        s = s.replace(QUALITY_TAGS_REGEX, " ")
             .replace(Regex("""\(.*?\)"""), " ")
             .replace(Regex("""\[.*?\]"""), " ")
-            .replace(Regex("""[-._]+"""), " ")
+            .replace(Regex("""[-._|:]+"""), " ")
             .replace(Regex("""\s+"""), " ")
             .trim()
         val year = itemYear.filter { it.isDigit() }.take(4).ifBlank { yearFromName }

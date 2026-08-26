@@ -1076,7 +1076,8 @@ class RayViewModel @Inject constructor(
 
     private fun applyXtreamExtras(item: VodEntity, xtream: XtreamVodDetail) {
         if (xtream.plot.isBlank() && xtream.rating.isBlank() && xtream.genre.isBlank() &&
-            xtream.poster.isBlank() && xtream.trailer.isBlank() && xtream.cast.isBlank()
+            xtream.poster.isBlank() && xtream.trailer.isBlank() && xtream.cast.isBlank() &&
+            xtream.backdrop.isBlank() && xtream.runtime.isBlank()
         ) return
         val cur = if (vodExtrasId.value == item.id) vodExtras.value else vodMeta.seed(item, settings.value)
         vodExtras.value = cur.copy(
@@ -1085,7 +1086,8 @@ class RayViewModel @Inject constructor(
             rating = xtream.rating.ifBlank { cur.rating }.ifBlank { item.rating },
             genre = xtream.genre.ifBlank { cur.genre }.ifBlank { item.genre },
             year = xtream.year.ifBlank { cur.year }.ifBlank { item.year },
-            backdrop = xtream.poster.ifBlank { cur.backdrop }.ifBlank { item.poster },
+            backdrop = xtream.backdrop.ifBlank { xtream.poster }.ifBlank { cur.backdrop }.ifBlank { item.poster },
+            runtime = xtream.runtime.ifBlank { cur.runtime },
             cast = xtream.cast.ifBlank { cur.cast },
             people = if (cur.people.isEmpty() && xtream.cast.isNotBlank()) {
                 xtream.cast.split(',', ';', '|').map { it.trim() }.filter { it.isNotBlank() }.map { com.ray.iptv.data.meta.CastPerson(it, "") }
