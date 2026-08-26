@@ -18,6 +18,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Animation
 import androidx.compose.material.icons.filled.AutoAwesome
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Dock
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FavoriteBorder
@@ -221,29 +222,29 @@ private fun HomeToggleCard(
     HomeCardFrame {
         Row(
             Modifier
-                .clip(RoundedCornerShape(16.dp))
-                .background(Color.White.copy(alpha = 0.05f))
+                .fillMaxWidth()
                 .rayClickable(onToggle)
-                .padding(start = 12.dp, top = 10.dp, end = 8.dp, bottom = 10.dp),
+                .padding(vertical = 4.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             HomeIconBadge(icon)
             Spacer(Modifier.width(12.dp))
             Column(Modifier.weight(1f)) {
-                Text(title, color = Color.White, fontWeight = FontWeight.ExtraBold, fontSize = 15.sp)
+                Text(title, color = Color.White, fontWeight = FontWeight.Bold, fontSize = 15.sp)
                 Spacer(Modifier.height(2.dp))
                 Text(subtitle, color = Color.White.copy(alpha = 0.65f), fontSize = 12.sp, lineHeight = 16.sp)
             }
+            Spacer(Modifier.width(8.dp))
             MobileSwitch(checked)
         }
         if (preview != null) {
-            Spacer(Modifier.height(10.dp))
+            Spacer(Modifier.height(12.dp))
             Box(
                 Modifier
                     .fillMaxWidth()
-                    .height(92.dp)
-                    .clip(RoundedCornerShape(12.dp))
-                    .background(Color.Black.copy(alpha = 0.28f))
+                    .clip(RoundedCornerShape(14.dp))
+                    .background(Color(0xFF0B100D).copy(alpha = 0.65f))
+                    .border(1.dp, Color.White.copy(alpha = 0.08f), RoundedCornerShape(14.dp))
                     .padding(10.dp)
             ) {
                 Box(Modifier.fillMaxWidth(), content = { preview() })
@@ -257,10 +258,10 @@ private fun HomeCardFrame(content: @Composable () -> Unit) {
     Column(
         Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(18.dp))
-            .border(1.dp, Color.White.copy(alpha = 0.12f), RoundedCornerShape(18.dp))
-            .background(Brush.linearGradient(listOf(Color.White.copy(alpha = 0.07f), Color.White.copy(alpha = 0.02f))))
-            .padding(8.dp)
+            .clip(RoundedCornerShape(20.dp))
+            .background(Color(0xFF101713).copy(alpha = 0.85f))
+            .border(1.dp, Color.White.copy(alpha = 0.12f), RoundedCornerShape(20.dp))
+            .padding(14.dp)
     ) { content() }
 }
 
@@ -270,8 +271,7 @@ private fun HomeIconBadge(icon: ImageVector, accent: Color = Color.White) {
         Modifier
             .size(40.dp)
             .clip(CircleShape)
-            .background(MobileCyan.copy(alpha = 0.18f))
-            .border(1.dp, MobileCyan.copy(alpha = 0.40f), CircleShape),
+            .background(Color.White.copy(alpha = 0.08f)),
         contentAlignment = Alignment.Center
     ) {
         Icon(icon, null, tint = Color.White, modifier = Modifier.size(20.dp))
@@ -281,11 +281,12 @@ private fun HomeIconBadge(icon: ImageVector, accent: Color = Color.White) {
 @Composable
 private fun TransitionSection(tr: Boolean, current: PageTransitionEffect, onPick: (PageTransitionEffect) -> Unit) {
     HomeCardFrame {
-        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(4.dp)) {
+        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(2.dp)) {
             HomeIconBadge(Icons.Filled.Animation)
             Spacer(Modifier.width(12.dp))
             Column {
-                Text(if (tr) "Geçiş Efekti" else "Transition effect", color = Color.White, fontWeight = FontWeight.ExtraBold, fontSize = 15.sp)
+                Text(if (tr) "Geçiş Efekti" else "Transition effect", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 15.5.sp)
+                Spacer(Modifier.height(2.dp))
                 Text(
                     if (tr) "Sayfalar arası geçiş animasyonunu seç." else "Choose the animation between pages.",
                     color = Color.White.copy(alpha = 0.65f),
@@ -293,7 +294,7 @@ private fun TransitionSection(tr: Boolean, current: PageTransitionEffect, onPick
                 )
             }
         }
-        Spacer(Modifier.height(10.dp))
+        Spacer(Modifier.height(12.dp))
         PageTransitionEffect.entries.forEach { fx ->
             val on = current == fx
             val title = when (fx) {
@@ -315,16 +316,12 @@ private fun TransitionSection(tr: Boolean, current: PageTransitionEffect, onPick
 @Composable
 private fun DockbarSection(tr: Boolean, current: DockbarStyle, onPick: (DockbarStyle) -> Unit) {
     HomeCardFrame {
-        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(8.dp)) {
-            Box(
-                Modifier.size(38.dp).clip(CircleShape).background(MobileCyan.copy(alpha = 0.15f)),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(Icons.Filled.Dock, null, tint = MobileCyan, modifier = Modifier.size(20.dp))
-            }
+        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(2.dp)) {
+            HomeIconBadge(Icons.Filled.Dock)
             Spacer(Modifier.width(12.dp))
             Column {
-                Text(if (tr) "Dockbar Seçimi" else "Dock bar style", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 15.sp)
+                Text(if (tr) "Dockbar Seçimi" else "Dock bar style", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 15.5.sp)
+                Spacer(Modifier.height(2.dp))
                 Text(
                     if (tr) "Vitrin alt sekme menüsünün görünüm stilini seçin." else "Choose the look of the showcase bottom bar.",
                     color = Color.White.copy(alpha = 0.6f),
@@ -332,7 +329,7 @@ private fun DockbarSection(tr: Boolean, current: DockbarStyle, onPick: (DockbarS
                 )
             }
         }
-        Spacer(Modifier.height(8.dp))
+        Spacer(Modifier.height(12.dp))
         DockbarStyle.entries.forEach { style ->
             val on = current == style
             val title = when (style) {
@@ -353,30 +350,41 @@ private fun DockbarSection(tr: Boolean, current: DockbarStyle, onPick: (DockbarS
 
 @Composable
 private fun ChoiceTile(title: String, subtitle: String, selected: Boolean, cyan: Boolean = false, onClick: () -> Unit) {
-    val accent = if (cyan) MobileCyan else Color.White
     Row(
         Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(12.dp))
-            .background(if (selected) accent.copy(alpha = 0.12f) else Color.White.copy(alpha = 0.03f))
-            .border(if (selected) 1.5.dp else 1.dp, if (selected) accent.copy(alpha = 0.5f) else Color.White.copy(alpha = 0.08f), RoundedCornerShape(12.dp))
+            .clip(RoundedCornerShape(14.dp))
+            .background(if (selected) Color.White.copy(alpha = 0.08f) else Color.White.copy(alpha = 0.035f))
+            .border(
+                if (selected) 1.2.dp else 1.dp,
+                if (selected) Color.White.copy(alpha = 0.40f) else Color.White.copy(alpha = 0.09f),
+                RoundedCornerShape(14.dp)
+            )
             .rayClickable(onClick)
-            .padding(horizontal = 14.dp, vertical = 12.dp),
+            .padding(horizontal = 14.dp, vertical = 13.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Box(
             Modifier
-                .size(20.dp)
+                .size(22.dp)
                 .clip(CircleShape)
-                .border(2.dp, if (selected) accent else Color.White.copy(alpha = 0.4f), CircleShape),
+                .border(1.5.dp, if (selected) Color.White else Color.White.copy(alpha = 0.45f), CircleShape),
             contentAlignment = Alignment.Center
         ) {
-            if (selected) Box(Modifier.size(10.dp).clip(CircleShape).background(accent))
+            if (selected) {
+                Icon(
+                    Icons.Filled.Check,
+                    contentDescription = null,
+                    tint = Color.White,
+                    modifier = Modifier.size(14.dp)
+                )
+            }
         }
         Spacer(Modifier.width(12.dp))
         Column(Modifier.weight(1f)) {
-            Text(title, color = Color.White, fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium, fontSize = 14.sp)
-            Text(subtitle, color = Color.White.copy(alpha = if (selected) 0.7f else 0.4f), fontSize = 11.sp)
+            Text(title, color = Color.White, fontWeight = FontWeight.Bold, fontSize = 14.5.sp)
+            Spacer(Modifier.height(1.dp))
+            Text(subtitle, color = Color.White.copy(alpha = if (selected) 0.75f else 0.55f), fontSize = 12.sp, lineHeight = 16.sp)
         }
     }
 }

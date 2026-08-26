@@ -153,14 +153,13 @@ fun MobileSettingsFrame(
     onClick: (() -> Unit)? = null,
     content: @Composable () -> Unit
 ) {
-    val g = LocalGlass.current
-    val shape = RoundedCornerShape(18.dp)
+    val shape = RoundedCornerShape(20.dp)
     Box(
         modifier
             .fillMaxWidth()
             .clip(shape)
-            .background(Brush.linearGradient(g.capsuleGradient()), shape)
-            .border(1.dp, g.capsuleStroke(), shape)
+            .background(Color(0xFF101713).copy(alpha = 0.85f), shape)
+            .border(1.dp, Color.White.copy(alpha = 0.12f), shape)
             .then(if (onClick != null) Modifier.rayClickable(onClick) else Modifier)
     ) {
         content()
@@ -169,21 +168,20 @@ fun MobileSettingsFrame(
 
 @Composable
 fun MobileSwitch(checked: Boolean) {
-    val g = LocalGlass.current
     Box(
         Modifier
-            .width(42.dp)
-            .height(24.dp)
-            .clip(RoundedCornerShape(12.dp))
-            .background(if (checked) g.accent else Color.White.copy(alpha = 0.18f))
-            .padding(2.dp)
+            .width(46.dp)
+            .height(26.dp)
+            .clip(RoundedCornerShape(13.dp))
+            .background(if (checked) Color(0xFF22D3EE) else Color.White.copy(alpha = 0.18f))
+            .padding(3.dp)
     ) {
         Box(
             Modifier
                 .size(20.dp)
                 .align(if (checked) Alignment.CenterEnd else Alignment.CenterStart)
                 .clip(CircleShape)
-                .background(Color.White)
+                .background(if (checked) Color(0xFF0C1914) else Color.White)
         )
     }
 }
