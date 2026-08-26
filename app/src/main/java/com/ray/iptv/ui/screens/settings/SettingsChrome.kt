@@ -153,13 +153,13 @@ fun MobileSettingsFrame(
     onClick: (() -> Unit)? = null,
     content: @Composable () -> Unit
 ) {
-    val shape = RoundedCornerShape(20.dp)
+    val shape = RoundedCornerShape(22.dp)
     Box(
         modifier
             .fillMaxWidth()
             .clip(shape)
-            .background(Color(0xFF101713).copy(alpha = 0.85f), shape)
-            .border(1.dp, Color.White.copy(alpha = 0.12f), shape)
+            .background(Color(0xFF16382B).copy(alpha = 0.45f), shape)
+            .border(1.dp, Color(0xFF4ADE80).copy(alpha = 0.20f), shape)
             .then(if (onClick != null) Modifier.rayClickable(onClick) else Modifier)
     ) {
         content()

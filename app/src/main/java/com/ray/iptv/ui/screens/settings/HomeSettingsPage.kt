@@ -242,9 +242,9 @@ private fun HomeToggleCard(
             Box(
                 Modifier
                     .fillMaxWidth()
-                    .clip(RoundedCornerShape(14.dp))
-                    .background(Color(0xFF0B100D).copy(alpha = 0.65f))
-                    .border(1.dp, Color.White.copy(alpha = 0.08f), RoundedCornerShape(14.dp))
+                    .clip(RoundedCornerShape(16.dp))
+                    .background(Color(0xFF0D241B).copy(alpha = 0.60f))
+                    .border(1.dp, Color(0xFF34D399).copy(alpha = 0.15f), RoundedCornerShape(16.dp))
                     .padding(10.dp)
             ) {
                 Box(Modifier.fillMaxWidth(), content = { preview() })
@@ -258,23 +258,23 @@ private fun HomeCardFrame(content: @Composable () -> Unit) {
     Column(
         Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(20.dp))
-            .background(Color(0xFF101713).copy(alpha = 0.85f))
-            .border(1.dp, Color.White.copy(alpha = 0.12f), RoundedCornerShape(20.dp))
-            .padding(14.dp)
+            .clip(RoundedCornerShape(22.dp))
+            .background(Color(0xFF16382B).copy(alpha = 0.45f))
+            .border(1.dp, Color(0xFF4ADE80).copy(alpha = 0.20f), RoundedCornerShape(22.dp))
+            .padding(15.dp)
     ) { content() }
 }
 
 @Composable
-private fun HomeIconBadge(icon: ImageVector, accent: Color = Color.White) {
+private fun HomeIconBadge(icon: ImageVector, accent: Color = Color(0xFFA7F3D0)) {
     Box(
         Modifier
-            .size(40.dp)
+            .size(38.dp)
             .clip(CircleShape)
             .background(Color.White.copy(alpha = 0.08f)),
         contentAlignment = Alignment.Center
     ) {
-        Icon(icon, null, tint = Color.White, modifier = Modifier.size(20.dp))
+        Icon(icon, null, tint = Color(0xFFA7F3D0), modifier = Modifier.size(19.dp))
     }
 }
 
@@ -353,12 +353,12 @@ private fun ChoiceTile(title: String, subtitle: String, selected: Boolean, cyan:
     Row(
         Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(14.dp))
-            .background(if (selected) Color.White.copy(alpha = 0.08f) else Color.White.copy(alpha = 0.035f))
+            .clip(RoundedCornerShape(16.dp))
+            .background(if (selected) Color(0xFF1A4A37).copy(alpha = 0.55f) else Color(0xFF122E23).copy(alpha = 0.40f))
             .border(
                 if (selected) 1.2.dp else 1.dp,
-                if (selected) Color.White.copy(alpha = 0.40f) else Color.White.copy(alpha = 0.09f),
-                RoundedCornerShape(14.dp)
+                if (selected) Color(0xFF86EFAC).copy(alpha = 0.65f) else Color(0xFF34D399).copy(alpha = 0.20f),
+                RoundedCornerShape(16.dp)
             )
             .rayClickable(onClick)
             .padding(horizontal = 14.dp, vertical = 13.dp),
@@ -368,14 +368,14 @@ private fun ChoiceTile(title: String, subtitle: String, selected: Boolean, cyan:
             Modifier
                 .size(22.dp)
                 .clip(CircleShape)
-                .border(1.5.dp, if (selected) Color.White else Color.White.copy(alpha = 0.45f), CircleShape),
+                .border(1.5.dp, if (selected) Color(0xFF86EFAC) else Color(0xFF86EFAC).copy(alpha = 0.45f), CircleShape),
             contentAlignment = Alignment.Center
         ) {
             if (selected) {
                 Icon(
                     Icons.Filled.Check,
                     contentDescription = null,
-                    tint = Color.White,
+                    tint = Color(0xFF86EFAC),
                     modifier = Modifier.size(14.dp)
                 )
             }
@@ -384,7 +384,7 @@ private fun ChoiceTile(title: String, subtitle: String, selected: Boolean, cyan:
         Column(Modifier.weight(1f)) {
             Text(title, color = Color.White, fontWeight = FontWeight.Bold, fontSize = 14.5.sp)
             Spacer(Modifier.height(1.dp))
-            Text(subtitle, color = Color.White.copy(alpha = if (selected) 0.75f else 0.55f), fontSize = 12.sp, lineHeight = 16.sp)
+            Text(subtitle, color = Color.White.copy(alpha = if (selected) 0.85f else 0.60f), fontSize = 12.sp, lineHeight = 16.sp)
         }
     }
 }
@@ -393,22 +393,23 @@ private fun ChoiceTile(title: String, subtitle: String, selected: Boolean, cyan:
 private fun MiniPoster(color: Color, content: @Composable () -> Unit) {
     Box(
         Modifier
-            .width(38.dp)
-            .height(52.dp)
-            .clip(RoundedCornerShape(7.dp))
-            .background(Brush.verticalGradient(listOf(color.copy(alpha = 0.6f), Color.Black.copy(alpha = 0.55f))))
-            .border(1.dp, Color.White.copy(alpha = 0.18f), RoundedCornerShape(7.dp)),
+            .width(42.dp)
+            .height(56.dp)
+            .clip(RoundedCornerShape(10.dp))
+            .background(Brush.verticalGradient(listOf(color.copy(alpha = 0.75f), Color(0xFF150A26).copy(alpha = 0.85f))))
+            .border(0.8.dp, Color.White.copy(alpha = 0.22f), RoundedCornerShape(10.dp)),
         contentAlignment = Alignment.Center
     ) { content() }
 }
 
 @Composable
 private fun TrendPreview() {
-    Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+    Row(horizontalArrangement = Arrangement.spacedBy(7.dp)) {
         listOf("9.2", "8.7", "8.4", "8.1", "7.6", "7.2").forEach { r ->
-            MiniPoster(Color(0xFF7E57C2)) {
+            MiniPoster(Color(0xFF4A1E73)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(Icons.Filled.Star, null, tint = Color(0xFFFFC107), modifier = Modifier.size(11.dp))
+                    Icon(Icons.Filled.Star, null, tint = Color(0xFFFFC107), modifier = Modifier.size(10.dp))
+                    Spacer(Modifier.width(1.5.dp))
                     Text(r, color = Color.White, fontSize = 9.sp, fontWeight = FontWeight.ExtraBold)
                 }
             }
@@ -437,23 +438,36 @@ private fun MixedPreview() {
 
 @Composable
 private fun UpcomingEpgPreview() {
-    val items = listOf("TRT 1" to "21:00", "Star" to "22:30", "Show" to "20:00", "atv" to "23:00")
-    Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-        items.forEach { (name, time) ->
+    val items = listOf(
+        Triple("TRT 1", "21:00", "45d"),
+        Triple("Star", "22:30", "2s"),
+        Triple("Show", "20:00", "15d"),
+        Triple("atv", "23:00", "1s")
+    )
+    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        items.forEach { (name, time, left) ->
             Column(
                 Modifier
-                    .width(64.dp)
-                    .height(70.dp)
-                    .clip(RoundedCornerShape(10.dp))
-                    .background(Brush.linearGradient(listOf(Color(0x594482FF), Color(0x339C27B0))))
-                    .border(1.dp, Color.White.copy(alpha = 0.18f), RoundedCornerShape(10.dp))
-                    .padding(4.dp),
+                    .width(66.dp)
+                    .height(76.dp)
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(Brush.verticalGradient(listOf(Color(0xFF1E3A5F).copy(alpha = 0.85f), Color(0xFF172554).copy(alpha = 0.85f))))
+                    .border(0.8.dp, Color(0xFF60A5FA).copy(alpha = 0.35f), RoundedCornerShape(12.dp))
+                    .padding(vertical = 5.dp, horizontal = 4.dp),
                 horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.Center
+                verticalArrangement = Arrangement.SpaceBetween
             ) {
-                Icon(Icons.Filled.LiveTv, null, tint = Color.White, modifier = Modifier.size(14.dp))
-                Text(name, color = Color.White, fontSize = 9.sp, fontWeight = FontWeight.ExtraBold)
-                Text(time, color = Color.White.copy(alpha = 0.8f), fontSize = 8.sp)
+                Icon(Icons.Filled.LiveTv, null, tint = Color.White, modifier = Modifier.size(13.dp))
+                Text(name, color = Color.White, fontSize = 9.5.sp, fontWeight = FontWeight.ExtraBold)
+                Text(time, color = Color.White.copy(alpha = 0.85f), fontSize = 8.5.sp)
+                Box(
+                    Modifier
+                        .clip(RoundedCornerShape(4.dp))
+                        .background(Color(0xFF3B82F6).copy(alpha = 0.35f))
+                        .padding(horizontal = 5.dp, vertical = 1.dp)
+                ) {
+                    Text(left, color = Color(0xFF93C5FD), fontSize = 7.5.sp, fontWeight = FontWeight.Bold)
+                }
             }
         }
     }
