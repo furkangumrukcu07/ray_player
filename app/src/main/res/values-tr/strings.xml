@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Ray IPTV Player</string>
+    <string name="brand_name">Ray Player</string>
+    <string name="disclaimer_title">Oynatıcı, katalog değil</string>
+    <string name="disclaimer_body">Ray IPTV Player kanal, film veya yayın listesi sağlamaz. Yalnızca kullanmaya yetkili olduğunuz kaynağı ekleyin.</string>
+    <string name="continue_label">Devam</string>
+    <string name="get_started">Başla</string>
+</resources>

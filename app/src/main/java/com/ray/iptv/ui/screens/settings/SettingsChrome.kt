@@ -1,0 +1,750 @@
+package com.ray.iptv.ui.screens.settings
+
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.compositionLocalOf
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.key
+import androidx.compose.ui.input.key.onPreviewKeyEvent
+import androidx.compose.ui.input.key.type
+import com.ray.iptv.ui.input.rayFocusRequester
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
+import androidx.tv.material3.Icon
+import androidx.tv.material3.MaterialTheme
+import androidx.tv.material3.Text
+import coil.compose.AsyncImage
+import com.ray.iptv.data.repo.GlassStyle
+import com.ray.iptv.ui.components.GlassButton
+import com.ray.iptv.ui.components.GlassToggle
+import com.ray.iptv.ui.glass.GlassPanel
+import com.ray.iptv.ui.input.rayClickable
+import com.ray.iptv.ui.theme.LocalGlass
+import com.ray.iptv.ui.theme.capsuleForeground
+import com.ray.iptv.ui.theme.capsuleGradient
+import com.ray.iptv.ui.theme.capsuleStroke
+import com.ray.iptv.ui.theme.subtitle
+import com.ray.iptv.ui.theme.title
+import com.ray.iptv.ui.theme.toPalette
+import com.ray.iptv.ui.theme.usesLightChrome
+
+val LocalMobileSettingsChrome = compositionLocalOf { false }
+
+@Composable
+fun SettingsSectionLabel(text: String) {
+    val g = LocalGlass.current
+    val mobile = LocalMobileSettingsChrome.current
+    Text(
+        if (mobile) text else text.uppercase(),
+        color = g.muted,
+        fontSize = if (mobile) 14.sp else MaterialTheme.typography.labelMedium.fontSize,
+        fontWeight = if (mobile) FontWeight.SemiBold else FontWeight.Medium,
+        style = MaterialTheme.typography.labelMedium,
+        modifier = Modifier.padding(top = 10.dp, bottom = 8.dp, start = if (mobile) 2.dp else 6.dp)
+    )
+}
+
+@Composable
+fun MobileSettingsTile(
+    icon: ImageVector,
+    title: String,
+    subtitle: String,
+    onClick: () -> Unit,
+    danger: Boolean = false
+) {
+    val g = LocalGlass.current
+    val accent = if (danger) g.danger else g.accent
+    val fg = if (danger) accent else g.capsuleForeground().takeIf { g.usesLightChrome } ?: g.text
+    val muted = fg.copy(alpha = 0.70f)
+    val fill = if (g.usesLightChrome) {
+        Brush.linearGradient(g.capsuleGradient())
+    } else {
+        Brush.linearGradient(listOf(g.panel.copy(alpha = 0.42f), g.panel.copy(alpha = 0.42f)))
+    }
+    val stroke = if (g.usesLightChrome) g.capsuleStroke() else g.stroke.copy(alpha = 0.7f)
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(16.dp))
+            .background(fill, RoundedCornerShape(16.dp))
+            .border(1.dp, stroke, RoundedCornerShape(16.dp))
+            .rayClickable(onClick)
+            .padding(horizontal = 12.dp, vertical = 12.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Box(
+            Modifier
+                .size(42.dp)
+                .clip(RoundedCornerShape(12.dp))
+                .background(accent.copy(alpha = 0.14f))
+                .border(0.8.dp, accent.copy(alpha = 0.22f), RoundedCornerShape(12.dp)),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(icon, null, tint = accent, modifier = Modifier.size(22.dp))
+        }
+        Spacer(Modifier.width(12.dp))
+        Column(Modifier.weight(1f)) {
+            Text(
+                title,
+                color = fg,
+                fontWeight = FontWeight.Bold,
+                fontSize = 15.sp,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+            Text(
+                subtitle,
+                color = muted,
+                fontSize = 12.sp,
+                fontWeight = FontWeight.Medium,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis
+            )
+        }
+    }
+}
+
+@Composable
+fun MobileSettingsFrame(
+    modifier: Modifier = Modifier,
+    onClick: (() -> Unit)? = null,
+    content: @Composable () -> Unit
+) {
+    val g = LocalGlass.current
+    val shape = RoundedCornerShape(18.dp)
+    Box(
+        modifier
+            .fillMaxWidth()
+            .clip(shape)
+            .background(Brush.linearGradient(g.capsuleGradient()), shape)
+            .border(1.dp, g.capsuleStroke(), shape)
+            .then(if (onClick != null) Modifier.rayClickable(onClick) else Modifier)
+    ) {
+        content()
+    }
+}
+
+@Composable
+fun MobileSwitch(checked: Boolean) {
+    val g = LocalGlass.current
+    Box(
+        Modifier
+            .width(42.dp)
+            .height(24.dp)
+            .clip(RoundedCornerShape(12.dp))
+            .background(if (checked) g.accent else Color.White.copy(alpha = 0.18f))
+            .padding(2.dp)
+    ) {
+        Box(
+            Modifier
+                .size(20.dp)
+                .align(if (checked) Alignment.CenterEnd else Alignment.CenterStart)
+                .clip(CircleShape)
+                .background(Color.White)
+        )
+    }
+}
+
+@Composable
+fun MobileOptionTile(
+    icon: ImageVector?,
+    title: String,
+    subtitle: String,
+    onClick: () -> Unit,
+    showSwitch: Boolean = false,
+    checked: Boolean = false,
+    enabled: Boolean = true,
+    accent: Color? = null
+) {
+    val resolvedAccent = accent ?: LocalGlass.current.accent
+    MobileSettingsFrame(onClick = if (enabled) onClick else null) {
+        Row(
+            Modifier
+                .alpha(if (enabled) 1f else 0.42f)
+                .padding(start = 14.dp, top = 12.dp, end = 12.dp, bottom = 12.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            if (icon != null) {
+                Box(
+                    Modifier
+                        .size(42.dp)
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(resolvedAccent.copy(alpha = 0.14f))
+                        .border(0.8.dp, resolvedAccent.copy(alpha = 0.22f), RoundedCornerShape(12.dp)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(icon, contentDescription = null, tint = resolvedAccent, modifier = Modifier.size(22.dp))
+                }
+                Spacer(Modifier.width(12.dp))
+            }
+            Column(Modifier.weight(1f)) {
+                Text(
+                    title,
+                    color = Color.White,
+                    fontWeight = FontWeight.ExtraBold,
+                    fontSize = 15.sp,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+                if (subtitle.isNotBlank()) {
+                    Spacer(Modifier.height(2.dp))
+                    Text(
+                        subtitle,
+                        color = Color.White.copy(alpha = 0.65f),
+                        fontSize = 12.5.sp,
+                        fontWeight = FontWeight.Medium,
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
+            }
+            if (showSwitch) {
+                Spacer(Modifier.width(8.dp))
+                MobileSwitch(checked)
+            } else {
+                Icon(
+                    Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                    contentDescription = null,
+                    tint = Color.White.copy(alpha = 0.55f),
+                    modifier = Modifier.size(22.dp)
+                )
+            }
+        }
+    }
+}
+
+@Composable
+fun HubGlassTile(
+    icon: ImageVector,
+    title: String,
+    subtitle: String,
+    onClick: () -> Unit,
+    danger: Boolean = false,
+    onLeft: (() -> Unit)? = null,
+    isTopRow: Boolean = false,
+    focusRequester: FocusRequester? = null
+) {
+    val g = LocalGlass.current
+    var focused by remember { mutableStateOf(false) }
+    GlassPanel(
+        focused = focused,
+        strong = true,
+        radius = 16.dp,
+        onClick = onClick,
+        modifier = Modifier
+            .fillMaxWidth()
+            .rayFocusRequester(focusRequester)
+            .onFocusChanged { focused = it.isFocused }
+            .onPreviewKeyEvent { e ->
+                if (e.type != KeyEventType.KeyDown) return@onPreviewKeyEvent false
+                when (e.key) {
+                    Key.DirectionLeft -> {
+                        if (onLeft != null) {
+                            onLeft()
+                        }
+                        true
+                    }
+                    Key.DirectionUp -> {
+                        if (isTopRow) true else false
+                    }
+                    else -> false
+                }
+            }
+    ) {
+        Row(Modifier.padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
+            Box(
+                Modifier
+                    .size(42.dp)
+                    .clip(RoundedCornerShape(12.dp))
+                    .background((if (danger) g.danger else g.accent).copy(alpha = if (g.frostDark) 0.34f else 0.18f)),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(icon, contentDescription = null, tint = if (danger) g.danger else g.accent, modifier = Modifier.size(22.dp))
+            }
+            Spacer(Modifier.width(12.dp))
+            Column(Modifier.weight(1f)) {
+                Text(title, color = if (danger) g.danger else g.text, style = MaterialTheme.typography.titleMedium, maxLines = 1)
+                Text(
+                    subtitle,
+                    color = g.muted,
+                    style = MaterialTheme.typography.bodySmall,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
+        }
+    }
+}
+
+@Composable
+fun SettingsSubpage(title: String, hint: String? = null, onBack: () -> Unit, content: @Composable ColumnScope.() -> Unit) {
+    val g = LocalGlass.current
+    Column(Modifier.fillMaxWidth()) {
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            if (!LocalMobileSettingsChrome.current) {
+                GlassButton("←") { onBack() }
+            }
+            Column(Modifier.weight(1f)) {
+                Text(title, color = g.text, style = MaterialTheme.typography.headlineMedium)
+                if (!hint.isNullOrBlank()) Text(hint, color = g.muted, style = MaterialTheme.typography.bodySmall)
+            }
+        }
+        Spacer(Modifier.height(12.dp))
+        GlassPanel(strong = true, radius = 20.dp, modifier = Modifier.fillMaxWidth()) {
+            Column(Modifier.padding(16.dp).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(6.dp), content = content)
+        }
+    }
+}
+
+@Composable
+fun SettingsNavRow(title: String, subtitle: String, icon: ImageVector? = null, onClick: () -> Unit) {
+    if (LocalMobileSettingsChrome.current) {
+        MobileOptionTile(icon = icon, title = title, subtitle = subtitle, onClick = onClick)
+        return
+    }
+    val g = LocalGlass.current
+    var focused by remember { mutableStateOf(false) }
+    GlassPanel(
+        focused = focused,
+        radius = 14.dp,
+        onClick = onClick,
+        modifier = Modifier.fillMaxWidth().onFocusChanged { focused = it.isFocused }
+    ) {
+        Row(Modifier.padding(horizontal = 14.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
+            Column(Modifier.weight(1f)) {
+                Text(title, color = g.text, style = MaterialTheme.typography.titleMedium)
+                Text(subtitle, color = g.muted, style = MaterialTheme.typography.bodySmall, maxLines = 2)
+            }
+            Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = null, tint = g.muted)
+        }
+    }
+}
+
+@Composable
+fun SettingsToggleRow(
+    title: String,
+    subtitle: String,
+    checked: Boolean,
+    icon: ImageVector? = null,
+    onToggle: () -> Unit
+) {
+    if (LocalMobileSettingsChrome.current) {
+        MobileOptionTile(
+            icon = icon,
+            title = title,
+            subtitle = subtitle,
+            onClick = onToggle,
+            showSwitch = true,
+            checked = checked
+        )
+        return
+    }
+    val g = LocalGlass.current
+    var focused by remember { mutableStateOf(false) }
+    GlassPanel(
+        focused = focused,
+        radius = 14.dp,
+        scaleOnFocus = false,
+        onClick = onToggle,
+        modifier = Modifier.fillMaxWidth().onFocusChanged { focused = it.isFocused }
+    ) {
+        Row(Modifier.padding(horizontal = 14.dp, vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) {
+            Column(Modifier.weight(1f)) {
+                Text(title, color = g.text, style = MaterialTheme.typography.titleMedium)
+                Text(subtitle, color = g.muted, style = MaterialTheme.typography.bodySmall, maxLines = 2)
+            }
+            Spacer(Modifier.width(12.dp))
+            GlassToggle(checked)
+        }
+    }
+}
+
+@Composable
+fun <T> SettingsPickerRow(
+    title: String,
+    valueLabel: String,
+    options: List<Pair<T, String>>,
+    selected: T,
+    body: String? = null,
+    extraAction: Pair<String, () -> Unit>? = null,
+    icon: ImageVector? = null,
+    onPick: (T) -> Unit
+) {
+    var open by remember { mutableStateOf(false) }
+    SettingsNavRow(title, valueLabel, icon) { open = true }
+    if (open) {
+        GlassChoiceDialog(
+            title = title,
+            options = options,
+            selected = selected,
+            body = body,
+            extraAction = extraAction,
+            onDismiss = { open = false },
+            onPick = {
+                onPick(it)
+                open = false
+            }
+        )
+    }
+}
+
+@Composable
+fun <T> GlassChoiceDialog(
+    title: String,
+    options: List<Pair<T, String>>,
+    selected: T,
+    body: String? = null,
+    extraAction: Pair<String, () -> Unit>? = null,
+    preview: ((T) -> Unit)? = null,
+    onDismiss: () -> Unit,
+    onPick: (T) -> Unit
+) {
+    val g = LocalGlass.current
+    var pending by remember { mutableStateOf(selected) }
+    val dialogMaxH = LocalConfiguration.current.screenHeightDp.dp * 0.88f
+    Dialog(
+        onDismissRequest = onDismiss,
+        properties = DialogProperties(usePlatformDefaultWidth = true)
+    ) {
+        GlassPanel(
+            strong = true,
+            radius = 20.dp,
+            modifier = Modifier
+                .fillMaxWidth()
+                .heightIn(max = dialogMaxH)
+                .navigationBarsPadding()
+        ) {
+            Column(
+                Modifier
+                    .fillMaxWidth()
+                    .heightIn(max = dialogMaxH)
+                    .padding(18.dp)
+            ) {
+                Text(title, color = g.text, style = MaterialTheme.typography.headlineSmall)
+                if (!body.isNullOrBlank()) {
+                    Spacer(Modifier.height(8.dp))
+                    Text(body, color = g.muted, style = MaterialTheme.typography.bodyMedium)
+                }
+                Spacer(Modifier.height(12.dp))
+                GlassPanel(
+                    radius = 14.dp,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .weight(1f, fill = false)
+                ) {
+                    Column(Modifier.padding(6.dp).verticalScroll(rememberScrollState())) {
+                        val mobile = LocalMobileSettingsChrome.current
+                        options.forEach { (value, label) ->
+                            val on = value == pending
+                            var focused by remember { mutableStateOf(false) }
+                            val pick: () -> Unit = {
+                                pending = value
+                                preview?.invoke(value)
+                            }
+                            if (mobile) {
+                                MobileSettingsFrame(onClick = pick) {
+                                    Row(
+                                        Modifier.padding(horizontal = 14.dp, vertical = 12.dp),
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Text(
+                                            label,
+                                            color = LocalGlass.current.text,
+                                            fontWeight = if (on) FontWeight.ExtraBold else FontWeight.Medium,
+                                            fontSize = 15.sp,
+                                            modifier = Modifier.weight(1f)
+                                        )
+                                        if (on) Icon(Icons.Filled.Check, contentDescription = null, tint = LocalGlass.current.accent)
+                                    }
+                                }
+                                Spacer(Modifier.height(8.dp))
+                            } else {
+                            GlassPanel(
+                                focused = focused || on,
+                                accentFill = on,
+                                radius = 12.dp,
+                                onClick = pick,
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(vertical = 3.dp)
+                                    .onFocusChanged { focused = it.isFocused }
+                            ) {
+                                Row(
+                                    Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Text(
+                                        label,
+                                        color = g.text,
+                                        modifier = Modifier.weight(1f),
+                                        style = MaterialTheme.typography.titleMedium
+                                    )
+                                    if (on) Icon(Icons.Filled.Check, contentDescription = null, tint = Color.White)
+                                }
+                            }
+                            }
+                        }
+                    }
+                }
+                Spacer(Modifier.height(12.dp))
+                val mobile = LocalMobileSettingsChrome.current
+                if (mobile) {
+                    Column(
+                        Modifier.fillMaxWidth(),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        GlassButton(
+                            "Kaydet",
+                            primary = true,
+                            modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp)
+                        ) { onPick(pending) }
+                        extraAction?.let { (label, action) ->
+                            GlassButton(
+                                label,
+                                modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)
+                            ) {
+                                action()
+                                onDismiss()
+                            }
+                        }
+                        GlassButton(
+                            "Vazgeç",
+                            modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)
+                        ) { onDismiss() }
+                    }
+                } else {
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.End),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        GlassButton("Vazgeç") { onDismiss() }
+                        extraAction?.let { (label, action) ->
+                            GlassButton(label) {
+                                action()
+                                onDismiss()
+                            }
+                        }
+                        GlassButton("Kaydet", primary = true) { onPick(pending) }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun ThemeChoiceTile(
+    style: GlassStyle,
+    selected: Boolean,
+    tr: Boolean,
+    onClick: () -> Unit
+) {
+    val g = LocalGlass.current
+    val pal = style.toPalette()
+    var focused by remember { mutableStateOf(false) }
+    GlassPanel(
+        focused = focused || selected,
+        strong = true,
+        radius = 18.dp,
+        onClick = onClick,
+        modifier = Modifier.fillMaxWidth().onFocusChanged { focused = it.isFocused }
+    ) {
+        Row(Modifier.padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
+            Box(
+                Modifier
+                    .size(56.dp)
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(pal.wallpaperDark)
+            ) {
+                if (pal.wallpaperRes != 0) {
+                    AsyncImage(
+                        model = pal.wallpaperRes,
+                        contentDescription = null,
+                        modifier = Modifier.fillMaxSize(),
+                        contentScale = ContentScale.Crop
+                    )
+                }
+                Box(
+                    Modifier
+                        .align(Alignment.BottomStart)
+                        .fillMaxWidth()
+                        .height(10.dp)
+                        .background(pal.accent)
+                )
+            }
+            Spacer(Modifier.width(14.dp))
+            Column(Modifier.weight(1f)) {
+                Text(style.title(tr), color = g.text, style = MaterialTheme.typography.titleMedium)
+                Text(style.subtitle(tr), color = g.muted, style = MaterialTheme.typography.bodyMedium)
+            }
+            if (selected) {
+                Icon(Icons.Filled.Check, contentDescription = null, tint = g.accent, modifier = Modifier.size(24.dp))
+            }
+        }
+    }
+}
+
+@Composable
+fun MobileThemePickerDialog(
+    tr: Boolean,
+    styles: List<GlassStyle>,
+    selected: GlassStyle,
+    preview: (GlassStyle) -> Unit,
+    onDismiss: () -> Unit,
+    onPick: (GlassStyle) -> Unit
+) {
+    val g = LocalGlass.current
+    var pending by remember { mutableStateOf(selected) }
+    val dialogMaxH = LocalConfiguration.current.screenHeightDp.dp * 0.88f
+    Dialog(
+        onDismissRequest = onDismiss,
+        properties = DialogProperties(usePlatformDefaultWidth = true)
+    ) {
+        GlassPanel(
+            strong = true,
+            radius = 20.dp,
+            modifier = Modifier
+                .fillMaxWidth()
+                .heightIn(max = dialogMaxH)
+                .navigationBarsPadding()
+        ) {
+            Column(
+                Modifier
+                    .fillMaxWidth()
+                    .heightIn(max = dialogMaxH)
+                    .padding(18.dp)
+            ) {
+                Text(if (tr) "Tema" else "Theme", color = g.text, style = MaterialTheme.typography.headlineSmall)
+                Spacer(Modifier.height(4.dp))
+                Text(
+                    if (tr) "Duvar kâğıdı ve vurgu rengi seçince hemen uygulanır."
+                    else "Wallpaper and accent apply instantly.",
+                    color = g.muted,
+                    style = MaterialTheme.typography.bodyMedium
+                )
+                Spacer(Modifier.height(12.dp))
+                Column(
+                    Modifier
+                        .weight(1f, fill = false)
+                        .verticalScroll(rememberScrollState()),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    styles.forEach { style ->
+                        ThemeChoiceTile(
+                            style = style,
+                            selected = pending == style,
+                            tr = tr,
+                            onClick = {
+                                pending = style
+                                preview(style)
+                            }
+                        )
+                    }
+                }
+                Spacer(Modifier.height(12.dp))
+                Column(
+                    Modifier.fillMaxWidth(),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    GlassButton(
+                        "Kaydet",
+                        primary = true,
+                        modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp)
+                    ) { onPick(pending) }
+                    GlassButton(
+                        "Vazgeç",
+                        modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)
+                    ) { onDismiss() }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun GlassConfirmDialog(
+    title: String,
+    body: String,
+    confirm: String,
+    cancel: String = "Vazgeç",
+    onDismiss: () -> Unit,
+    onConfirm: () -> Unit
+) {
+    val g = LocalGlass.current
+    Dialog(onDismissRequest = onDismiss) {
+        GlassPanel(strong = true, radius = 20.dp, modifier = Modifier.fillMaxWidth()) {
+            Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Text(title, color = g.text, style = MaterialTheme.typography.headlineSmall)
+                Text(body, color = g.muted, style = MaterialTheme.typography.bodyMedium)
+                if (LocalMobileSettingsChrome.current) {
+                    Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        GlassButton(
+                            confirm,
+                            primary = true,
+                            destructive = confirm == "Sil" || confirm.equals("Delete", true),
+                            modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp)
+                        ) {
+                            onConfirm()
+                            onDismiss()
+                        }
+                        GlassButton(cancel, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) { onDismiss() }
+                    }
+                } else {
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.End),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        GlassButton(cancel) { onDismiss() }
+                        GlassButton(confirm, primary = true, destructive = confirm == "Sil" || confirm.equals("Delete", true)) {
+                            onConfirm()
+                            onDismiss()
+                        }
+                    }
+                }
+            }
+        }
+    }
+}

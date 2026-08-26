@@ -1,0 +1,350 @@
+package com.ray.iptv.ui.shell
+
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.systemBarsPadding
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.History
+import androidx.compose.material.icons.filled.LiveTv
+import androidx.compose.material.icons.filled.Movie
+import androidx.compose.material.icons.filled.PlaylistPlay
+import androidx.compose.material.icons.filled.Replay
+import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.VideoLibrary
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import androidx.tv.material3.Icon
+import androidx.tv.material3.MaterialTheme
+import androidx.tv.material3.Text
+import com.ray.iptv.R
+import com.ray.iptv.ui.Dest
+import com.ray.iptv.ui.components.tickingClock
+import com.ray.iptv.ui.glass.GlassPanel
+import com.ray.iptv.ui.glass.RayWallpaper
+import com.ray.iptv.ui.i18n.Copy
+import com.ray.iptv.ui.input.LocalTouchUi
+import com.ray.iptv.ui.input.rayClickable
+import com.ray.iptv.ui.motion.rayRailEnter
+import com.ray.iptv.ui.motion.rayRailExit
+import com.ray.iptv.ui.theme.LocalGlass
+
+private data class NavItem(
+    val dest: Dest?,
+    val icon: ImageVector,
+    val label: (Copy) -> String,
+    val search: Boolean = false,
+    val repeat: Boolean = false
+)
+
+private val items = listOf(
+    NavItem(null, Icons.Filled.Search, { it.search }, search = true),
+    NavItem(Dest.LIVE, Icons.Filled.LiveTv, { it.live }),
+    NavItem(Dest.MOVIES, Icons.Filled.Movie, { it.movies }),
+    NavItem(Dest.SERIES, Icons.Filled.VideoLibrary, { it.series }),
+    NavItem(Dest.CONTINUE, Icons.Filled.History, { it.cont }),
+    NavItem(Dest.PLAYLISTS, Icons.Filled.PlaylistPlay, { it.playlists }),
+    NavItem(null, Icons.Filled.Replay, { it.repeat }, repeat = true),
+    NavItem(Dest.SETTINGS, Icons.Filled.Settings, { it.settings })
+)
+
+@Composable
+fun RayShell(
+    current: Dest,
+    copy: Copy,
+    syncMessage: String,
+    showLive: Boolean = true,
+    showMovies: Boolean = true,
+    showSeries: Boolean = true,
+    showContinue: Boolean = true,
+    showPlaylists: Boolean = true,
+    showRepeat: Boolean = true,
+    railExpanded: Boolean = true,
+    railHidden: Boolean = false,
+    searchSelected: Boolean = false,
+    repeatSelected: Boolean = false,
+    onGo: (Dest) -> Unit,
+    onSearch: () -> Unit = {},
+    onRepeat: () -> Unit = {},
+    onRailFocused: () -> Unit = {},
+    onToggleRail: () -> Unit = {},
+    content: @Composable () -> Unit
+) {
+    val g = LocalGlass.current
+    val touch = LocalTouchUi.current
+    val railW by animateDpAsState(
+        if (railExpanded) 176.dp else 64.dp,
+        animationSpec = tween(if (g.reduceEffects) 0 else 240, easing = FastOutSlowInEasing),
+        label = "rail-w"
+    )
+    val rootMod = if (touch) Modifier.fillMaxSize().systemBarsPadding() else Modifier.fillMaxSize()
+    val hideChrome = current == Dest.LIVE || current == Dest.PLAYLISTS ||
+        current == Dest.MOVIES || current == Dest.SERIES
+    Box(rootMod) {
+        RayWallpaper(
+            overlayTop = if (current == Dest.SETTINGS) 0.42f else 0.32f,
+            overlayBottom = if (current == Dest.SETTINGS) 0.72f else 0.55f
+        )
+        Row(
+            Modifier.fillMaxSize().padding(10.dp),
+            horizontalArrangement = Arrangement.spacedBy(if (railHidden) 0.dp else 8.dp)
+        ) {
+            AnimatedVisibility(
+                visible = !railHidden,
+                enter = rayRailEnter(),
+                exit = rayRailExit(),
+                modifier = Modifier.fillMaxHeight()
+            ) {
+                val railAlpha = if (current == Dest.SETTINGS && !railExpanded) 0.55f else 1f
+                GlassPanel(
+                    strong = true,
+                    radius = 22.dp,
+                    fillAlpha = if (current == Dest.SETTINGS && !railExpanded) 0.45f else 1f,
+                    modifier = Modifier
+                        .width(railW)
+                        .fillMaxHeight()
+                        .alpha(railAlpha)
+                ) {
+                Column(
+                    Modifier
+                        .fillMaxSize()
+                        .padding(vertical = 10.dp),
+                    horizontalAlignment = if (railExpanded) Alignment.Start else Alignment.CenterHorizontally
+                ) {
+                    BrandHeader(
+                        expanded = railExpanded,
+                        onTap = if (touch) onToggleRail else null
+                    )
+                    Spacer(Modifier.height(8.dp))
+                    Column(
+                        Modifier
+                            .weight(1f)
+                            .fillMaxWidth()
+                            .verticalScroll(rememberScrollState()),
+                        horizontalAlignment = if (railExpanded) Alignment.Start else Alignment.CenterHorizontally
+                    ) {
+                        items.filter {
+                            when {
+                                it.search -> true
+                                it.repeat -> showRepeat
+                                it.dest == Dest.LIVE -> showLive
+                                it.dest == Dest.MOVIES -> showMovies
+                                it.dest == Dest.SERIES -> showSeries
+                                it.dest == Dest.CONTINUE -> showContinue
+                                it.dest == Dest.PLAYLISTS -> showPlaylists
+                                else -> true
+                            }
+                        }.forEach { item ->
+                            RailIcon(
+                                icon = item.icon,
+                                label = item.label(copy),
+                                selected = when {
+                                    item.search -> searchSelected
+                                    item.repeat -> repeatSelected
+                                    else -> current == item.dest
+                                },
+                                expanded = railExpanded,
+                                onClick = {
+                                    when {
+                                        item.search -> onSearch()
+                                        item.repeat -> onRepeat()
+                                        else -> item.dest?.let(onGo)
+                                    }
+                                },
+                                onFocused = onRailFocused
+                            )
+                        }
+                        Spacer(Modifier.height(14.dp))
+                    }
+                }
+            }
+            }
+            Column(Modifier.weight(1f).fillMaxHeight()) {
+                if (!hideChrome) {
+                    Row(
+                        Modifier.fillMaxWidth().padding(start = 4.dp, end = 8.dp, bottom = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Spacer(Modifier.weight(1f))
+                        if (syncMessage.isNotBlank()) {
+                            Text(
+                                syncMessage,
+                                color = g.accent,
+                                style = MaterialTheme.typography.bodyMedium,
+                                modifier = Modifier.padding(end = 14.dp)
+                            )
+                        }
+                        ClockLabel()
+                    }
+                }
+                Box(Modifier.weight(1f).fillMaxWidth()) {
+                    content()
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun ClockLabel() {
+    val g = LocalGlass.current
+    Text(tickingClock(), color = g.muted, style = MaterialTheme.typography.titleLarge)
+}
+
+@Composable
+private fun BrandHeader(
+    expanded: Boolean,
+    onTap: (() -> Unit)?
+) {
+    val g = LocalGlass.current
+    val brand = stringResource(R.string.brand_name)
+    val logoSize = if (expanded) 30.dp else 26.dp
+    val click = if (onTap != null) Modifier.rayClickable(onTap) else Modifier
+    if (expanded) {
+        Row(
+            Modifier
+                .fillMaxWidth()
+                .then(click)
+                .padding(horizontal = 10.dp, vertical = 5.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            Image(
+                painter = painterResource(R.drawable.ic_launcher_foreground),
+                contentDescription = brand,
+                contentScale = ContentScale.Fit,
+                modifier = Modifier.size(logoSize)
+            )
+            Text(
+                brand,
+                color = g.text,
+                style = MaterialTheme.typography.titleMedium.copy(
+                    fontWeight = FontWeight.SemiBold,
+                    fontSize = 16.sp
+                ),
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.weight(1f)
+            )
+        }
+    } else {
+        Box(
+            Modifier
+                .fillMaxWidth()
+                .then(click)
+                .padding(vertical = 6.dp),
+            contentAlignment = Alignment.Center
+        ) {
+            Image(
+                painter = painterResource(R.drawable.ic_launcher_foreground),
+                contentDescription = brand,
+                contentScale = ContentScale.Fit,
+                modifier = Modifier.size(logoSize)
+            )
+        }
+    }
+}
+
+@Composable
+private fun RailIcon(
+    icon: ImageVector,
+    label: String,
+    selected: Boolean,
+    expanded: Boolean,
+    onClick: () -> Unit,
+    onFocused: () -> Unit
+) {
+    var focused by remember { mutableStateOf(false) }
+    val g = LocalGlass.current
+    val touch = LocalTouchUi.current
+    val active = focused || selected
+    val tile = if (expanded) {
+        Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 4.dp, vertical = 2.5.dp)
+            .height(42.dp)
+    } else {
+        Modifier
+            .padding(vertical = 3.5.dp)
+            .size(if (touch) 48.dp else 44.dp)
+    }
+    GlassPanel(
+        focused = active,
+        strong = selected,
+        accentFill = false,
+        radius = 12.dp,
+        scaleOnFocus = false,
+        onClick = onClick,
+        modifier = tile.onFocusChanged {
+            focused = it.isFocused
+            if (it.isFocused) onFocused()
+        }
+    ) {
+        if (expanded) {
+            Row(
+                Modifier.fillMaxSize().padding(horizontal = 8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Icon(
+                    icon,
+                    contentDescription = label,
+                    tint = if (selected) g.accent else if (active) g.text else if (g.frostDark) g.text.copy(alpha = 0.88f) else g.muted,
+                    modifier = Modifier.size(20.dp)
+                )
+                Text(
+                    label,
+                    color = if (selected) g.accent else if (active) g.text else g.text.copy(alpha = if (g.frostDark) 0.92f else 0.82f),
+                    style = MaterialTheme.typography.bodyLarge.copy(
+                        fontWeight = if (selected || focused) FontWeight.SemiBold else FontWeight.Medium,
+                        fontSize = 13.5.sp
+                    ),
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f)
+                )
+            }
+        } else {
+            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                Icon(
+                    icon,
+                    contentDescription = label,
+                    tint = if (selected) g.accent else if (active) g.text else if (g.frostDark) g.text.copy(alpha = 0.88f) else g.muted,
+                    modifier = Modifier.size(if (touch) 24.dp else 22.dp)
+                )
+            }
+        }
+    }
+}

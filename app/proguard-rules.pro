@@ -1,0 +1,3 @@
+-keep class com.ray.iptv.** { *; }
+-dontwarn okhttp3.**
+-dontwarn retrofit2.**
