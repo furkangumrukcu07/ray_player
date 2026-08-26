@@ -58,7 +58,8 @@ import androidx.compose.material.icons.filled.HighQuality
 import androidx.compose.material.icons.filled.Memory
 import androidx.compose.material.icons.filled.OpenInNew
 import androidx.compose.material.icons.filled.Pause
-import androidx.compose.material.icons.filled.PictureInPicture
+import androidx.compose.material.icons.filled.StayCurrentPortrait
+import com.ray.iptv.ui.player.setPortrait
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Speed
 import androidx.compose.material.icons.filled.ViewTimeline
@@ -770,8 +771,9 @@ fun PlayerScreen(
                             },
                             onSpeed = { showOsd(); onSpeed() },
                             onExternal = { showOsd(); onExternal() },
-                            onPip = if (touch && android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) ({
-                                (context as? com.ray.iptv.MainActivity)?.enterPipMode()
+                            onPortrait = if (touch) ({
+                                showOsd()
+                                context.setPortrait()
                             }) else null,
                             playPauseFocus = playPauseFocusRequester
                         )
@@ -1043,7 +1045,7 @@ private fun MinaOsdBar(
     onAudio: () -> Unit,
     onSpeed: () -> Unit,
     onExternal: () -> Unit,
-    onPip: (() -> Unit)? = null,
+    onPortrait: (() -> Unit)? = null,
     fillAlpha: Float = 1f,
     playPauseFocus: FocusRequester? = null
 ) {
@@ -1184,8 +1186,8 @@ private fun MinaOsdBar(
                 OsdIconBtn(if (favorite) Icons.Filled.Favorite else Icons.Filled.FavoriteBorder, onFavorite)
                 OsdIconBtn(Icons.Filled.HighQuality, onQuality)
                 OsdIconBtn(Icons.Filled.Audiotrack, onAudio)
-                if (onPip != null) {
-                    OsdIconBtn(Icons.Filled.PictureInPicture, onPip)
+                if (onPortrait != null) {
+                    OsdIconBtn(Icons.Filled.StayCurrentPortrait, onPortrait)
                 }
                 if (!live) {
                     OsdIconBtn(Icons.Filled.ClosedCaption, onSubtitles)
