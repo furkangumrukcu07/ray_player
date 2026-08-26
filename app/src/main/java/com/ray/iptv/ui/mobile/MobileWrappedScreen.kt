@@ -347,6 +347,16 @@ fun MobileWrappedScreen(
                 )
                 .padding(18.dp)
         ) {
+            // Background Watermark (Matching Mina IPTV)
+            Icon(
+                Icons.Filled.SatelliteAlt,
+                contentDescription = null,
+                tint = Color.White.copy(alpha = 0.08f),
+                modifier = Modifier
+                    .size(170.dp)
+                    .align(Alignment.BottomEnd)
+            )
+
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 // Top badge & broadcast icon
                 Row(
@@ -449,12 +459,20 @@ fun MobileWrappedScreen(
                     }
                 }
 
-                // 4 Bullet insights
+                // 4 Bullet insights with round badges (Matching Mina IPTV)
                 val nightPct = if (slice.isNotEmpty()) ((nightCount * 100) / slice.size).coerceAtLeast(43) else 43
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(Icons.Filled.NightsStay, null, tint = Color.White, modifier = Modifier.size(16.dp))
-                        Spacer(Modifier.width(8.dp))
+                        Box(
+                            Modifier
+                                .size(24.dp)
+                                .clip(CircleShape)
+                                .background(Color.White.copy(alpha = 0.20f)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(Icons.Filled.NightsStay, null, tint = Color.White, modifier = Modifier.size(13.dp))
+                        }
+                        Spacer(Modifier.width(10.dp))
                         Text(
                             if (tr) "İzlemelerinin %$nightPct kadarı gece saatlerinde geçti."
                             else "$nightPct% of your watch time was during night hours.",
@@ -463,8 +481,16 @@ fun MobileWrappedScreen(
                         )
                     }
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(Icons.Filled.Favorite, null, tint = Color.White, modifier = Modifier.size(16.dp))
-                        Spacer(Modifier.width(8.dp))
+                        Box(
+                            Modifier
+                                .size(24.dp)
+                                .clip(CircleShape)
+                                .background(Color.White.copy(alpha = 0.20f)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(Icons.Filled.Favorite, null, tint = Color.White, modifier = Modifier.size(13.dp))
+                        }
+                        Spacer(Modifier.width(10.dp))
                         val topChannelName = topLive?.title ?: "TR: Beyaz TV"
                         val topChannelTime = if (topLive != null) fmtDur(topLive.positionMs, tr) else "30s 38dk"
                         Text(
@@ -477,8 +503,16 @@ fun MobileWrappedScreen(
                         )
                     }
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(Icons.Filled.CalendarMonth, null, tint = Color.White, modifier = Modifier.size(16.dp))
-                        Spacer(Modifier.width(8.dp))
+                        Box(
+                            Modifier
+                                .size(24.dp)
+                                .clip(CircleShape)
+                                .background(Color.White.copy(alpha = 0.20f)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(Icons.Filled.CalendarMonth, null, tint = Color.White, modifier = Modifier.size(13.dp))
+                        }
+                        Spacer(Modifier.width(10.dp))
                         Text(
                             if (tr) "En aktif günün: $topDay."
                             else "Most active day: $topDay.",
@@ -487,8 +521,16 @@ fun MobileWrappedScreen(
                         )
                     }
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(Icons.Filled.LocalFireDepartment, null, tint = Color.White, modifier = Modifier.size(16.dp))
-                        Spacer(Modifier.width(8.dp))
+                        Box(
+                            Modifier
+                                .size(24.dp)
+                                .clip(CircleShape)
+                                .background(Color.White.copy(alpha = 0.20f)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(Icons.Filled.LocalFireDepartment, null, tint = Color.White, modifier = Modifier.size(13.dp))
+                        }
+                        Spacer(Modifier.width(10.dp))
                         Text(
                             if (tr) "Favori türün: TR: Ulusal."
                             else "Favorite genre: National.",
