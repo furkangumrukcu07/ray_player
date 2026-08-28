@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Ray IPTV Player</string>
+    <string name="brand_name">Ray Player</string>
+    <string name="disclaimer_title">Lejátszó, nem katalógus</string>
+    <string name="disclaimer_body">A Ray IPTV Player nem biztosít csatornákat, filmeket vagy lejátszási listákat. Adjon hozzá olyan forrást, amelyet jogosult használni.</string>
+    <string name="continue_label">Folytatás</string>
+    <string name="get_started">Kezdés</string>
+</resources>

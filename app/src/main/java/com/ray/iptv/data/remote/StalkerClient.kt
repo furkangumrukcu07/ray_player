@@ -117,7 +117,10 @@ class StalkerClient @Inject constructor(
 
     private suspend fun get(portal: String, mac: String, query: String, token: String = ""): JsonObject =
         kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
-            val base = portal.trim().removeSuffix("/")
+            var base = portal.trim().removeSuffix("/")
+            if (!base.startsWith("http://", ignoreCase = true) && !base.startsWith("https://", ignoreCase = true)) {
+                base = "http://$base"
+            }
             val url = if (base.contains("portal.php")) "$base&$query" else "$base/portal.php?$query"
             val req = Request.Builder().url(url)
                 .header("Cookie", "mac=$mac; stb_lang=en; timezone=Europe/Istanbul")

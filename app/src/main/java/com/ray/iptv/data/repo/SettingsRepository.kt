@@ -85,7 +85,7 @@ enum class UserAgentPreset { DEFAULT, CHROME, VLC, EXOPLAYER, KODI, TIZEN, WEBOS
 enum class VodInfoEngine { AUTO, XTREAM_ONLY, TMDB_OMDB_ONLY }
 enum class EpgSourceMode { AUTO, XTREAM, XMLTV }
 enum class CatchupPreset { OFF, XTREAM_PATH, TIMESHIFT_PHP, CUSTOM }
-enum class LayoutMode { MOBILE, TV }
+enum class LayoutMode { MOBILE, TV, TABLET }
 
 enum class AutoBackupInterval(val days: Int, val trLabel: String, val enLabel: String) {
     OFF(0, "Kapalı", "Off"),
@@ -111,16 +111,33 @@ fun detectDefaultLayoutMode(context: Context): LayoutMode {
     val touch = pm.hasSystemFeature(android.content.pm.PackageManager.FEATURE_TOUCHSCREEN)
     if (!touch && long >= 720) return LayoutMode.TV
     if (short in 1 until 600 && long >= 900 && !touch) return LayoutMode.TV
+
+    // Comprehensive Tablet Detection (sw600dp, Large/XLarge screen layout, diagonal >= 6.5", landscape width >= 900dp)
+    val screenLayoutSize = cfg.screenLayout and android.content.res.Configuration.SCREENLAYOUT_SIZE_MASK
+    val isLargeOrXLarge = screenLayoutSize >= android.content.res.Configuration.SCREENLAYOUT_SIZE_LARGE
+
+    val dm = context.resources.displayMetrics
+    val xdpi = if (dm.xdpi > 0f) dm.xdpi else dm.densityDpi.toFloat()
+    val ydpi = if (dm.ydpi > 0f) dm.ydpi else dm.densityDpi.toFloat()
+    val widthInches = dm.widthPixels / xdpi
+    val heightInches = dm.heightPixels / ydpi
+    val diagonalInches = Math.sqrt((widthInches * widthInches + heightInches * heightInches).toDouble())
+
+    if (touch && (short >= 580 || isLargeOrXLarge || diagonalInches >= 6.5 || long >= 900)) {
+        return LayoutMode.TABLET
+    }
     return LayoutMode.MOBILE
 }
+
+
 
 data class RaySettings(
     val activeProfileId: String = "",
     val activeSourceId: String = "",
     val onboardingDone: Boolean = false,
     val disclaimerAccepted: Boolean = false,
-    val startup: StartupScreen = StartupScreen.HOME,
-    val glass: GlassStyle = GlassStyle.MACOS_GLASS,
+    val startup: StartupScreen = StartupScreen.LIVE,
+    val glass: GlassStyle = GlassStyle.DARK,
     val parentalPinHash: String = "",
     val hideAdult: Boolean = true,
     val hideLocked: Boolean = true,
@@ -234,8 +251,8 @@ class SettingsRepository @Inject constructor(
             activeSourceId = p[Keys.source].orEmpty(),
             onboardingDone = p[Keys.onboard] ?: false,
             disclaimerAccepted = p[Keys.disclaimer] ?: false,
-            startup = parseEnum(p[Keys.startup], StartupScreen.HOME),
-            glass = parseEnum(p[Keys.glass], GlassStyle.MACOS_GLASS),
+            startup = parseEnum(p[Keys.startup], StartupScreen.LIVE),
+            glass = parseEnum(p[Keys.glass], GlassStyle.DARK),
             parentalPinHash = p[Keys.pin].orEmpty(),
             hideAdult = p[Keys.hideAdult] ?: true,
             hideLocked = p[Keys.hideLocked] ?: true,
@@ -283,7 +300,10 @@ class SettingsRepository @Inject constructor(
             subtitleOutline = p[Keys.subOut] ?: true,
             subtitleAuto = p[Keys.subAuto] ?: false,
             zapInvert = p[Keys.zapInv] ?: false,
-            lowEndMode = p[Keys.lowEnd] ?: (AndroidPlaybackSocHints.get(context).oneGiBRamClass || AndroidPlaybackSocHints.get(context).playbackChallengedTv),
+            lowEndMode = p[Keys.lowEnd] ?: run {
+                val hints = AndroidPlaybackSocHints.get(context)
+                hints.oneGiBRamClass || hints.twoGiBRamClass || (hints.androidTv && (hints.totalRamBytes < AndroidPlaybackSocHints.THREE_GIB || hints.budgetTvBoxSoc || hints.playbackChallengedTv))
+            },
             homeContinue = p[Keys.hCont] ?: true,
             homeAiRecommendations = p[Keys.hAi] ?: true,
             homeUpcomingEpg = p[Keys.hUpEpg] ?: true,
@@ -421,10 +441,19 @@ class SettingsRepository @Inject constructor(
         it[Keys.sleepUntil] = 0L
     }
     suspend fun setAppFontKey(v: String) = ds.edit { it[Keys.appFont] = v }
-    suspend fun setLayoutMode(v: LayoutMode) = ds.edit { it[Keys.layout] = v.name }
-    suspend fun ensureLayoutMode() = ds.edit {
-        if (it[Keys.layout] == null) it[Keys.layout] = detectDefaultLayoutMode(context).name
+    suspend fun setLayoutMode(v: LayoutMode) = ds.edit {
+        it[Keys.layout] = v.name
+        it[Keys.layoutExplicit] = true
     }
+    suspend fun ensureLayoutMode() = ds.edit {
+        val detected = detectDefaultLayoutMode(context)
+        if (it[Keys.layout] == null) {
+            it[Keys.layout] = detected.name
+        } else if (detected == LayoutMode.TABLET && it[Keys.layout] == LayoutMode.MOBILE.name && it[Keys.layoutExplicit] != true) {
+            it[Keys.layout] = LayoutMode.TABLET.name
+        }
+    }
+
     suspend fun setEpgEnabled(v: Boolean) = ds.edit { it[Keys.epgOn] = v }
     suspend fun setEpg24h(v: Boolean) = ds.edit { it[Keys.epg24] = v }
     suspend fun setEpgOffset(v: Int) = ds.edit { it[Keys.epgOff] = v }
@@ -497,7 +526,83 @@ class SettingsRepository @Inject constructor(
         it[Keys.aspect] = s.aspect
         it[Keys.speed] = s.speed.toFloatOrNull() ?: 1f
         it[Keys.combine] = s.combineM3u
+        it[Keys.layout] = s.layoutMode
+        it[Keys.appFont] = s.appFontKey
+        it[Keys.liveEngine] = s.liveEngine
+        it[Keys.pbVodEngine] = s.vodPlaybackEngine
+        it[Keys.lowEnd] = s.lowEndMode
+        it[Keys.haptics] = s.adaptiveHaptics
+        it[Keys.epgOn] = s.epgEnabled
+        it[Keys.epgMode] = s.epgSourceMode
+        it[Keys.boot] = s.launchOnBoot
+        it[Keys.stripPrefix] = s.stripChannelPrefix
+        it[Keys.autoBackupInt] = s.autoBackupInterval
+        it[Keys.osdHide] = s.osdHideSeconds
+        it[Keys.osdOpacity] = s.osdOpacity
+        it[Keys.liveBuffer] = s.liveBufferSeconds
+        it[Keys.streamFmt] = s.streamFormat
+        it[Keys.ua] = s.userAgentPreset
+        it[Keys.uaCustom] = s.customUserAgent
+        it[Keys.ignoreSsl] = s.ignoreSsl
+        it[Keys.swDec] = s.softwareDecoder
+        it[Keys.smartPlayer] = s.smartPlayerSelection
+        it[Keys.mkLowPower] = s.mediaKitLowPowerHwdec
+        it[Keys.smartMem] = s.smartPlayerMemory
+        it[Keys.extOn] = s.externalPlayerEnabled
+        it[Keys.extPkg] = s.externalPlayerPackage
+        it[Keys.extLabel] = s.externalPlayerLabel
+        it[Keys.subFont] = s.subtitleFont
+        it[Keys.subSize] = s.subtitleSize
+        it[Keys.subOut] = s.subtitleOutline
+        it[Keys.subAuto] = s.subtitleAuto
+        it[Keys.subColor] = s.subtitleColor
+        it[Keys.subPref] = s.preferredSubtitleToken
+        it[Keys.bgPlay] = s.backgroundPlayback
+        it[Keys.pipMode] = s.pipMode
+        it[Keys.silent] = s.silentSync
+        it[Keys.refreshH] = s.autoRefreshHours
+        it[Keys.epg24] = s.epg24h
+        it[Keys.epgOff] = s.epgOffsetHours
+        it[Keys.xtreamEpg] = s.xtreamEpgOnly
+        it[Keys.epgDays] = s.epgRefreshDays
+        it[Keys.epgOffMin] = s.epgOffsetMinutes
+        it[Keys.vodEngine] = s.vodInfoEngine
+        it[Keys.translateMeta] = s.translateMeta
+        it[Keys.catchupPreset] = s.catchupPreset
+        it[Keys.catchupTpl] = s.catchupTemplate
+        it[Keys.osdTier] = s.osdSizeTier
+        it[Keys.zapInv] = s.zapInvert
+        it[Keys.hCont] = s.homeContinue
+        it[Keys.hAi] = s.homeAiRecommendations
+        it[Keys.hUpEpg] = s.homeUpcomingEpg
+        it[Keys.hTrendF] = s.homeTrendFilms
+        it[Keys.hTrendS] = s.homeTrendSeries
+        it[Keys.hFavF] = s.homeFavoriteFilms
+        it[Keys.hFavS] = s.homeFavoriteSeries
+        it[Keys.hMixF] = s.homeMixedFilms
+        it[Keys.hMixS] = s.homeMixedSeries
+        it[Keys.hMixLive] = s.homeMixedLive
+        it[Keys.hMatch] = s.homeUpcomingMatches
+        it[Keys.hLastBtn] = s.homeLastWatchedButton
+        it[Keys.pageFx] = s.pageTransitionEffect
+        it[Keys.dockStyle] = s.dockbarStyle
+        it[Keys.hRecent] = s.homeRecentLive
+        it[Keys.hLive] = s.homeLive
+        it[Keys.hMov] = s.homeMovies
+        it[Keys.hSer] = s.homeSeries
+        it[Keys.hFav] = s.homeFavorites
+        it[Keys.hDl] = s.homeDownloads
+        it[Keys.rLive] = s.railLive
+        it[Keys.rMov] = s.railMovies
+        it[Keys.rSer] = s.railSeries
+        it[Keys.rCont] = s.railContinue
+        it[Keys.rPlay] = s.railPlaylists
+        it[Keys.rRepeat] = s.railRepeat
+        it[Keys.keyMap] = s.keyMapJson
     }
+
+
+
 
     fun playbackUserAgent(s: RaySettings): String = when (s.userAgentPreset) {
         UserAgentPreset.DEFAULT, UserAgentPreset.CHROME ->
@@ -624,7 +729,9 @@ class SettingsRepository @Inject constructor(
         val searchHist = stringPreferencesKey("search_hist_home")
         val autoBackupInt = stringPreferencesKey("auto_backup_interval")
         val lastAutoBackup = longPreferencesKey("last_auto_backup_time")
+        val layoutExplicit = booleanPreferencesKey("layout_explicit")
     }
+
 
     val searchHistory: Flow<List<String>> = ds.data.map { prefs ->
         prefs[Keys.searchHist].orEmpty().split('\u001f').map { it.trim() }.filter { it.isNotEmpty() }.take(5)

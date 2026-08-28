@@ -81,6 +81,8 @@ data class XtreamVodDetail(
     val genre: String = "",
     val year: String = "",
     val cast: String = "",
+    val director: String = "",
+    val country: String = "",
     val poster: String = "",
     val backdrop: String = "",
     val runtime: String = "",
@@ -135,6 +137,8 @@ class CatalogRepository @Inject constructor(
         db.channels().list(sourceId, categoryId)
     suspend fun channelsByIds(ids: List<String>) =
         if (ids.isEmpty()) emptyList() else db.channels().byIds(ids)
+    suspend fun channelsByAnyKeys(keys: List<String>) =
+        if (keys.isEmpty()) emptyList() else db.channels().byAnyKeys(keys.take(500))
     fun vod(sourceId: String, kind: String, categoryId: String) = db.vod().observe(sourceId, kind, categoryId)
     fun vodPage(sourceId: String, kind: String, categoryId: String, combine: Boolean, limit: Int) =
         if (combine) db.vod().observeKindPage(kind, categoryId, limit)
@@ -203,11 +207,11 @@ class CatalogRepository @Inject constructor(
     suspend fun download(id: String) = db.downloads().byId(id)
 
     suspend fun addXtream(name: String, base: String, user: String, pass: String, existingId: String? = null): String {
-        val trimmed = base.trim()
+        val normalized = PlaylistHttp.normalizeUrl(base)
         val resolved = withContext(Dispatchers.IO) {
-            if (PlaylistHttp.isShortUrl(trimmed)) {
-                runCatching { PlaylistHttp.resolve(http, trimmed) }.getOrDefault(trimmed)
-            } else trimmed
+            if (PlaylistHttp.isShortUrl(normalized)) {
+                runCatching { PlaylistHttp.resolve(http, normalized) }.getOrDefault(normalized)
+            } else normalized
         }
         val session = xtream.authenticateResolved(resolved, user, pass)
         return persistSource(
@@ -227,14 +231,12 @@ class CatalogRepository @Inject constructor(
      * Kısa URL (TinyURL vb.) önce gerçek hedefe çözülür, sonra sniff edilir.
      */
     suspend fun addM3u(name: String, url: String, existingId: String? = null): String {
-        val trimmed = url.trim()
+        val normalized = PlaylistHttp.normalizeUrl(url)
         val resolved = withContext(Dispatchers.IO) {
-            if (PlaylistHttp.isShortUrl(trimmed)) {
-                runCatching { PlaylistHttp.resolve(http, trimmed) }.getOrDefault(trimmed)
-            } else trimmed
+            runCatching { PlaylistHttp.resolve(http, normalized) }.getOrDefault(normalized)
         }
-        val persistUrl = if (PlaylistHttp.isShortUrl(resolved)) trimmed else resolved
-        for (candidate in listOf(resolved, trimmed, persistUrl).distinct()) {
+        val persistUrl = if (PlaylistHttp.isShortUrl(resolved)) normalized else resolved
+        for (candidate in listOf(resolved, normalized, persistUrl).distinct()) {
             val sniffed = M3uXtreamSniffer.toXtreamSource(candidate) ?: continue
             val session = runCatching {
                 xtream.authenticateResolved(sniffed.baseUrl, sniffed.username, sniffed.password)
@@ -275,8 +277,9 @@ class CatalogRepository @Inject constructor(
     }
 
     suspend fun addStalker(name: String, portal: String, mac: String, existingId: String? = null): String {
-        val token = stalker.handshake(portal, mac)
-        return persistSource(existingId, "STALKER", name.ifBlank { "Stalker" }, portal.trim(), mac, "", token)
+        val normalized = PlaylistHttp.normalizeUrl(portal)
+        val token = stalker.handshake(normalized, mac)
+        return persistSource(existingId, "STALKER", name.ifBlank { "Stalker" }, normalized, mac, "", token)
     }
 
     suspend fun renameSource(id: String, name: String) {
@@ -481,14 +484,15 @@ https://test-streams.mux.dev/dai-discontinuity-deltatre/manifest.m3u8
 
     private fun dbChunk(): Int {
         val hints = AndroidPlaybackSocHints.get(context)
-        return if (hints.oneGiBRamClass || hints.playbackChallengedTv) 1000 else 2500
+        return if (hints.oneGiBRamClass) 1500 else 3000
     }
 
     fun livePageSize(): Int {
         val hints = AndroidPlaybackSocHints.get(context)
         return when {
-            hints.oneGiBRamClass -> 120
-            hints.androidTv || hints.playbackChallengedTv -> LIVE_WINDOW_TV
+            hints.oneGiBRamClass -> 60
+            hints.playbackChallengedTv || hints.totalRamBytes < 2500L * 1024 * 1024 -> 90
+            hints.androidTv -> LIVE_WINDOW_TV
             else -> LIVE_WINDOW
         }
     }
@@ -496,8 +500,9 @@ https://test-streams.mux.dev/dai-discontinuity-deltatre/manifest.m3u8
     fun vodPageSize(): Int {
         val hints = AndroidPlaybackSocHints.get(context)
         return when {
-            hints.oneGiBRamClass -> 80
-            hints.androidTv || hints.playbackChallengedTv -> VOD_WINDOW_TV
+            hints.oneGiBRamClass -> 40
+            hints.playbackChallengedTv || hints.totalRamBytes < 2500L * 1024 * 1024 -> 60
+            hints.androidTv -> VOD_WINDOW_TV
             else -> VOD_WINDOW
         }
     }
@@ -505,8 +510,9 @@ https://test-streams.mux.dev/dai-discontinuity-deltatre/manifest.m3u8
     fun liveBrowseCap(): Int {
         val hints = AndroidPlaybackSocHints.get(context)
         return when {
-            hints.oneGiBRamClass -> 800
-            hints.androidTv || hints.playbackChallengedTv -> 1600
+            hints.oneGiBRamClass -> 500
+            hints.playbackChallengedTv || hints.totalRamBytes < 2500L * 1024 * 1024 -> 900
+            hints.androidTv -> 1600
             else -> 4000
         }
     }
@@ -514,8 +520,9 @@ https://test-streams.mux.dev/dai-discontinuity-deltatre/manifest.m3u8
     fun vodBrowseCap(): Int {
         val hints = AndroidPlaybackSocHints.get(context)
         return when {
-            hints.oneGiBRamClass -> 400
-            hints.androidTv || hints.playbackChallengedTv -> 800
+            hints.oneGiBRamClass -> 250
+            hints.playbackChallengedTv || hints.totalRamBytes < 2500L * 1024 * 1024 -> 450
+            hints.androidTv -> 800
             else -> 2000
         }
     }
@@ -816,7 +823,8 @@ https://test-streams.mux.dev/dai-discontinuity-deltatre/manifest.m3u8
         var movieN = 0
         var seriesN = 0
 
-        suspend fun flush() {
+        var lastFlushPostMs = 0L
+        suspend fun flush(forcePost: Boolean = false) {
             if (channelBuf.isNotEmpty() || vodBuf.isNotEmpty()) {
                 db.withTransaction {
                     if (channelBuf.isNotEmpty()) {
@@ -829,12 +837,16 @@ https://test-streams.mux.dev/dai-discontinuity-deltatre/manifest.m3u8
                     }
                 }
             }
-            catalogCopy(
-                message = "İşleniyor… $liveN canlı · $movieN film · $seriesN dizi",
-                liveCount = liveN,
-                movieCount = movieN,
-                seriesCount = seriesN
-            )
+            val nowMs = android.os.SystemClock.uptimeMillis()
+            if (forcePost || nowMs - lastFlushPostMs > 350L) {
+                lastFlushPostMs = nowMs
+                catalogCopy(
+                    message = "İşleniyor… $liveN canlı · $movieN film · $seriesN dizi",
+                    liveCount = liveN,
+                    movieCount = movieN,
+                    seriesCount = seriesN
+                )
+            }
             yield()
         }
 
@@ -910,7 +922,7 @@ https://test-streams.mux.dev/dai-discontinuity-deltatre/manifest.m3u8
                 }
             }
         }
-        flush()
+        flush(forcePost = true)
 
         val cats =
             liveGroups.keys.mapIndexed { i, g -> mergeCat(oldCats, cat(source.id, g, "LIVE", g, i)) } +
@@ -1370,6 +1382,12 @@ https://test-streams.mux.dev/dai-discontinuity-deltatre/manifest.m3u8
     suspend fun nowEpg(channelId: String, now: Long = System.currentTimeMillis()): EpgEntity? {
         db.epg().now(channelId, now)?.let { return it }
         val ch = db.channels().byId(channelId) ?: return null
+        if (ch.remoteId.isNotBlank()) {
+            db.epg().now(ch.remoteId, now)?.let { return it }
+        }
+        if (ch.epgId.isNotBlank()) {
+            db.epg().now(ch.epgId, now)?.let { return it }
+        }
         return globalEpg.now(ch, now)
     }
     suspend fun nowEpgMany(ids: List<String>, now: Long): List<EpgEntity> {
@@ -1379,18 +1397,46 @@ https://test-streams.mux.dev/dai-discontinuity-deltatre/manifest.m3u8
         val have = primary.map { it.channelId }.toHashSet()
         val missing = ids.filter { it !in have }
         if (missing.isEmpty()) return primary
-        val extras = globalEpg.nowMany(db.channels().byIds(missing), now)
-        return if (extras.isEmpty()) primary else primary + extras
+        val missingChannels = db.channels().byIds(missing)
+        val resolved = mutableListOf<EpgEntity>()
+        resolved.addAll(primary)
+        for (ch in missingChannels) {
+            val prog = if (ch.remoteId.isNotBlank()) db.epg().now(ch.remoteId, now) else null
+                ?: if (ch.epgId.isNotBlank()) db.epg().now(ch.epgId, now) else null
+            if (prog != null) {
+                resolved.add(prog.copy(channelId = ch.id))
+            }
+        }
+        val stillMissing = missingChannels.filter { ch -> resolved.none { it.channelId == ch.id } }
+        if (stillMissing.isNotEmpty()) {
+            val extras = globalEpg.nowMany(stillMissing, now)
+            resolved.addAll(extras)
+        }
+        return resolved
     }
     suspend fun nextEpg(channelId: String, now: Long = System.currentTimeMillis()): EpgEntity? {
-        db.epg().window(channelId, now, now + 6L * 3600_000).firstOrNull { it.startMs > now }?.let { return it }
+        db.epg().window(channelId, now, now + 8L * 3600_000).firstOrNull { it.startMs > now }?.let { return it }
         val ch = db.channels().byId(channelId) ?: return null
+        if (ch.remoteId.isNotBlank()) {
+            db.epg().window(ch.remoteId, now, now + 8L * 3600_000).firstOrNull { it.startMs > now }?.let { return it }
+        }
+        if (ch.epgId.isNotBlank()) {
+            db.epg().window(ch.epgId, now, now + 8L * 3600_000).firstOrNull { it.startMs > now }?.let { return it }
+        }
         return globalEpg.next(ch, now)
     }
     suspend fun epgWindow(channelId: String, from: Long, to: Long): List<EpgEntity> {
         val primary = db.epg().window(channelId, from, to)
         if (primary.isNotEmpty()) return primary
         val ch = db.channels().byId(channelId) ?: return emptyList()
+        if (ch.remoteId.isNotBlank()) {
+            val byRemote = db.epg().window(ch.remoteId, from, to)
+            if (byRemote.isNotEmpty()) return byRemote
+        }
+        if (ch.epgId.isNotBlank()) {
+            val byEpg = db.epg().window(ch.epgId, from, to)
+            if (byEpg.isNotEmpty()) return byEpg
+        }
         return globalEpg.window(ch, from, to)
     }
 
@@ -1629,12 +1675,16 @@ https://test-streams.mux.dev/dai-discontinuity-deltatre/manifest.m3u8
         val backdropRaw = scanField(root, listOf("backdrop_path", "backdrop", "backdrops", "cover_big", "movie_image"))
         val tmdbRaw = scanField(root, listOf("tmdb_id", "tmdbId", "tmdb"))
         val imdbRaw = scanField(root, listOf("imdb_id", "imdbId", "imdb"))
+        val directorRaw = scanField(root, listOf("director", "directors", "director_name", "author"))
+        val countryRaw = scanField(root, listOf("country", "countries", "production_countries", "production_country"))
         return XtreamVodDetail(
             plot = scanPlot(root),
             rating = scanField(root, listOf("rating_imdb", "imdb_rating", "rating_5based", "rating", "imdb", "vote_average")),
             genre = scanField(root, listOf("genre", "genres", "category_name")),
             year = scanField(root, listOf("releasedate", "releaseDate", "release_date", "first_air_date", "year")).take(4),
-            cast = scanField(root, listOf("cast", "actors", "stars", "director")),
+            cast = scanField(root, listOf("cast", "actors", "stars")),
+            director = directorRaw,
+            country = countryRaw,
             poster = scanField(root, listOf("movie_image", "cover_big", "cover", "stream_icon")),
             backdrop = backdropRaw,
             runtime = runtimeStr,

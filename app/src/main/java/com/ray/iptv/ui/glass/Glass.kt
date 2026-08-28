@@ -10,6 +10,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.scale
@@ -48,24 +49,36 @@ fun RayWallpaper(
             AsyncImage(
                 model = g.wallpaperRes,
                 contentDescription = null,
-                modifier = Modifier.fillMaxSize(),
+                modifier = Modifier
+                    .fillMaxSize()
+                    .then(if (g.reduceEffects) Modifier.alpha(0.38f) else Modifier),
                 contentScale = ContentScale.Crop
             )
         }
-        Box(
-            Modifier
-                .fillMaxSize()
-                .background(
-                    Brush.verticalGradient(
-                        listOf(
-                            Color.Black.copy(alpha = top),
-                            Color.Black.copy(alpha = bottom)
+        if (g.reduceEffects) {
+            // Düşük güç modunda: Tema duvar kağıdı korunur, GPU yükü için tek katmanlı hafif mat karartma uygulanır
+            Box(
+                Modifier
+                    .fillMaxSize()
+                    .background(Color.Black.copy(alpha = 0.60f))
+            )
+        } else if (!g.flatWallpaper) {
+            Box(
+                Modifier
+                    .fillMaxSize()
+                    .background(
+                        Brush.verticalGradient(
+                            listOf(
+                                Color.Black.copy(alpha = top),
+                                Color.Black.copy(alpha = bottom)
+                            )
                         )
                     )
-                )
-        )
+            )
+        }
     }
 }
+
 
 @Composable
 fun GlassPanel(
@@ -117,6 +130,8 @@ fun GlassPanel(
 
     val edge = if (focused) {
         SolidColor(g.strokeFocus)
+    } else if (g.reduceEffects) {
+        SolidColor(Color.White.copy(alpha = if (g.isLight) 0.25f else 0.08f))
     } else {
         Brush.verticalGradient(
             listOf(

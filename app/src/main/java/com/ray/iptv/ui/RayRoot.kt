@@ -49,6 +49,7 @@ import com.ray.iptv.ui.i18n.copy
 import com.ray.iptv.ui.input.ImmersivePlayback
 import com.ray.iptv.ui.input.LocalAdaptiveHaptics
 import com.ray.iptv.ui.input.LocalTouchUi
+import com.ray.iptv.ui.input.isTelevisionDevice
 import com.ray.iptv.ui.input.rememberTouchUi
 import com.ray.iptv.ui.mobile.MobileEpgMixScreen
 import com.ray.iptv.ui.mobile.MobileHost
@@ -76,6 +77,10 @@ fun RayRoot(vm: RayViewModel = hiltViewModel()) {
     val strings = copy(settings.lang)
     val touch = rememberTouchUi()
     val layout = if (settings.lang.rtl) LayoutDirection.Rtl else LayoutDirection.Ltr
+    val context = LocalContext.current
+    val socHints = remember(context) { com.ray.iptv.player.AndroidPlaybackSocHints.get(context) }
+    val isTv = remember(context) { context.isTelevisionDevice() }
+    val reduceEffects = settings.lowEndMode
     CompositionLocalProvider(
         LocalTouchUi provides touch,
         LocalLayoutDirection provides layout,
@@ -83,14 +88,13 @@ fun RayRoot(vm: RayViewModel = hiltViewModel()) {
     ) {
     RayTheme(
         settings.glass,
-        reduceEffects = settings.lowEndMode,
+        reduceEffects = reduceEffects,
         fontKey = settings.appFontKey
     ) {
         val profiles by vm.profileList.collectAsState()
         val sources by vm.sources.collectAsState()
         val dest by vm.dest.collectAsState()
         val overlay by vm.overlay.collectAsState()
-        val context = LocalContext.current
         val activity = context as? com.ray.iptv.MainActivity
         DisposableEffect(activity, dest, settings.pipMode) {
             activity?.pipEligible = {
@@ -173,12 +177,19 @@ fun RayRoot(vm: RayViewModel = hiltViewModel()) {
         val sync by vm.catalog.sync.collectAsState()
         val nowNext by vm.nowNext.collectAsState()
         val epgSources by vm.epgSources.collectAsState()
+        val account by vm.account.collectAsState()
+        val contentFocusTrigger by vm.contentFocusTrigger.collectAsState()
         val requestExit: () -> Unit = {
-            if (vm.consumeExitBack()) (context as? Activity)?.finish()
+            if (vm.consumeExitBack()) {
+                val act = context as? Activity
+                act?.finishAffinity()
+            }
         }
         val mobileLayout = settings.layoutMode == LayoutMode.MOBILE
+        val tabletLayout = settings.layoutMode == LayoutMode.TABLET
 
         ImmersivePlayback(dest == Dest.PLAYER && playback != null && !mobileLayout)
+
 
         LaunchedEffect(playback?.mediaId) {
             playback?.takeIf { it.kind == "LIVE" }?.let { vm.refreshNowNext(it.mediaId) }
@@ -196,12 +207,15 @@ fun RayRoot(vm: RayViewModel = hiltViewModel()) {
         when {
             !settingsReady -> RayWallpaper()
             !settings.onboardingDone -> OnboardingFlow(vm, strings)
-            dest == Dest.PLAYER && playback != null && !mobileLayout -> RayPlayerRoute(vm, strings)
+            dest == Dest.PLAYER && playback != null && !mobileLayout && !tabletLayout -> RayPlayerRoute(vm, strings)
             mobileLayout -> MobileHost(vm, strings, requestExit)
+            tabletLayout -> com.ray.iptv.ui.screens.tablet.TabletHost(vm, strings, requestExit)
             else -> RayShell(
+
                 current = dest,
                 copy = strings,
                 syncMessage = if (sync.catalog) "" else sync.message.ifBlank { sync.error },
+                account = account,
                 showLive = settings.railLive,
                 showMovies = settings.railMovies,
                 showSeries = settings.railSeries,
@@ -229,6 +243,7 @@ fun RayRoot(vm: RayViewModel = hiltViewModel()) {
                             onDelete = vm::removeContinue,
                             onExpandRail = vm::expandRail,
                             railExpanded = railExpanded,
+                            contentFocusTrigger = contentFocusTrigger,
                             onExit = requestExit
                         )
                         Dest.LIVE -> LiveScreen(
@@ -265,6 +280,7 @@ fun RayRoot(vm: RayViewModel = hiltViewModel()) {
                             onLoadMore = vm::loadMoreLive,
                             stripPrefix = settings.stripChannelPrefix,
                             railExpanded = railExpanded,
+                            contentFocusTrigger = contentFocusTrigger,
                             onExit = requestExit
                         )
                         Dest.MOVIES -> VodCinemaScreen(
@@ -297,6 +313,7 @@ fun RayRoot(vm: RayViewModel = hiltViewModel()) {
                             onLoadMore = vm::loadMoreMovies,
                             onSearch = { vm.showOverlay(Overlay.SEARCH) },
                             railExpanded = railExpanded,
+                            contentFocusTrigger = contentFocusTrigger,
                             onExit = requestExit
                         )
                         Dest.SERIES -> VodCinemaScreen(
@@ -332,6 +349,7 @@ fun RayRoot(vm: RayViewModel = hiltViewModel()) {
                             onLoadMore = vm::loadMoreSeries,
                             onSearch = { vm.showOverlay(Overlay.SEARCH) },
                             railExpanded = railExpanded,
+                            contentFocusTrigger = contentFocusTrigger,
                             onExit = requestExit
                         )
                         Dest.PLAYLISTS -> PlaylistsScreen(
@@ -344,15 +362,18 @@ fun RayRoot(vm: RayViewModel = hiltViewModel()) {
                             onToggle = vm::toggleSourceEnabled,
                             onBackToRail = vm::expandRail,
                             railExpanded = railExpanded,
+                            contentFocusTrigger = contentFocusTrigger,
                             onExit = requestExit
                         )
                         Dest.SETTINGS -> SettingsScreen(
                             vm, settings, sources, profiles, epgSources, groups,
                             visibleLiveCats, dls, strings,
                             railExpanded = railExpanded,
+                            contentFocusTrigger = contentFocusTrigger,
                             onExpandRail = vm::expandRail,
                             onExit = requestExit
                         )
+
                         Dest.PLAYER -> Unit
                         Dest.WRAPPED -> MobileWrappedScreen(vm, settings.lang == AppLang.TR) { vm.go(Dest.CONTINUE) }
                         Dest.EPG_MIX -> MobileEpgMixScreen(
@@ -369,41 +390,31 @@ fun RayRoot(vm: RayViewModel = hiltViewModel()) {
             }
         }
                     RayOverlay(
-                        visible = overlay == Overlay.GUIDE && settings.onboardingDone,
+                        visible = overlay == Overlay.GUIDE && settings.onboardingDone && !mobileLayout && !tabletLayout,
                         modifier = Modifier.fillMaxSize()
                     ) {
                         BackHandler { vm.closeOverlay() }
-                        if (mobileLayout) {
-                            MobileEpgMixScreen(
-                                vm = vm,
-                                tr = settings.lang == AppLang.TR,
-                                onBack = vm::closeOverlay,
-                                onPlayLive = vm::playChannel,
-                                onCatchup = { ch, p -> vm.playCatchup(ch, p) }
-                            )
-                        } else {
-                            Box(Modifier.fillMaxSize().padding(8.dp)) {
-                                GlassPanel(strong = true, radius = 20.dp, modifier = Modifier.fillMaxSize()) {
-                                    Box(Modifier.padding(16.dp)) {
-                                        GuideScreen(
-                                            copy = strings,
-                                            channels = channels,
-                                            load = { ch ->
-                                                val now = System.currentTimeMillis()
-                                                vm.guideFor(ch.id, now - 6L * 3600_000, now + 18L * 3600_000)
-                                            },
-                                            onPlay = vm::playChannel,
-                                            onCatchup = { ch, p -> vm.playCatchup(ch, p) },
-                                            onImport = vm::refreshGuide,
-                                            time24h = settings.epg24h
-                                        )
-                                    }
+                        Box(Modifier.fillMaxSize().padding(8.dp)) {
+                            GlassPanel(strong = true, radius = 20.dp, modifier = Modifier.fillMaxSize()) {
+                                Box(Modifier.padding(16.dp)) {
+                                    GuideScreen(
+                                        copy = strings,
+                                        channels = channels,
+                                        load = { ch ->
+                                            val now = System.currentTimeMillis()
+                                            vm.guideFor(ch.id, now - 6L * 3600_000, now + 18L * 3600_000)
+                                        },
+                                        onPlay = vm::playChannel,
+                                        onCatchup = { ch, p -> vm.playCatchup(ch, p) },
+                                        onImport = vm::refreshGuide,
+                                        time24h = settings.epg24h
+                                    )
                                 }
                             }
                         }
                     }
                     RayOverlay(
-                        visible = overlay == Overlay.SEARCH && settings.onboardingDone,
+                        visible = overlay == Overlay.SEARCH && settings.onboardingDone && !mobileLayout && !tabletLayout,
                         modifier = Modifier.fillMaxSize()
                     ) {
                         BackHandler { vm.closeOverlay() }
@@ -420,15 +431,11 @@ fun RayRoot(vm: RayViewModel = hiltViewModel()) {
                             GlassPanel(
                                 strong = true,
                                 radius = 20.dp,
-                                modifier = if (mobileLayout) {
-                                    Modifier.fillMaxSize().padding(8.dp)
-                                } else {
-                                    Modifier
-                                        .align(Alignment.Center)
-                                        .fillMaxWidth(0.72f)
-                                        .fillMaxHeight(0.8f)
-                                        .padding(horizontal = 8.dp)
-                                }
+                                modifier = Modifier
+                                    .align(Alignment.Center)
+                                    .fillMaxWidth(0.72f)
+                                    .fillMaxHeight(0.8f)
+                                    .padding(horizontal = 8.dp)
                             ) {
                                 Box(Modifier.padding(16.dp)) {
                                     SearchScreen(
@@ -454,6 +461,7 @@ fun RayRoot(vm: RayViewModel = hiltViewModel()) {
                             }
                         }
                     }
+
                     RayToastHost(toast, Modifier.align(Alignment.Center))
                     if (pin != null) PinOverlay(onSubmit = { vm.confirmPin(it) }, onCancel = { vm.pinChallenge.value = null })
                     resume?.let { (item, prog) ->

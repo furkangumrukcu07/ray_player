@@ -41,6 +41,7 @@ import androidx.compose.material.icons.filled.PlayCircleOutline
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import kotlinx.coroutines.delay
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -435,48 +436,71 @@ fun SearchScreen(
     val firstHit = remember { FocusRequester() }
     val recentsFocus = remember { FocusRequester() }
     var local by remember { mutableStateOf(query) }
-    LaunchedEffect(Unit) { inputFocus.tryFocus() }
+    var inputFocused by remember { mutableStateOf(false) }
+
+    LaunchedEffect(Unit) {
+        delay(80)
+        inputFocus.tryFocus()
+        delay(200)
+        inputFocus.tryFocus()
+        delay(350)
+        inputFocus.tryFocus()
+    }
     val empty = local.isBlank()
     val total = live.size + movies.size + series.size
     Column(Modifier.fillMaxSize().padding(4.dp)) {
-        GlassPanel(radius = 12.dp, modifier = Modifier.fillMaxWidth()) {
+        GlassPanel(
+            radius = 12.dp,
+            focused = inputFocused,
+            modifier = Modifier.fillMaxWidth()
+        ) {
             Row(
                 Modifier
                     .fillMaxWidth()
                     .padding(horizontal = 14.dp, vertical = 10.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Icon(Icons.Filled.Search, null, tint = Color.White.copy(alpha = 0.7f), modifier = Modifier.size(22.dp))
+                Icon(Icons.Filled.Search, null, tint = if (inputFocused) g.accent else Color.White.copy(alpha = 0.7f), modifier = Modifier.size(22.dp))
                 Spacer(Modifier.width(10.dp))
-                BasicTextField(
-                    value = local,
-                    onValueChange = {
-                        local = it
-                        onQuery(it)
-                    },
-                    textStyle = MaterialTheme.typography.headlineMedium.copy(color = g.text),
-                    cursorBrush = SolidColor(g.accent),
-                    singleLine = true,
-                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
-                    keyboardActions = KeyboardActions(onSearch = {
-                        if (total > 0) firstHit.tryFocus()
-                        else if (recents.isNotEmpty()) recentsFocus.tryFocus()
-                    }),
-                    modifier = Modifier
-                        .weight(1f)
-                        .focusRequester(inputFocus)
-                        .onPreviewKeyEvent { e ->
-                            if (e.type != KeyEventType.KeyDown) return@onPreviewKeyEvent false
-                            if (e.key == Key.DirectionDown) {
-                                when {
-                                    total > 0 -> firstHit.tryFocus()
-                                    recents.isNotEmpty() -> recentsFocus.tryFocus()
-                                    else -> return@onPreviewKeyEvent false
-                                }
-                                true
-                            } else false
-                        }
-                )
+                Box(Modifier.weight(1f)) {
+                    if (local.isEmpty()) {
+                        Text(
+                            copy.search,
+                            color = g.muted.copy(alpha = 0.6f),
+                            style = MaterialTheme.typography.headlineMedium
+                        )
+                    }
+                    BasicTextField(
+                        value = local,
+                        onValueChange = {
+                            local = it
+                            onQuery(it)
+                        },
+                        textStyle = MaterialTheme.typography.headlineMedium.copy(color = g.text),
+                        cursorBrush = SolidColor(g.accent),
+                        singleLine = true,
+                        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
+                        keyboardActions = KeyboardActions(onSearch = {
+                            if (total > 0) firstHit.tryFocus()
+                            else if (recents.isNotEmpty()) recentsFocus.tryFocus()
+                        }),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .focusRequester(inputFocus)
+                            .onFocusChanged { inputFocused = it.isFocused }
+                            .onPreviewKeyEvent { e ->
+                                if (e.type != KeyEventType.KeyDown) return@onPreviewKeyEvent false
+                                if (e.key == Key.DirectionDown) {
+                                    when {
+                                        total > 0 -> firstHit.tryFocus()
+                                        recents.isNotEmpty() -> recentsFocus.tryFocus()
+                                        else -> return@onPreviewKeyEvent false
+                                    }
+                                    true
+                                } else false
+                            }
+                    )
+                }
             }
         }
         when {
@@ -484,7 +508,7 @@ fun SearchScreen(
                 Text("…", color = g.muted, style = MaterialTheme.typography.headlineMedium)
             }
             empty && recents.isNotEmpty() -> {
-                Spacer(Modifier.height(12.dp))
+                Spacer(Modifier.height(8.dp))
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Icon(Icons.Filled.History, null, tint = Color.White.copy(alpha = 0.75f), modifier = Modifier.size(16.dp))
                     Spacer(Modifier.width(6.dp))
@@ -501,7 +525,7 @@ fun SearchScreen(
                         modifier = Modifier.clickable { onClearRecents() }.padding(horizontal = 6.dp, vertical = 3.dp)
                     )
                 }
-                Spacer(Modifier.height(8.dp))
+                Spacer(Modifier.height(6.dp))
                 FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                     recents.forEachIndexed { i, q ->
                         RecentSearchChip(
@@ -600,9 +624,15 @@ private fun SearchHitRow(
             .onFocusChanged { focused = it.isFocused }
             .onPreviewKeyEvent { e ->
                 if (e.type != KeyEventType.KeyDown) return@onPreviewKeyEvent false
-                if (onUpToInput != null && e.key == Key.DirectionUp) {
-                    onUpToInput(); true
-                } else false
+                when {
+                    onUpToInput != null && e.key == Key.DirectionUp -> {
+                        onUpToInput(); true
+                    }
+                    e.key == Key.DirectionCenter || e.key == Key.Enter || e.key == Key.NumPadEnter -> {
+                        onClick(); true
+                    }
+                    else -> false
+                }
             }
     ) {
         Row(
@@ -659,9 +689,15 @@ private fun RecentSearchChip(
             .onFocusChanged { focused = it.isFocused }
             .onPreviewKeyEvent { e ->
                 if (e.type != KeyEventType.KeyDown) return@onPreviewKeyEvent false
-                if (onUpToInput != null && e.key == Key.DirectionUp) {
-                    onUpToInput(); true
-                } else false
+                when {
+                    onUpToInput != null && e.key == Key.DirectionUp -> {
+                        onUpToInput(); true
+                    }
+                    e.key == Key.DirectionCenter || e.key == Key.Enter || e.key == Key.NumPadEnter -> {
+                        onTap(); true
+                    }
+                    else -> false
+                }
             }
     ) {
         Row(

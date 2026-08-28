@@ -128,7 +128,7 @@ private fun AboutHomePage(
     val ctx = LocalContext.current
     val version = remember {
         runCatching { ctx.packageManager.getPackageInfo(ctx.packageName, 0).versionName }
-            .getOrNull().orEmpty().ifBlank { "1.3.0" }
+            .getOrNull().orEmpty().ifBlank { "1.3.13" }
     }
     val pkg = remember { ctx.packageName }
     val scope = rememberCoroutineScope()
@@ -237,7 +237,7 @@ private fun ContactUsPage(vm: RayViewModel, tr: Boolean, onBack: () -> Unit, onF
     val ctx = LocalContext.current
     val version = remember {
         runCatching { ctx.packageManager.getPackageInfo(ctx.packageName, 0).versionName }
-            .getOrNull().orEmpty().ifBlank { "1.3.0" }
+            .getOrNull().orEmpty().ifBlank { "1.3.13" }
     }
     LazyColumn(Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(10.dp)) {
         item {
@@ -770,7 +770,15 @@ private fun isStoreNewer(current: String, store: String): Boolean {
     return false
 }
 
-private const val rayChangelogTr = """v1.3.0
+private const val rayChangelogTr = """v1.3.13
+• TV Kumanda & Navigasyon: İlk açılışta ve sayfa geçişlerinde asenkron kategori yükleme sırasında odağın ana rail'e kaçma sorunu tüm ekranlarda (Canlı TV, Film, Dizi, İzlemeye Devam Et, Listeler, Ayarlar) tamamen çözüldü
+• TV Hiyerarşik Odak Akışı: Kategori seçiminde OK / Sağ tuşla içeriğe geçiş, Sol / Geri tuşuyla sırasıyla kategoriye ve ana rail'e kusursuz geri dönüş sağlandı
+• Modern Glass Spotlight Arama: Mobil ve tablet için eski tam ekran arama yerine kompakt, şık ve yarı saydam Glass Spotlight pop-up arama motoru entegre edildi
+• Tablet Modu Performans & Tasarım: Ana ekran animasyonları ve LaunchedEffect anahtarları optimize edilerek takılmalar giderildi; Hero banner metin/buton taşmaları düzeltildi
+• Mobil & Dock Bar Tasarımı: Mobil dock bar üzerinde akıcı yürüyen neon ışık animasyonu eklendi, cam tasarım dili güçlendirildi
+• Bulut Yedekleme & Hesap: Google Drive / Firebase bulut hesap yedekleme ve yönetici algılama kararlılığı artırıldı
+
+v1.3.0
 • TV / TV box: büyük M3U ve Xtream listelerinde bellek taşması ve ana iş parçacığı kilitlenmesi azaltıldı
 • Canlı izlerken ikinci önizleme oynatıcısı zayıf kutularda kapatıldı
 • Yayın türü Otomatik: belirsiz canlı URL’ler TS olarak açılır; 404’te HLS↔TS yedeği çalışır
@@ -800,7 +808,15 @@ v1.0.0
 • Canlı TV, film, dizi, rehber, izlemeye devam
 • Better / MediaKit oynatıcı motorları, altyazı ve ebeveyn PIN"""
 
-private const val rayChangelogEn = """v1.3.0
+private const val rayChangelogEn = """v1.3.13
+• TV Remote & Navigation: Fixed initial startup and async category loading focus escaping to main rail across all sections (Live TV, Movies, Series, Continue Watching, Playlists, Settings)
+• TV Hierarchical Focus Flow: Smooth OK / Right navigation into content, and hierarchical Left / Back return to category and then main rail
+• Modern Glass Spotlight Search: Replaced full-screen search on mobile & tablet with a sleek, compact, translucent Glass Spotlight search modal
+• Tablet Optimization & UI Polish: Optimized home screen animations and LaunchedEffect keys to eliminate stutters; fixed Hero banner text/pill overflows
+• Mobile & Dock Bar Aesthetics: Smooth walking neon glow along the mobile dock bar, enhanced glassmorphism look & feel
+• Cloud Backup & Account Stability: Enhanced Google Drive / Firebase cloud backup detection and admin mode reliability
+
+v1.3.0
 • TV / TV boxes: lower memory use and less main-thread work when loading large M3U and Xtream lists
 • Live preview player is skipped on weak boxes while watching
 • Automatic stream type: ambiguous live URLs play as TS; 404 triggers HLS↔TS fallback

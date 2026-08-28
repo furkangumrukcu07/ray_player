@@ -1,5 +1,12 @@
 package com.ray.iptv.ui.components
 
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
@@ -21,25 +28,18 @@ import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.animation.core.LinearEasing
-import androidx.compose.animation.core.RepeatMode
-import androidx.compose.animation.core.animateFloat
-import androidx.compose.animation.core.infiniteRepeatable
-import androidx.compose.animation.core.rememberInfiniteTransition
-import androidx.compose.animation.core.tween
-import androidx.compose.foundation.Canvas
-import androidx.compose.runtime.getValue
-import androidx.compose.ui.draw.rotate
-import androidx.compose.ui.graphics.drawscope.Stroke
-import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -62,13 +62,16 @@ fun ActorDetailDialog(
     onSelectVod: (VodEntity) -> Unit,
     onDismiss: () -> Unit
 ) {
+    val cyan = Color(0xFF22D3EE)
+    val emerald = Color(0xFF34D399)
+
     Dialog(onDismissRequest = onDismiss) {
         Box(
             Modifier
                 .widthIn(max = 520.dp)
                 .clip(RoundedCornerShape(24.dp))
-                .background(Color(0xFF0F172A))
-                .border(1.dp, Color.White.copy(alpha = 0.15f), RoundedCornerShape(24.dp))
+                .background(Color(0xFF0E281F).copy(alpha = 0.94f))
+                .border(1.dp, emerald.copy(alpha = 0.35f), RoundedCornerShape(24.dp))
                 .padding(20.dp)
         ) {
             if (loading || actor == null) {
@@ -80,7 +83,7 @@ fun ActorDetailDialog(
                     val spin = rememberInfiniteTransition(label = "actor-spin")
                     val deg by spin.animateFloat(0f, 360f, infiniteRepeatable(tween(800, easing = LinearEasing), RepeatMode.Restart), label = "actor-rot")
                     Canvas(Modifier.size(44.dp).rotate(deg)) {
-                        drawArc(Color(0xFF00E5FF), 16f, 280f, false, style = Stroke(3.5.dp.toPx(), cap = StrokeCap.Round))
+                        drawArc(cyan, 16f, 280f, false, style = Stroke(3.5.dp.toPx(), cap = StrokeCap.Round))
                     }
                     Text(
                         if (tr) "Oyuncu Bilgileri Yükleniyor..." else "Loading Actor Info...",
@@ -97,7 +100,7 @@ fun ActorDetailDialog(
                     ) {
                         Text(
                             if (tr) "Oyuncu Profili" else "Actor Profile",
-                            color = Color(0xFF00E5FF),
+                            color = cyan,
                             fontWeight = FontWeight.Bold,
                             fontSize = 16.sp
                         )
@@ -113,7 +116,7 @@ fun ActorDetailDialog(
                         }
                     }
 
-                    Box(Modifier.fillMaxWidth().height(1.dp).background(Color.White.copy(alpha = 0.12f)))
+                    Box(Modifier.fillMaxWidth().height(1.dp).background(Color.White.copy(alpha = 0.10f)))
 
                     LazyColumn(
                         verticalArrangement = Arrangement.spacedBy(14.dp),
@@ -129,7 +132,7 @@ fun ActorDetailDialog(
                                         .size(100.dp)
                                         .clip(CircleShape)
                                         .background(Color.White.copy(alpha = 0.10f))
-                                        .border(2.dp, Color(0xFF00E5FF).copy(alpha = 0.5f), CircleShape),
+                                        .border(2.dp, cyan.copy(alpha = 0.5f), CircleShape),
                                     contentAlignment = Alignment.Center
                                 ) {
                                     if (actor.photo.isNotBlank()) {
@@ -166,7 +169,7 @@ fun ActorDetailDialog(
                                 Column {
                                     Text(
                                         if (tr) "Biyografi" else "Biography",
-                                        color = Color(0xFF00E5FF),
+                                        color = cyan,
                                         fontWeight = FontWeight.Bold,
                                         fontSize = 13.sp
                                     )
@@ -187,7 +190,7 @@ fun ActorDetailDialog(
                                     Text(
                                         if (tr) "Bu Oyuncunun Arşivinizdeki İçerikleri (${matchedVods.size})"
                                         else "Actor's Content in Library (${matchedVods.size})",
-                                        color = Color(0xFF00E5FF),
+                                        color = cyan,
                                         fontWeight = FontWeight.Bold,
                                         fontSize = 14.sp
                                     )
@@ -211,7 +214,7 @@ fun ActorDetailDialog(
                                                         .aspectRatio(0.68f)
                                                         .clip(RoundedCornerShape(10.dp))
                                                         .background(Color.White.copy(alpha = 0.08f))
-                                                        .border(1.dp, Color.White.copy(alpha = 0.15f), RoundedCornerShape(10.dp))
+                                                        .border(1.dp, emerald.copy(alpha = 0.25f), RoundedCornerShape(10.dp))
                                                 ) {
                                                     if (item.poster.isNotBlank()) {
                                                         AsyncImage(

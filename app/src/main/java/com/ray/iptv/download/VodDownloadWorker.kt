@@ -37,7 +37,7 @@ class VodDownloadWorker @AssistedInject constructor(
         if (url.isBlank() || profile.isBlank()) return Result.failure()
         val dir = File(ctx.filesDir, "downloads").apply { mkdirs() }
         val dest = File(dir, "$id.bin")
-        setForeground(fg("Downloading $title"))
+        // Runs in standard background worker without requiring foreground permissions
         db.downloads().upsert(
             DownloadEntity(id, profile, media, title, poster, url, dest.absolutePath, 0, 0, "QUEUED", System.currentTimeMillis())
         )
@@ -78,26 +78,6 @@ class VodDownloadWorker @AssistedInject constructor(
                 DownloadEntity(id, profile, media, title, poster, url, dest.absolutePath, 0, 0, "FAILED", System.currentTimeMillis())
             )
             Result.failure()
-        }
-    }
-
-    private fun fg(text: String): ForegroundInfo {
-        val nm = NotificationManagerCompat.from(ctx)
-        nm.createNotificationChannel(
-            NotificationChannelCompat.Builder("ray_dl", NotificationManagerCompat.IMPORTANCE_LOW)
-                .setName("Downloads")
-                .build()
-        )
-        val n = NotificationCompat.Builder(ctx, "ray_dl")
-            .setContentTitle("Ray IPTV")
-            .setContentText(text)
-            .setSmallIcon(android.R.drawable.stat_sys_download)
-            .setOngoing(true)
-            .build()
-        return if (Build.VERSION.SDK_INT >= 29) {
-            ForegroundInfo(43, n, ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC)
-        } else {
-            ForegroundInfo(43, n)
         }
     }
 

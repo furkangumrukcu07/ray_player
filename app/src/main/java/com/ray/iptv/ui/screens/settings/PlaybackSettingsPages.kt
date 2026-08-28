@@ -75,6 +75,10 @@ import com.ray.iptv.ui.RayViewModel
 import com.ray.iptv.ui.components.GlassButton
 import com.ray.iptv.ui.glass.GlassPanel
 import com.ray.iptv.ui.screens.onboarding.GlassField
+import androidx.activity.compose.BackHandler
+import androidx.compose.runtime.LaunchedEffect
+import kotlinx.coroutines.delay
+import com.ray.iptv.ui.input.tryFocus
 import com.ray.iptv.ui.theme.LocalGlass
 
 private enum class PlaybackSub { LIST, SUBTITLES }
@@ -88,6 +92,30 @@ internal fun PlaybackSettingsRoot(
     onBack: () -> Unit
 ) {
     var sub by remember { mutableStateOf(PlaybackSub.LIST) }
+    val subItemFocusRequester = remember { FocusRequester() }
+
+    BackHandler {
+        if (sub != PlaybackSub.LIST) {
+            sub = PlaybackSub.LIST
+        } else {
+            onBack()
+        }
+    }
+
+    LaunchedEffect(sub) {
+        if (sub == PlaybackSub.LIST) {
+            repeat(8) {
+                delay(30)
+                if (focusRequester?.tryFocus() == true) return@LaunchedEffect
+            }
+        } else {
+            repeat(8) {
+                delay(35)
+                if (subItemFocusRequester.tryFocus()) return@LaunchedEffect
+            }
+        }
+    }
+
     when (sub) {
         PlaybackSub.LIST -> PlaybackSettingsList(vm, settings, tr, onBack, focusRequester) { sub = PlaybackSub.SUBTITLES }
         PlaybackSub.SUBTITLES -> SubtitleOptionsPage(vm, settings, tr) { sub = PlaybackSub.LIST }

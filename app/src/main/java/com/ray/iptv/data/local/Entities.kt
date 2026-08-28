@@ -1,9 +1,11 @@
 package com.ray.iptv.data.local
 
+import androidx.compose.runtime.Immutable
 import androidx.room.Entity
 import androidx.room.Index
 import androidx.room.PrimaryKey
 
+@Immutable
 @Entity(tableName = "profiles")
 data class ProfileEntity(
     @PrimaryKey val id: String,
@@ -14,6 +16,7 @@ data class ProfileEntity(
     val createdAt: Long
 )
 
+@Immutable
 @Entity(tableName = "sources")
 data class SourceEntity(
     @PrimaryKey val id: String,
@@ -28,6 +31,7 @@ data class SourceEntity(
     val sortOrder: Int = 0
 )
 
+@Immutable
 @Entity(
     tableName = "categories",
     indices = [Index("sourceId"), Index("kind")]
@@ -44,9 +48,17 @@ data class CategoryEntity(
     val locked: Boolean = false
 )
 
+@Immutable
 @Entity(
     tableName = "channels",
-    indices = [Index("sourceId"), Index("categoryId"), Index("number"), Index("epgId")]
+    indices = [
+        Index("sourceId"),
+        Index("categoryId"),
+        Index("number"),
+        Index("epgId"),
+        Index(value = ["sourceId", "hidden", "categoryId"]),
+        Index(value = ["hidden", "categoryId"])
+    ]
 )
 data class ChannelEntity(
     @PrimaryKey val id: String,
@@ -67,6 +79,7 @@ data class ChannelEntity(
     val layoutSort: Int = -1
 )
 
+@Immutable
 @Entity(
     tableName = "vod",
     indices = [Index("sourceId"), Index("categoryId"), Index("kind")]
@@ -89,6 +102,7 @@ data class VodEntity(
     val addedUnix: Long = 0
 )
 
+@Immutable
 @Entity(tableName = "episodes", indices = [Index("seriesId")])
 data class EpisodeEntity(
     @PrimaryKey val id: String,
@@ -104,6 +118,7 @@ data class EpisodeEntity(
     val extension: String
 )
 
+@Immutable
 @Entity(
     tableName = "favorites",
     primaryKeys = ["profileId", "mediaId"]
@@ -115,6 +130,7 @@ data class FavoriteEntity(
     val createdAt: Long
 )
 
+@Immutable
 @Entity(
     tableName = "progress",
     primaryKeys = ["profileId", "mediaId"]
@@ -130,7 +146,17 @@ data class ProgressEntity(
     val updatedAt: Long
 )
 
-@Entity(tableName = "epg", indices = [Index("channelId"), Index("startMs")])
+@Immutable
+@Entity(
+    tableName = "epg",
+    indices = [
+        Index(value = ["channelId", "startMs", "endMs"]),
+        Index(value = ["channelId", "endMs"]),
+        Index("channelId"),
+        Index("startMs"),
+        Index("endMs")
+    ]
+)
 data class EpgEntity(
     @PrimaryKey val id: String,
     val channelId: String,

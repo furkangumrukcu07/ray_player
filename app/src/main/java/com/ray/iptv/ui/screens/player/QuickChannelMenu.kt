@@ -89,9 +89,6 @@ fun QuickChannelMenu(
     onPick: (ChannelEntity) -> Unit,
     onClose: () -> Unit
 ) {
-    BackHandler {
-        onClose()
-    }
     val tapes = remember(channels, categories) { buildTapes(channels, categories) }
     if (tapes.isEmpty()) return
     val start = remember(playingId, tapes) {
@@ -137,17 +134,7 @@ fun QuickChannelMenu(
     val focusIndex = tape.channels.indexOfFirst { it.id == focusedId }.coerceAtLeast(0)
 
     BoxWithConstraints(
-        Modifier
-            .fillMaxSize()
-            .onPreviewKeyEvent { ev ->
-                if (ev.nativeKeyEvent.keyCode == KeyEvent.KEYCODE_BACK) {
-                    if (ev.nativeKeyEvent.action == KeyEvent.ACTION_DOWN) {
-                        onClose()
-                    }
-                    return@onPreviewKeyEvent true
-                }
-                false
-            }
+        Modifier.fillMaxSize()
     ) {
         val compact = maxWidth < 700.dp
         val railW = if (compact) 300.dp else 560.dp

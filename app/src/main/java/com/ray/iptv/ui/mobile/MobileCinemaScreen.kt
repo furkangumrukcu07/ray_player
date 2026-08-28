@@ -36,6 +36,7 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FavoriteBorder
+import androidx.compose.material.icons.filled.EmojiEvents
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Star
@@ -43,6 +44,8 @@ import androidx.compose.material.icons.filled.Theaters
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.ui.platform.LocalUriHandler
+import com.ray.iptv.data.meta.CastPerson
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -379,9 +382,11 @@ fun MobileVodDetailScreen(
     downloadedEpisodeIds: Set<String> = emptySet(),
     similar: List<VodEntity>,
     onOpenSimilar: (VodEntity) -> Unit,
-    loading: Boolean = false
+    loading: Boolean = false,
+    onActorClick: ((CastPerson) -> Unit)? = null
 ) {
     val g = LocalGlass.current
+    val uriHandler = LocalUriHandler.current
     val plot = extras.plot.ifBlank { item.plot }
     val rating = extras.rating.ifBlank { item.rating }
     val year = extras.year.ifBlank { item.year }
@@ -392,7 +397,7 @@ fun MobileVodDetailScreen(
     val backdrop = extras.backdrop.ifBlank { item.poster }
     val poster = extras.poster.ifBlank { item.poster }
     var plotOpen by remember(plot) { mutableStateOf(false) }
-    val metaLine = listOf(year, runtime, extras.cast.take(36)).filter { it.isNotBlank() }.joinToString("  •  ")
+    val metaLine = listOf(year, runtime, extras.country, extras.language).filter { it.isNotBlank() }.joinToString("  •  ")
 
     Box(Modifier.fillMaxSize().background(Color(0xFF0B0F14))) {
         if (backdrop.isNotBlank()) {
@@ -462,6 +467,7 @@ fun MobileVodDetailScreen(
                             ) {
                                 if (rating.isNotBlank()) DetailImdbBadge(rating)
                                 if (extras.tmdbId > 0 && rating.isNotBlank()) DetailTmdbBadge(rating)
+                                if (extras.certification.isNotBlank()) DetailCertBadge(extras.certification)
                                 if (loading && rating.isBlank()) {
                                     Box(Modifier.size(56.dp, 20.dp).clip(RoundedCornerShape(6.dp)).shimmerPulse())
                                     Box(Modifier.size(56.dp, 20.dp).clip(RoundedCornerShape(6.dp)).shimmerPulse())
@@ -480,6 +486,34 @@ fun MobileVodDetailScreen(
                             } else if (loading) {
                                 Spacer(Modifier.height(8.dp))
                                 Box(Modifier.size(180.dp, 14.dp).clip(RoundedCornerShape(4.dp)).shimmerPulse())
+                            }
+                            if (extras.awards.isNotBlank()) {
+                                Spacer(Modifier.height(8.dp))
+                                Row(
+                                    Modifier
+                                        .fillMaxWidth()
+                                        .clip(RoundedCornerShape(10.dp))
+                                        .background(Color(0xFFFEF08A).copy(alpha = 0.12f))
+                                        .border(0.8.dp, Color(0xFFFACC15).copy(alpha = 0.35f), RoundedCornerShape(10.dp))
+                                        .padding(horizontal = 10.dp, vertical = 6.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Icon(
+                                        Icons.Filled.EmojiEvents,
+                                        contentDescription = null,
+                                        tint = Color(0xFFFACC15),
+                                        modifier = Modifier.size(16.dp)
+                                    )
+                                    Spacer(Modifier.width(6.dp))
+                                    Text(
+                                        extras.awards,
+                                        color = Color.White.copy(alpha = 0.90f),
+                                        fontSize = 11.5.sp,
+                                        fontWeight = FontWeight.Medium,
+                                        maxLines = 2,
+                                        overflow = TextOverflow.Ellipsis
+                                    )
+                                }
                             }
                             Spacer(Modifier.height(14.dp))
                             Row(
@@ -529,15 +563,6 @@ fun MobileVodDetailScreen(
                         }
                     }
                 }
-                if (extras.trailerUrl.isNotBlank()) {
-                    Spacer(Modifier.height(12.dp))
-                    DetailGlassButton(
-                        label = if (tr) "Fragman" else "Trailer",
-                        icon = Icons.Filled.Theaters,
-                        modifier = Modifier.fillMaxWidth(),
-                        onClick = onTrailer
-                    )
-                }
                 if (plot.isNotBlank()) {
                     Spacer(Modifier.height(20.dp))
                     DetailSectionTitle(if (tr) "Özet" else "Synopsis")
@@ -576,6 +601,84 @@ fun MobileVodDetailScreen(
                         }
                     }
                 }
+                if (extras.trailers.isNotEmpty()) {
+                    Spacer(Modifier.height(20.dp))
+                    DetailSectionTitle(if (tr) "Fragmanlar & Videolar" else "Trailers & Videos")
+                    Spacer(Modifier.height(10.dp))
+                    LazyRow(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                        items(extras.trailers) { t ->
+                            Column(
+                                Modifier
+                                    .width(200.dp)
+                                    .clip(RoundedCornerShape(14.dp))
+                                    .background(Brush.linearGradient(g.capsuleGradient()), RoundedCornerShape(14.dp))
+                                    .border(1.dp, g.capsuleStroke(), RoundedCornerShape(14.dp))
+                                    .rayClickable(onClick = {
+                                        try { uriHandler.openUri(t.watchUrl) } catch (_: Exception) {}
+                                    })
+                                    .padding(8.dp)
+                            ) {
+                                Box(
+                                    Modifier
+                                        .fillMaxWidth()
+                                        .height(112.dp)
+                                        .clip(RoundedCornerShape(10.dp))
+                                        .background(Color.Black.copy(alpha = 0.4f))
+                                ) {
+                                    if (t.thumbnailUrl.isNotBlank()) {
+                                        AsyncImage(
+                                            model = t.thumbnailUrl,
+                                            contentDescription = null,
+                                            contentScale = ContentScale.Crop,
+                                            modifier = Modifier.fillMaxSize()
+                                        )
+                                    }
+                                    Box(
+                                        Modifier
+                                            .size(42.dp)
+                                            .clip(CircleShape)
+                                            .background(g.accent.copy(alpha = 0.90f))
+                                            .align(Alignment.Center),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Icon(
+                                            Icons.Filled.PlayArrow,
+                                            contentDescription = null,
+                                            tint = Color.White,
+                                            modifier = Modifier.size(24.dp)
+                                        )
+                                    }
+                                }
+                                Spacer(Modifier.height(6.dp))
+                                Text(
+                                    t.title,
+                                    color = Color.White,
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                                if (t.subtitle.isNotBlank()) {
+                                    Text(
+                                        t.subtitle,
+                                        color = Color.White.copy(alpha = 0.55f),
+                                        fontSize = 11.sp,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis
+                                    )
+                                }
+                            }
+                        }
+                    }
+                } else if (extras.trailerUrl.isNotBlank()) {
+                    Spacer(Modifier.height(12.dp))
+                    DetailGlassButton(
+                        label = if (tr) "Fragman" else "Trailer",
+                        icon = Icons.Filled.Theaters,
+                        modifier = Modifier.fillMaxWidth(),
+                        onClick = onTrailer
+                    )
+                }
                 if (extras.people.isNotEmpty()) {
                     Spacer(Modifier.height(20.dp))
                     DetailSectionTitle(if (tr) "Oyuncular" else "Cast")
@@ -588,6 +691,7 @@ fun MobileVodDetailScreen(
                                     .clip(RoundedCornerShape(16.dp))
                                     .background(Brush.linearGradient(g.capsuleGradient()), RoundedCornerShape(16.dp))
                                     .border(1.dp, g.capsuleStroke(), RoundedCornerShape(16.dp))
+                                    .rayClickable(onClick = { onActorClick?.invoke(p) })
                                     .padding(8.dp),
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
@@ -821,6 +925,25 @@ private fun DetailTmdbBadge(value: String) {
         Icon(Icons.Filled.Star, null, tint = c, modifier = Modifier.size(14.dp))
         Spacer(Modifier.width(4.dp))
         Text("TMDB $value", color = c, fontSize = 12.sp, fontWeight = FontWeight.ExtraBold)
+    }
+}
+
+@Composable
+private fun DetailCertBadge(cert: String) {
+    Box(
+        Modifier
+            .clip(RoundedCornerShape(6.dp))
+            .background(Color.White.copy(alpha = 0.14f))
+            .border(0.8.dp, Color.White.copy(alpha = 0.32f), RoundedCornerShape(6.dp))
+            .padding(horizontal = 7.dp, vertical = 3.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        Text(
+            cert,
+            color = Color.White,
+            fontWeight = FontWeight.Bold,
+            fontSize = 11.5.sp
+        )
     }
 }
 

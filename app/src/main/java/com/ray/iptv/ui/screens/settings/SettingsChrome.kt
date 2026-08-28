@@ -328,8 +328,8 @@ fun HubGlassTile(
                     Key.DirectionLeft -> {
                         if (onLeft != null) {
                             onLeft()
-                        }
-                        true
+                            true
+                        } else false
                     }
                     Key.DirectionUp -> {
                         if (isTopRow) true else false

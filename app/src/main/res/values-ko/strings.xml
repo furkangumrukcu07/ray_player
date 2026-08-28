@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Ray IPTV Player</string>
+    <string name="brand_name">Ray Player</string>
+    <string name="disclaimer_title">플레이어이며 카탈로그가 아닙니다</string>
+    <string name="disclaimer_body">Ray IPTV Player는 채널, 영화 또는 재생목록을 제공하지 않습니다. 사용할 권한이 있는 소스를 추가하세요.</string>
+    <string name="continue_label">계속</string>
+    <string name="get_started">시작하기</string>
+</resources>

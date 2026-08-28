@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Ray IPTV Player</string>
+    <string name="brand_name">Ray Player</string>
+    <string name="disclaimer_title">เครื่องเล่น ไม่ใช่แคตตาล็อก</string>
+    <string name="disclaimer_body">Ray IPTV Player ไม่ได้ให้บริการช่อง ภาพยนตร์ หรือเพลย์ลิสต์ โปรดเพิ่มแหล่งข้อมูลที่คุณได้รับอนุญาตให้ใช้งาน</string>
+    <string name="continue_label">ดำเนินการต่อ</string>
+    <string name="get_started">เริ่มต้นใช้งาน</string>
+</resources>

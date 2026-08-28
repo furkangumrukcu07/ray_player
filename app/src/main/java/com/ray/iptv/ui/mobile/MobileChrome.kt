@@ -10,12 +10,14 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import kotlinx.coroutines.delay
+import androidx.compose.animation.animateColor
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -127,14 +129,86 @@ fun MobileGlassCapsule(
 }
 
 @Composable
+fun RayAnimatedUmbrella(
+    modifier: Modifier = Modifier.size(32.dp)
+) {
+    val infiniteTransition = rememberInfiniteTransition(label = "umbrella-anim")
+    val canopyGreen = Color(0xFF00E676)
+    val canopyBlue = Color(0xFF29B6F6)
+
+    val umbrellaColor by infiniteTransition.animateColor(
+        initialValue = canopyGreen,
+        targetValue = canopyBlue,
+        animationSpec = infiniteRepeatable(
+            animation = tween(durationMillis = 10_000, easing = LinearEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "umbrella-color"
+    )
+
+    Canvas(modifier = modifier) {
+        val w = size.width
+        val h = size.height
+
+        // Sap (J-hook)
+        val shaftPath = Path().apply {
+            moveTo(w * 0.50f, h * 0.20f)
+            lineTo(w * 0.50f, h * 0.78f)
+            cubicTo(
+                w * 0.50f, h * 0.94f,
+                w * 0.32f, h * 0.94f,
+                w * 0.32f, h * 0.82f
+            )
+        }
+        drawPath(
+            path = shaftPath,
+            color = Color.White.copy(alpha = 0.92f),
+            style = Stroke(width = w * 0.075f, cap = StrokeCap.Round)
+        )
+
+        // Gölgelik (3 dilim)
+        val colorLeft = umbrellaColor
+        val colorCenter = Color.White.copy(alpha = 0.92f)
+        val colorRight = umbrellaColor.copy(alpha = 0.82f)
+
+        // Sol Panel
+        val leftPanel = Path().apply {
+            moveTo(w * 0.50f, h * 0.08f)
+            cubicTo(w * 0.28f, h * 0.10f, w * 0.05f, h * 0.32f, w * 0.04f, h * 0.56f)
+            quadraticTo(w * 0.18f, h * 0.49f, w * 0.33f, h * 0.56f)
+            cubicTo(w * 0.38f, h * 0.36f, w * 0.44f, h * 0.18f, w * 0.50f, h * 0.08f)
+            close()
+        }
+        drawPath(leftPanel, color = colorLeft)
+
+        // Orta Panel
+        val centerPanel = Path().apply {
+            moveTo(w * 0.50f, h * 0.08f)
+            cubicTo(w * 0.44f, h * 0.18f, w * 0.38f, h * 0.36f, w * 0.33f, h * 0.56f)
+            quadraticTo(w * 0.50f, h * 0.48f, w * 0.67f, h * 0.56f)
+            cubicTo(w * 0.62f, h * 0.36f, w * 0.56f, h * 0.18f, w * 0.50f, h * 0.08f)
+            close()
+        }
+        drawPath(centerPanel, color = colorCenter)
+
+        // Sağ Panel
+        val rightPanel = Path().apply {
+            moveTo(w * 0.50f, h * 0.08f)
+            cubicTo(w * 0.56f, h * 0.18f, w * 0.62f, h * 0.36f, w * 0.67f, h * 0.56f)
+            quadraticTo(w * 0.82f, h * 0.49f, w * 0.96f, h * 0.56f)
+            cubicTo(w * 0.95f, h * 0.32f, w * 0.72f, h * 0.10f, w * 0.50f, h * 0.08f)
+            close()
+        }
+        drawPath(rightPanel, color = colorRight)
+    }
+}
+
+@Composable
 fun MobileBrandChip(onTap: () -> Unit) {
     val fg = LocalGlass.current.capsuleForeground()
     MobileGlassCapsule(Modifier.rayClickable(onTap)) {
-        Image(
-            painter = painterResource(R.drawable.ic_launcher_foreground),
-            contentDescription = null,
-            contentScale = ContentScale.Fit,
-            modifier = Modifier.size(34.dp).clip(RoundedCornerShape(8.dp))
+        RayAnimatedUmbrella(
+            modifier = Modifier.size(32.dp)
         )
         Spacer(Modifier.width(8.dp))
         Column {

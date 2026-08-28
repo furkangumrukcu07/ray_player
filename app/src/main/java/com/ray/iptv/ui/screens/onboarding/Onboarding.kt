@@ -1,9 +1,13 @@
 package com.ray.iptv.ui.screens.onboarding
 
 import android.content.Intent
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.focusable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -13,23 +17,33 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.systemBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Bolt
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.CloudDownload
+import androidx.compose.material.icons.filled.Favorite
+import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.LiveTv
 import androidx.compose.material.icons.filled.Memory
 import androidx.compose.material.icons.filled.Movie
+import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.PlaylistPlay
+import androidx.compose.material.icons.filled.Schedule
+import androidx.compose.material.icons.filled.Sync
+import androidx.compose.material.icons.filled.Tune
 import androidx.compose.material.icons.outlined.Circle
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -37,7 +51,15 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
+import com.ray.iptv.data.repo.BackupFile
+import com.ray.iptv.ui.input.rayClickable
+
 import androidx.compose.runtime.rememberCoroutineScope
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -75,6 +97,40 @@ import com.ray.iptv.ui.theme.title
 
 private enum class SetupStep { LANGUAGE, THEME, PLAYER, FEATURES, SOURCE }
 
+private class SourceInputState {
+    var sourceName by mutableStateOf("")
+    var kind by mutableIntStateOf(0)
+    var server by mutableStateOf("")
+    var user by mutableStateOf("")
+    var pass by mutableStateOf("")
+    var m3u by mutableStateOf("")
+    var mac by mutableStateOf("")
+    var fileUri by mutableStateOf("")
+
+    fun hasValidInput(): Boolean {
+        return when (kind) {
+            0 -> m3u.isNotBlank()
+            1 -> server.isNotBlank() && user.isNotBlank() && pass.isNotBlank()
+            2 -> fileUri.isNotBlank()
+            3 -> server.isNotBlank() && mac.isNotBlank()
+            4 -> true
+            else -> false
+        }
+    }
+
+    fun executeLoad(vm: RayViewModel, s: SetupCopy, onLoad: () -> Unit) {
+        onLoad()
+        when (kind) {
+            0 -> vm.addM3u(sourceName.ifBlank { "M3U" }, m3u)
+            1 -> vm.addXtream(sourceName.ifBlank { "Xtream" }, server, user, pass)
+            2 -> if (fileUri.isNotBlank()) vm.addLocalM3u(sourceName.ifBlank { s.localM3u }, fileUri)
+            3 -> vm.addStalker(sourceName.ifBlank { "Stalker" }, server, mac)
+            else -> vm.addDemoPlaylist()
+        }
+    }
+}
+
+
 @Composable
 fun OnboardingFlow(vm: RayViewModel, copy: Copy) {
     val g = LocalGlass.current
@@ -99,6 +155,7 @@ fun OnboardingFlow(vm: RayViewModel, copy: Copy) {
     }
     var index by remember { mutableIntStateOf(0) }
     var waitingSource by remember { mutableStateOf(false) }
+    val sourceState = remember { SourceInputState() }
     val step = pages.getOrElse(index) { pages.last() }
     val last = index >= pages.lastIndex
     val canFinish = sources.isNotEmpty()
@@ -108,6 +165,8 @@ fun OnboardingFlow(vm: RayViewModel, copy: Copy) {
         if (waitingSource && sources.isNotEmpty() && !sync.running && sync.error.isBlank()) {
             waitingSource = false
             vm.completeSetup()
+        } else if (waitingSource && sync.error.isNotBlank()) {
+            waitingSource = false
         }
     }
 
@@ -115,6 +174,9 @@ fun OnboardingFlow(vm: RayViewModel, copy: Copy) {
         when {
             index < pages.lastIndex -> index++
             canFinish -> vm.completeSetup()
+            sourceState.hasValidInput() -> {
+                sourceState.executeLoad(vm, s) { waitingSource = true }
+            }
             else -> vm.toast.value = s.needSource
         }
     }
@@ -128,17 +190,27 @@ fun OnboardingFlow(vm: RayViewModel, copy: Copy) {
         Column(
             Modifier
                 .fillMaxSize()
-                .padding(if (touch) 20.dp else 32.dp)
-                .widthIn(max = if (touch) 720.dp else 880.dp)
+                .padding(if (touch) 12.dp else 16.dp)
+                .widthIn(max = if (touch) 720.dp else 960.dp)
                 .align(Alignment.Center)
         ) {
-            Text("Ray", style = MaterialTheme.typography.displayLarge, color = g.accent)
-            Text(s.welcome, style = MaterialTheme.typography.headlineLarge, color = g.text)
+            Row(
+                Modifier.fillMaxWidth().padding(horizontal = 4.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    Text("Ray", style = MaterialTheme.typography.headlineMedium.copy(fontWeight = FontWeight.Black), color = g.accent)
+                    Text(s.welcome, style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold), color = g.text)
+                }
+                Text(stepTitle(step, s), style = MaterialTheme.typography.bodyMedium, color = g.muted)
+            }
             Spacer(Modifier.height(6.dp))
-            Text(stepTitle(step, s), style = MaterialTheme.typography.bodyLarge, color = g.muted)
-            Spacer(Modifier.height(12.dp))
             SetupProgress((index + 1f) / pages.size)
-            Spacer(Modifier.height(12.dp))
+            Spacer(Modifier.height(10.dp))
             GlassPanel(
                 strong = true,
                 modifier = Modifier
@@ -149,7 +221,7 @@ fun OnboardingFlow(vm: RayViewModel, copy: Copy) {
                     Modifier
                         .fillMaxSize()
                         .clipToBounds()
-                        .padding(if (touch) 18.dp else 24.dp)
+                        .padding(if (touch) 16.dp else 20.dp)
                 ) {
                     RaySwitch(step, Modifier.fillMaxSize()) { current ->
                         when (current) {
@@ -187,13 +259,14 @@ fun OnboardingFlow(vm: RayViewModel, copy: Copy) {
                                 syncing = sync.running,
                                 error = sync.error,
                                 onLoad = { waitingSource = true },
-                                vm = vm
+                                vm = vm,
+                                state = sourceState
                             )
                         }
                     }
                 }
             }
-            Spacer(Modifier.height(12.dp))
+            Spacer(Modifier.height(10.dp))
             Row(
                 Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -202,14 +275,19 @@ fun OnboardingFlow(vm: RayViewModel, copy: Copy) {
                 if (index > 0) GlassButton(s.back) { index-- }
                 else Spacer(Modifier.width(8.dp))
                 GlassButton(
-                    if (last) s.finish else s.next,
+                    if (last && (waitingSource || sync.running)) s.loading else if (last) s.finish else s.next,
                     primary = true,
                     modifier = Modifier.focusRequester(nextFocus)
-                ) { goNext() }
+                ) {
+                    if (!waitingSource && !sync.running) {
+                        goNext()
+                    }
+                }
             }
         }
     }
 }
+
 
 @Composable
 private fun SetupProgress(fraction: Float) {
@@ -258,9 +336,9 @@ private fun LanguageStep(
 }
 
 private val wizardThemes = listOf(
+    GlassStyle.DARK,
     GlassStyle.TV_LITE,
     GlassStyle.MACOS_TV,
-    GlassStyle.DARK,
     GlassStyle.AMOLED,
     GlassStyle.FLY_UI,
     GlassStyle.SEMC,
@@ -398,16 +476,9 @@ private fun SourceStep(
     syncing: Boolean,
     error: String,
     onLoad: () -> Unit,
-    vm: RayViewModel
+    vm: RayViewModel,
+    state: SourceInputState
 ) {
-    var sourceName by remember { mutableStateOf("") }
-    var kind by remember { mutableIntStateOf(4) }
-    var server by remember { mutableStateOf("") }
-    var user by remember { mutableStateOf("") }
-    var pass by remember { mutableStateOf("") }
-    var m3u by remember { mutableStateOf("") }
-    var mac by remember { mutableStateOf("") }
-    var fileUri by remember { mutableStateOf("") }
     val ctx = LocalContext.current
     val clip = LocalClipboardManager.current
     val pickM3u = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
@@ -415,19 +486,12 @@ private fun SourceStep(
             runCatching {
                 ctx.contentResolver.takePersistableUriPermission(uri, Intent.FLAG_GRANT_READ_URI_PERMISSION)
             }
-            fileUri = uri.toString()
+            state.fileUri = uri.toString()
         }
     }
     fun load() {
         if (syncing) return
-        onLoad()
-        when (kind) {
-            0 -> vm.addM3u(sourceName.ifBlank { "M3U" }, m3u)
-            1 -> if (fileUri.isNotBlank()) vm.addLocalM3u(sourceName.ifBlank { s.localM3u }, fileUri)
-            2 -> vm.addXtream(sourceName.ifBlank { "Xtream" }, server, user, pass)
-            3 -> vm.addStalker(sourceName.ifBlank { "Stalker" }, server, mac)
-            else -> vm.addDemoPlaylist()
-        }
+        state.executeLoad(vm, s, onLoad)
     }
     Column(
         Modifier
@@ -440,12 +504,68 @@ private fun SourceStep(
         val scope = rememberCoroutineScope()
         val tr = vm.settings.collectAsState().value.lang == AppLang.TR
 
+        var onboardingBackupData by remember { mutableStateOf<Pair<com.ray.iptv.data.repo.BackupFile, String>?>(null) }
+        var isCheckingBackup by remember { mutableStateOf(false) }
+        var restoreProgressStage by remember { mutableStateOf<String?>(null) }
+
         val googleSignInLauncher = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
             scope.launch {
+                isCheckingBackup = true
                 val ok = vm.handleGoogleSignInIntent(result.data)
-                if (ok) vm.restoreFromCloud()
+                if (ok) {
+                    val data = vm.fetchCloudBackupData()
+                    isCheckingBackup = false
+                    if (data != null) {
+                        onboardingBackupData = data
+                    } else {
+                        vm.syncToCloudOnComplete = true
+                        vm.toast.value = if (tr) "Google ile oturum açıldı. Bulutta kayıtlı yedek bulunamadı." else "Signed in with Google. No backup found in cloud."
+                    }
+                } else {
+                    isCheckingBackup = false
+                }
             }
         }
+
+        // Onboarding Cloud Restore Confirmation Dialog
+        if (onboardingBackupData != null && restoreProgressStage == null) {
+            val backup = onboardingBackupData!!.first
+            val jsonStr = onboardingBackupData!!.second
+            OnboardingCloudRestoreDialog(
+                tr = tr,
+                backup = backup,
+                onRestore = {
+                    scope.launch {
+                        restoreProgressStage = if (tr) "Yedek yükleme başlatılıyor..." else "Starting restore..."
+                        val ok = vm.restoreOnboardingCloud(jsonStr) { stage ->
+                            restoreProgressStage = stage
+                        }
+                        if (ok) {
+                            delay(600)
+                            onboardingBackupData = null
+                            restoreProgressStage = null
+                            vm.completeSetup()
+                        } else {
+                            restoreProgressStage = null
+                        }
+                    }
+                },
+                onDismiss = {
+                    onboardingBackupData = null
+                    vm.syncToCloudOnComplete = true
+                }
+            )
+        }
+
+        // Realtime Progress Indicator Dialog during Check or Restore
+        if (isCheckingBackup || restoreProgressStage != null) {
+            OnboardingRestoreProgressDialog(
+                tr = tr,
+                statusText = restoreProgressStage ?: if (tr) "Google hesabı kontrol ediliyor ve bulut taranıyor..." else "Checking Google account and cloud backup..."
+            )
+        }
+
+
 
         Box(
             Modifier
@@ -491,42 +611,43 @@ private fun SourceStep(
                 }
             }
         }
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            GlassButton(if (kind == 4) "${s.demo} ✓" else s.demo) { kind = 4 }
-            GlassButton(if (kind == 0) "M3U URL ✓" else "M3U URL") { kind = 0 }
+        Row(
+            Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            GlassButton(if (state.kind == 0) "M3U URL ✓" else "M3U URL") { state.kind = 0 }
+            GlassButton(if (state.kind == 1) "Xtream ✓" else "Xtream") { state.kind = 1 }
+            GlassButton(if (state.kind == 2) "${s.m3uFile} ✓" else s.m3uFile) { state.kind = 2 }
+            GlassButton(if (state.kind == 3) "Stalker ✓" else "Stalker") { state.kind = 3 }
+            GlassButton(if (state.kind == 4) "${s.demo} ✓" else s.demo) { state.kind = 4 }
         }
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            GlassButton(if (kind == 1) "${s.m3uFile} ✓" else s.m3uFile) { kind = 1 }
-            GlassButton(if (kind == 2) "Xtream ✓" else "Xtream") { kind = 2 }
-            GlassButton(if (kind == 3) "Stalker ✓" else "Stalker") { kind = 3 }
-        }
-        if (kind != 4) GlassField(s.listName, sourceName) { sourceName = it }
-        when (kind) {
+        if (state.kind != 4) GlassField(s.listName, state.sourceName) { state.sourceName = it }
+        when (state.kind) {
             0 -> {
-                GlassField("M3U URL", m3u) { m3u = it }
+                GlassField("M3U URL", state.m3u) { state.m3u = it }
                 GlassButton(s.paste) {
                     val t = clip.getText()?.text.orEmpty()
-                    if (t.isNotBlank()) m3u = t else vm.toast.value = s.clipboardEmpty
+                    if (t.isNotBlank()) state.m3u = t else vm.toast.value = s.clipboardEmpty
                 }
             }
             1 -> {
+                GlassField(s.server, state.server) { state.server = it }
+                GlassField(s.username, state.user) { state.user = it }
+                GlassField(s.password, state.pass) { state.pass = it }
+            }
+            2 -> {
                 Text(
-                    if (fileUri.isBlank()) s.noFile else fileUri.substringAfterLast('/'),
+                    if (state.fileUri.isBlank()) s.noFile else state.fileUri.substringAfterLast('/'),
                     color = LocalGlass.current.muted,
                     style = MaterialTheme.typography.bodySmall
                 )
-                GlassButton(if (fileUri.isBlank()) s.pickFile else s.pickOther) {
+                GlassButton(if (state.fileUri.isBlank()) s.pickFile else s.pickOther) {
                     pickM3u.launch(arrayOf("*/*"))
                 }
             }
-            2 -> {
-                GlassField(s.server, server) { server = it }
-                GlassField(s.username, user) { user = it }
-                GlassField(s.password, pass) { pass = it }
-            }
             3 -> {
-                GlassField("Portal URL", server) { server = it }
-                GlassField("MAC", mac) { mac = it }
+                GlassField("Portal URL", state.server) { state.server = it }
+                GlassField("MAC", state.mac) { state.mac = it }
             }
             else -> Text(s.demoHint, color = LocalGlass.current.muted, style = MaterialTheme.typography.bodyLarge)
         }
@@ -536,6 +657,7 @@ private fun SourceStep(
         GlassButton(if (syncing) s.loading else s.loadList, primary = true) { load() }
     }
 }
+
 
 @Composable
 private fun ChoiceCard(
@@ -801,3 +923,273 @@ private fun setupCopy(tr: Boolean) = if (tr) SetupCopy(
     loadList = "Load list",
     loading = "Loading…"
 )
+
+@Composable
+private fun OnboardingCloudRestoreDialog(
+    tr: Boolean,
+    backup: BackupFile,
+    onRestore: () -> Unit,
+    onDismiss: () -> Unit
+) {
+    val restoreFocus = remember { FocusRequester() }
+    var restoreFocused by remember { mutableStateOf(false) }
+    var dismissFocused by remember { mutableStateOf(false) }
+
+    LaunchedEffect(Unit) {
+        delay(150)
+        runCatching { restoreFocus.requestFocus() }
+    }
+
+    Dialog(
+        onDismissRequest = onDismiss,
+        properties = DialogProperties(usePlatformDefaultWidth = false)
+    ) {
+        BackHandler { onDismiss() }
+
+        Box(
+            Modifier
+                .width(480.dp)
+                .clip(RoundedCornerShape(24.dp))
+                .background(Color(0xFF0E281F).copy(alpha = 0.98f))
+                .border(1.dp, Color(0xFF34D399).copy(alpha = 0.40f), RoundedCornerShape(24.dp))
+                .padding(22.dp)
+        ) {
+            Column {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Box(
+                        Modifier
+                            .size(44.dp)
+                            .clip(RoundedCornerShape(12.dp))
+                            .background(Color(0xFF22D3EE).copy(alpha = 0.15f))
+                            .border(1.dp, Color(0xFF22D3EE).copy(alpha = 0.35f), RoundedCornerShape(12.dp)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            Icons.Filled.CloudDownload,
+                            contentDescription = null,
+                            tint = Color(0xFF22D3EE),
+                            modifier = Modifier.size(24.dp)
+                        )
+                    }
+                    Spacer(Modifier.width(12.dp))
+                    Column(Modifier.weight(1f)) {
+                        Text(
+                            text = if (tr) "Google Bulut Yedeği Bulundu" else "Google Cloud Backup Found",
+                            color = Color.White,
+                            fontSize = 17.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Text(
+                            text = if (tr) "Hesabınızdaki kayıtlı veriler ve oynatma listeleri:" else "Saved playlists & settings in your account:",
+                            color = Color.White.copy(alpha = 0.65f),
+                            fontSize = 12.sp
+                        )
+                    }
+                }
+
+                Spacer(Modifier.height(16.dp))
+
+                // Backup Summary Items
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(16.dp))
+                        .background(Color.White.copy(alpha = 0.05f))
+                        .padding(12.dp),
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    OnboardingBackupRowItem(
+                        icon = Icons.Filled.PlaylistPlay,
+                        title = if (tr) "Oynatma Listeleri" else "Playlists",
+                        value = "${backup.sources.size} ${if (tr) "Liste" else "Sources"}" +
+                                if (backup.sources.isNotEmpty()) " (${backup.sources.take(2).joinToString { it.name }})" else ""
+                    )
+                    OnboardingBackupRowItem(
+                        icon = Icons.Filled.Tune,
+                        title = if (tr) "Uygulama & Sistem Ayarları" else "App & System Settings",
+                        value = if (tr) "Tüm Yapılandırma" else "All Configuration"
+                    )
+                    OnboardingBackupRowItem(
+                        icon = Icons.Filled.Favorite,
+                        title = if (tr) "Favoriler & Geçmiş" else "Favorites & History",
+                        value = "${backup.favorites.size} ${if (tr) "Favori" else "Favorites"} · ${backup.progress.size} ${if (tr) "Kaldığın Yer" else "Progress"}"
+                    )
+                    if (backup.profiles.isNotEmpty()) {
+                        OnboardingBackupRowItem(
+                            icon = Icons.Filled.Person,
+                            title = if (tr) "Kullanıcı Profilleri" else "Profiles",
+                            value = "${backup.profiles.size} ${if (tr) "Profil" else "Profiles"}"
+                        )
+                    }
+                }
+
+                Spacer(Modifier.height(20.dp))
+
+                // Action Buttons
+                Row(
+                    Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    // Restore & Start Button
+                    Box(
+                        Modifier
+                            .weight(1.3f)
+                            .height(46.dp)
+                            .focusRequester(restoreFocus)
+                            .onFocusChanged { restoreFocused = it.isFocused }
+                            .focusable()
+                            .clip(RoundedCornerShape(14.dp))
+                            .background(
+                                if (restoreFocused) Color(0xFF059669) else Color(0xFF10B981),
+                                RoundedCornerShape(14.dp)
+                            )
+                            .border(
+                                if (restoreFocused) 2.5.dp else 1.dp,
+                                if (restoreFocused) Color.White else Color(0xFF34D399),
+                                RoundedCornerShape(14.dp)
+                            )
+                            .rayClickable(onClick = onRestore),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = if (tr) "Geri Yükle & Başlat" else "Restore & Start",
+                            color = Color.White,
+                            fontSize = 13.5.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+
+                    // Dismiss Button
+                    Box(
+                        Modifier
+                            .weight(1f)
+                            .height(46.dp)
+                            .onFocusChanged { dismissFocused = it.isFocused }
+                            .focusable()
+                            .clip(RoundedCornerShape(14.dp))
+                            .background(
+                                if (dismissFocused) Color.White.copy(alpha = 0.20f) else Color.White.copy(alpha = 0.08f),
+                                RoundedCornerShape(14.dp)
+                            )
+                            .border(
+                                if (dismissFocused) 2.dp else 1.dp,
+                                if (dismissFocused) Color.White else Color.White.copy(alpha = 0.15f),
+                                RoundedCornerShape(14.dp)
+                            )
+                            .rayClickable(onClick = onDismiss),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = if (tr) "Manuel Ekle" else "Add Manually",
+                            color = Color.White.copy(alpha = 0.85f),
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun OnboardingBackupRowItem(
+    icon: ImageVector,
+    title: String,
+    value: String
+) {
+    Row(
+        Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Icon(
+            icon,
+            contentDescription = null,
+            tint = Color(0xFF34D399),
+            modifier = Modifier.size(18.dp)
+        )
+        Spacer(Modifier.width(10.dp))
+        Text(
+            text = title,
+            color = Color.White.copy(alpha = 0.85f),
+            fontSize = 12.5.sp,
+            fontWeight = FontWeight.Medium,
+            modifier = Modifier.weight(1f)
+        )
+        Text(
+            text = value,
+            color = Color(0xFF22D3EE),
+            fontSize = 12.sp,
+            fontWeight = FontWeight.Bold
+        )
+    }
+}
+
+@Composable
+private fun OnboardingRestoreProgressDialog(
+    tr: Boolean,
+    statusText: String
+) {
+    Dialog(
+        onDismissRequest = {},
+        properties = DialogProperties(
+            dismissOnBackPress = false,
+            dismissOnClickOutside = false,
+            usePlatformDefaultWidth = false
+        )
+    ) {
+        Box(
+            Modifier
+                .width(420.dp)
+                .clip(RoundedCornerShape(22.dp))
+                .background(Color(0xFF0E281F).copy(alpha = 0.98f))
+                .border(1.2.dp, Color(0xFF22D3EE).copy(alpha = 0.50f), RoundedCornerShape(22.dp))
+                .padding(26.dp),
+            contentAlignment = Alignment.Center
+        ) {
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(14.dp)
+            ) {
+                Box(
+                    Modifier
+                        .size(52.dp)
+                        .clip(CircleShape)
+                        .background(Color(0xFF22D3EE).copy(alpha = 0.15f))
+                        .border(1.dp, Color(0xFF22D3EE).copy(alpha = 0.40f), CircleShape),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        Icons.Filled.Sync,
+                        contentDescription = null,
+                        tint = Color(0xFF22D3EE),
+                        modifier = Modifier.size(28.dp)
+                    )
+                }
+
+                Text(
+                    text = if (tr) "Google Bulut Geri Yükleme" else "Google Cloud Restore",
+                    color = Color.White,
+                    fontSize = 16.5.sp,
+                    fontWeight = FontWeight.Bold
+                )
+
+                Text(
+                    text = statusText,
+                    color = Color(0xFF34D399),
+                    fontSize = 13.5.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                )
+
+                Text(
+                    text = if (tr) "Lütfen bekleyin, ayarlarınız ve listeleriniz hazırlanıyor..." else "Please wait, preparing your playlists and settings...",
+                    color = Color.White.copy(alpha = 0.50f),
+                    fontSize = 11.5.sp,
+                    textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                )
+            }
+        }
+    }
+}
+

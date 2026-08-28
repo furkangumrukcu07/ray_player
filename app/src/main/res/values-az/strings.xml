@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Ray IPTV Player</string>
+    <string name="brand_name">Ray Player</string>
+    <string name="disclaimer_title">Pleyer, kataloq deyil</string>
+    <string name="disclaimer_body">Ray IPTV Player kanal, film və ya oxutma siyahısı təqdim etmir. Yalnız istifadə icazəniz olan mənbəni əlavə edin.</string>
+    <string name="continue_label">Davam et</string>
+    <string name="get_started">Başla</string>
+</resources>

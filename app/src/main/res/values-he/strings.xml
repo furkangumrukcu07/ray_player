@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Ray IPTV Player</string>
+    <string name="brand_name">Ray Player</string>
+    <string name="disclaimer_title">נגן, לא קטלוג</string>
+    <string name="disclaimer_body">Ray IPTV Player אינו מספק ערוצים, סרטים או רשימות השמעה. הוסף מקור שיש לך הרשאה להשתמש בו.</string>
+    <string name="continue_label">המשך</string>
+    <string name="get_started">התחל</string>
+</resources>

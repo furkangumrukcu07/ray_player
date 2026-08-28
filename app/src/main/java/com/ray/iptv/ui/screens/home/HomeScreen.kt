@@ -23,6 +23,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.History
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -31,7 +32,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusDirection
-import androidx.compose.ui.focus.focusProperties
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.input.key.KeyEventType
@@ -52,7 +54,9 @@ import com.ray.iptv.ui.components.GlassButton
 import com.ray.iptv.ui.glass.GlassPanel
 import com.ray.iptv.ui.i18n.Copy
 import com.ray.iptv.ui.input.LocalTouchUi
+import com.ray.iptv.ui.input.tryFocus
 import com.ray.iptv.ui.theme.LocalGlass
+import kotlinx.coroutines.delay
 
 @Composable
 fun HomeScreen(
@@ -62,6 +66,7 @@ fun HomeScreen(
     onDelete: (ProgressEntity) -> Unit,
     onExpandRail: () -> Unit,
     railExpanded: Boolean,
+    contentFocusTrigger: Long = 0L,
     onExit: () -> Unit
 ) {
     val g = LocalGlass.current
@@ -71,7 +76,34 @@ fun HomeScreen(
     val series = remember(continueWatching) {
         continueWatching.filter { it.kind == "EPISODE" || it.kind == "SERIES" }
     }
+    LaunchedEffect(movies.size, series.size) {
+        if (movies.isEmpty() && series.isNotEmpty()) {
+            moviesTab = false
+        }
+    }
     val rows = if (moviesTab) movies else series
+
+    val moviesTabFocus = remember { FocusRequester() }
+    val seriesTabFocus = remember { FocusRequester() }
+    val firstItemFocus = remember { FocusRequester() }
+
+    LaunchedEffect(railExpanded, contentFocusTrigger, continueWatching.size, rows.size, moviesTab) {
+        if (!railExpanded) {
+            delay(20)
+            repeat(30) {
+                delay(35)
+                val targetFocus = when {
+                    rows.isNotEmpty() -> firstItemFocus
+                    moviesTab -> moviesTabFocus
+                    else -> seriesTabFocus
+                }
+                if (targetFocus.tryFocus() || firstItemFocus.tryFocus() || moviesTabFocus.tryFocus() || seriesTabFocus.tryFocus()) return@LaunchedEffect
+            }
+        }
+    }
+
+
+
 
     BackHandler {
         if (railExpanded) onExit()
@@ -104,18 +136,58 @@ fun HomeScreen(
                 GlassButton(
                     "${copy.movies} (${movies.size})",
                     selected = moviesTab,
+                    focusRequester = moviesTabFocus,
                     modifier = Modifier.onPreviewKeyEvent { e ->
-                        if (e.type == KeyEventType.KeyDown && e.key == Key.DirectionLeft) {
-                            onExpandRail()
-                            focus.moveFocus(FocusDirection.Left)
-                            true
-                        } else false
+                        if (e.type != KeyEventType.KeyDown) return@onPreviewKeyEvent false
+                        when (e.key) {
+                            Key.DirectionLeft -> {
+                                onExpandRail()
+                                focus.moveFocus(FocusDirection.Left)
+                                true
+                            }
+                            Key.DirectionRight -> {
+                                seriesTabFocus.tryFocus()
+                                true
+                            }
+                            Key.DirectionDown -> {
+                                if (rows.isNotEmpty()) {
+                                    firstItemFocus.tryFocus()
+                                    true
+                                } else false
+                            }
+                            Key.DirectionCenter, Key.Enter -> {
+                                moviesTab = true
+                                true
+                            }
+                            else -> false
+                        }
                     },
                     onClick = { moviesTab = true }
                 )
                 GlassButton(
                     "${copy.series} (${series.size})",
                     selected = !moviesTab,
+                    focusRequester = seriesTabFocus,
+                    modifier = Modifier.onPreviewKeyEvent { e ->
+                        if (e.type != KeyEventType.KeyDown) return@onPreviewKeyEvent false
+                        when (e.key) {
+                            Key.DirectionLeft -> {
+                                moviesTabFocus.tryFocus()
+                                true
+                            }
+                            Key.DirectionDown -> {
+                                if (rows.isNotEmpty()) {
+                                    firstItemFocus.tryFocus()
+                                    true
+                                } else false
+                            }
+                            Key.DirectionCenter, Key.Enter -> {
+                                moviesTab = false
+                                true
+                            }
+                            else -> false
+                        }
+                    },
                     onClick = { moviesTab = false }
                 )
             }
@@ -127,7 +199,19 @@ fun HomeScreen(
             } else {
                 LazyColumn(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                     itemsIndexed(rows, key = { _, it -> it.mediaId }) { index, item ->
-                        ContinueRow(copy, item, index + 1, onResume, onDelete, onExpandRail)
+                        ContinueRow(
+                            copy = copy,
+                            item = item,
+                            index = index + 1,
+                            isFirst = index == 0,
+                            firstItemFocus = if (index == 0) firstItemFocus else null,
+                            moviesTab = moviesTab,
+                            moviesTabFocus = moviesTabFocus,
+                            seriesTabFocus = seriesTabFocus,
+                            onResume = onResume,
+                            onDelete = onDelete,
+                            onExpandRail = onExpandRail
+                        )
                     }
                 }
             }
@@ -140,6 +224,11 @@ private fun ContinueRow(
     copy: Copy,
     item: ProgressEntity,
     index: Int,
+    isFirst: Boolean,
+    firstItemFocus: FocusRequester?,
+    moviesTab: Boolean,
+    moviesTabFocus: FocusRequester,
+    seriesTabFocus: FocusRequester,
     onResume: (ProgressEntity) -> Unit,
     onDelete: (ProgressEntity) -> Unit,
     onExpandRail: () -> Unit
@@ -147,6 +236,10 @@ private fun ContinueRow(
     var focused by remember { mutableStateOf(false) }
     val g = LocalGlass.current
     val focus = LocalFocusManager.current
+    val cardFocus = remember { FocusRequester() }
+    val deleteFocus = remember { FocusRequester() }
+    val targetCardFocus = firstItemFocus ?: cardFocus
+
     val pct = if (item.durationMs > 0) {
         ((item.positionMs * 100) / item.durationMs).toInt().coerceIn(0, 100)
     } else 0
@@ -154,9 +247,9 @@ private fun ContinueRow(
         (item.positionMs.toFloat() / item.durationMs).coerceIn(0f, 1f)
     } else 0f
     val parsed = remember(item.title, item.kind) { continueMeta(item) }
-    val touch = LocalTouchUi.current
     val watchedMin = (item.positionMs / 60_000L).toInt()
     val totalMin = (item.durationMs / 60_000L).toInt()
+
     GlassPanel(
         focused = focused,
         radius = 14.dp,
@@ -165,13 +258,32 @@ private fun ContinueRow(
         modifier = Modifier
             .fillMaxWidth()
             .height(96.dp)
+            .focusRequester(targetCardFocus)
             .onFocusChanged { focused = it.isFocused }
             .onPreviewKeyEvent { e ->
-                if (e.type == KeyEventType.KeyDown && e.key == Key.DirectionLeft) {
-                    onExpandRail()
-                    focus.moveFocus(FocusDirection.Left)
-                    true
-                } else false
+                if (e.type != KeyEventType.KeyDown) return@onPreviewKeyEvent false
+                when (e.key) {
+                    Key.DirectionCenter, Key.Enter, Key.NumPadEnter -> {
+                        onResume(item)
+                        true
+                    }
+                    Key.DirectionRight -> {
+                        deleteFocus.tryFocus()
+                        true
+                    }
+                    Key.DirectionLeft -> {
+                        onExpandRail()
+                        focus.moveFocus(FocusDirection.Left)
+                        true
+                    }
+                    Key.DirectionUp -> {
+                        if (isFirst) {
+                            if (moviesTab) moviesTabFocus.tryFocus() else seriesTabFocus.tryFocus()
+                            true
+                        } else false
+                    }
+                    else -> false
+                }
             }
     ) {
         Row(
@@ -250,7 +362,27 @@ private fun ContinueRow(
             GlassButton(
                 copy.delete,
                 compact = true,
-                modifier = Modifier.focusProperties { canFocus = touch },
+                focusRequester = deleteFocus,
+                modifier = Modifier.onPreviewKeyEvent { e ->
+                    if (e.type != KeyEventType.KeyDown) return@onPreviewKeyEvent false
+                    when (e.key) {
+                        Key.DirectionCenter, Key.Enter, Key.NumPadEnter -> {
+                            onDelete(item)
+                            true
+                        }
+                        Key.DirectionLeft -> {
+                            targetCardFocus.tryFocus()
+                            true
+                        }
+                        Key.DirectionUp -> {
+                            if (isFirst) {
+                                seriesTabFocus.tryFocus()
+                                true
+                            } else false
+                        }
+                        else -> false
+                    }
+                },
                 onClick = { onDelete(item) }
             )
         }

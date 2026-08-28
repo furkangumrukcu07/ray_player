@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Ray IPTV Player</string>
+    <string name="brand_name">Ray Player</string>
+    <string name="disclaimer_title">Trình phát, không phải danh mục</string>
+    <string name="disclaimer_body">Ray IPTV Player không cung cấp kênh, phim hoặc danh sách phát. Vui lòng thêm nguồn bạn được phép sử dụng.</string>
+    <string name="continue_label">Tiếp tục</string>
+    <string name="get_started">Bắt đầu</string>
+</resources>

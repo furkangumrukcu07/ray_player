@@ -21,6 +21,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.RadioButtonChecked
 import androidx.compose.material.icons.filled.RadioButtonUnchecked
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -29,6 +30,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.key.Key
@@ -47,7 +50,12 @@ import androidx.tv.material3.Text
 import com.ray.iptv.data.local.SourceEntity
 import com.ray.iptv.ui.glass.GlassPanel
 import com.ray.iptv.ui.i18n.Copy
+import com.ray.iptv.ui.input.LocalTouchUi
+import com.ray.iptv.ui.input.rayFocusRequester
+import com.ray.iptv.ui.input.tryFocus
 import com.ray.iptv.ui.theme.LocalGlass
+
+import kotlinx.coroutines.delay
 
 @Composable
 fun PlaylistsScreen(
@@ -60,17 +68,31 @@ fun PlaylistsScreen(
     onToggle: (String) -> Unit,
     onBackToRail: () -> Unit,
     railExpanded: Boolean = false,
+    contentFocusTrigger: Long = 0L,
     onExit: () -> Unit = {}
 ) {
     val g = LocalGlass.current
+    val touch = LocalTouchUi.current
     val focusManager = LocalFocusManager.current
+    val firstItemFocus = remember { FocusRequester() }
+    val activeItemFocus = remember { FocusRequester() }
     BackHandler {
         if (railExpanded) onExit()
         else {
             onBackToRail()
-            focusManager.moveFocus(FocusDirection.Left)
         }
     }
+
+    LaunchedEffect(sources.size, railExpanded, contentFocusTrigger) {
+        if (!railExpanded && sources.isNotEmpty()) {
+            delay(20)
+            repeat(30) {
+                delay(35)
+                if (activeItemFocus.tryFocus() || firstItemFocus.tryFocus()) return@LaunchedEffect
+            }
+        }
+    }
+
     GlassPanel(
         strong = true,
         radius = 22.dp,
@@ -103,7 +125,7 @@ fun PlaylistsScreen(
                 }
             } else {
                 LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    itemsIndexed(sources, key = { _, src -> src.id }) { _, src ->
+                    itemsIndexed(sources, key = { _, src -> src.id }) { idx, src ->
                         val active = src.enabled && !combineLists && src.id == activeId
                         PlaylistRailRow(
                             copy = copy,
@@ -113,7 +135,11 @@ fun PlaylistsScreen(
                             onToggle = { onToggle(src.id) },
                             onLeftToRail = {
                                 onBackToRail()
-                                focusManager.moveFocus(FocusDirection.Left)
+                            },
+                            focusRequester = when {
+                                active -> activeItemFocus
+                                idx == 0 -> firstItemFocus
+                                else -> null
                             }
                         )
                     }
@@ -121,6 +147,7 @@ fun PlaylistsScreen(
             }
         }
     }
+
 }
 
 @Composable
@@ -130,7 +157,8 @@ private fun PlaylistRailRow(
     active: Boolean,
     onActivate: () -> Unit,
     onToggle: () -> Unit,
-    onLeftToRail: () -> Unit
+    onLeftToRail: () -> Unit,
+    focusRequester: FocusRequester? = null
 ) {
     val g = LocalGlass.current
     var focused by remember { mutableStateOf(false) }
@@ -141,9 +169,11 @@ private fun PlaylistRailRow(
         onClick = onActivate,
         modifier = Modifier
             .fillMaxWidth()
+            .rayFocusRequester(focusRequester)
             .onFocusChanged { focused = it.isFocused }
+
             .onPreviewKeyEvent { e ->
-                if (e.type == KeyEventType.KeyDown && e.key == Key.DirectionLeft && focused) {
+                if (e.type == KeyEventType.KeyDown && (e.key == Key.DirectionLeft || e.key == Key.Back) && focused) {
                     onLeftToRail()
                     true
                 } else false
@@ -231,3 +261,4 @@ private fun kindLabel(kind: String, copy: Copy): String = when (kind) {
     "STALKER" -> copy.playlistKindStalker
     else -> copy.playlistKindM3u
 }
+

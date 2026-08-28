@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Ray IPTV Player</string>
+    <string name="brand_name">Ray Player</string>
+    <string name="disclaimer_title">Πρόγραμμα αναπαραγωγής, όχι κατάλογος</string>
+    <string name="disclaimer_body">Το Ray IPTV Player δεν παρέχει κανάλια, ταινίες ή λίστες αναπαραγωγής. Προσθέστε μια πηγή που επιτρέπεται να χρησιμοποιήσετε.</string>
+    <string name="continue_label">Συνέχεια</string>
+    <string name="get_started">Έναρξη</string>
+</resources>

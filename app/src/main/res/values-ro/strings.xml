@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Ray IPTV Player</string>
+    <string name="brand_name">Ray Player</string>
+    <string name="disclaimer_title">Un player, nu un catalog</string>
+    <string name="disclaimer_body">Ray IPTV Player nu oferă canale, filme sau liste de redare. Adăugați o sursă pe care sunteți autorizat să o utilizați.</string>
+    <string name="continue_label">Continuă</string>
+    <string name="get_started">Începe</string>
+</resources>

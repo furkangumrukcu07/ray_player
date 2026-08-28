@@ -1,7 +1,9 @@
 package com.ray.iptv.ui.i18n
 
+import androidx.compose.runtime.Immutable
 import com.ray.iptv.data.repo.AppLang
 
+@Immutable
 data class Copy(
     val live: String,
     val movies: String,

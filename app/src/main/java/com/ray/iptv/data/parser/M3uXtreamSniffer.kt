@@ -25,8 +25,11 @@ object M3uXtreamSniffer {
     private val passKeys = listOf("password", "pass", "auth_password")
 
     fun toXtreamSource(rawUrl: String): XtreamSniff? {
-        val input = rawUrl.trim()
-        if (input.isEmpty()) return null
+        val trimmed = rawUrl.trim()
+        if (trimmed.isEmpty()) return null
+        val input = if (!trimmed.startsWith("http://", ignoreCase = true) && !trimmed.startsWith("https://", ignoreCase = true)) {
+            "http://$trimmed"
+        } else trimmed
         val uri = runCatching { Uri.parse(input) }.getOrNull() ?: return null
         val scheme = uri.scheme?.lowercase() ?: return null
         if (scheme != "http" && scheme != "https") return null
@@ -62,7 +65,12 @@ object M3uXtreamSniffer {
 
     /** `output=` → `"ts"` / `"hls"` / null (Mina `liveFormatHint`). */
     fun liveFormatHint(rawUrl: String): String? {
-        val uri = runCatching { Uri.parse(rawUrl.trim()) }.getOrNull() ?: return null
+        val trimmed = rawUrl.trim()
+        if (trimmed.isEmpty()) return null
+        val input = if (!trimmed.startsWith("http://", ignoreCase = true) && !trimmed.startsWith("https://", ignoreCase = true)) {
+            "http://$trimmed"
+        } else trimmed
+        val uri = runCatching { Uri.parse(input) }.getOrNull() ?: return null
         var out: String? = null
         for (key in uri.queryParameterNames) {
             if (!key.equals("output", ignoreCase = true)) continue

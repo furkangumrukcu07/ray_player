@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Ray IPTV Player</string>
+    <string name="brand_name">Ray Player</string>
+    <string name="disclaimer_title">Plejer, a ne katalog</string>
+    <string name="disclaimer_body">Ray IPTV Player ne pruža kanale, filmove ili liste za reprodukciju. Dodajte izvor koji imate dozvolu koristiti.</string>
+    <string name="continue_label">Nastavi</string>
+    <string name="get_started">Započni</string>
+</resources>

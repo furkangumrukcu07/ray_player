@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Ray IPTV Player</string>
+    <string name="brand_name">Ray Player</string>
+    <string name="disclaimer_title">播放器，非内容目录</string>
+    <string name="disclaimer_body">Ray IPTV Player 不提供任何频道、电影或播放列表。请添加您有权使用的媒体源。</string>
+    <string name="continue_label">继续</string>
+    <string name="get_started">开始使用</string>
+</resources>

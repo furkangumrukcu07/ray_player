@@ -38,6 +38,11 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.key
+import androidx.compose.ui.input.key.onPreviewKeyEvent
+import androidx.compose.ui.input.key.type
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
@@ -50,6 +55,7 @@ import androidx.tv.material3.Icon
 import androidx.tv.material3.MaterialTheme
 import androidx.tv.material3.Text
 import com.ray.iptv.R
+import com.ray.iptv.data.account.AccountSession
 import com.ray.iptv.ui.Dest
 import com.ray.iptv.ui.components.tickingClock
 import com.ray.iptv.ui.glass.GlassPanel
@@ -60,6 +66,19 @@ import com.ray.iptv.ui.input.rayClickable
 import com.ray.iptv.ui.motion.rayRailEnter
 import com.ray.iptv.ui.motion.rayRailExit
 import com.ray.iptv.ui.theme.LocalGlass
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.runtime.LaunchedEffect
+import kotlinx.coroutines.delay
+import com.ray.iptv.ui.input.tryFocus
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import coil.compose.AsyncImage
 
 private data class NavItem(
     val dest: Dest?,
@@ -85,6 +104,7 @@ fun RayShell(
     current: Dest,
     copy: Copy,
     syncMessage: String,
+    account: AccountSession? = null,
     showLive: Boolean = true,
     showMovies: Boolean = true,
     showSeries: Boolean = true,
@@ -104,6 +124,47 @@ fun RayShell(
 ) {
     val g = LocalGlass.current
     val touch = LocalTouchUi.current
+    val searchFocusRequester = remember { FocusRequester() }
+    val repeatFocusRequester = remember { FocusRequester() }
+    val liveFocusRequester = remember { FocusRequester() }
+    val moviesFocusRequester = remember { FocusRequester() }
+    val seriesFocusRequester = remember { FocusRequester() }
+    val continueFocusRequester = remember { FocusRequester() }
+    val playlistsFocusRequester = remember { FocusRequester() }
+    val settingsFocusRequester = remember { FocusRequester() }
+    var initialFocusDone by remember { mutableStateOf(false) }
+
+    LaunchedEffect(railExpanded) {
+        if (railExpanded && !touch) {
+            val target = when {
+                searchSelected -> searchFocusRequester
+                repeatSelected -> repeatFocusRequester
+                current == Dest.LIVE -> liveFocusRequester
+                current == Dest.MOVIES -> moviesFocusRequester
+                current == Dest.SERIES -> seriesFocusRequester
+                current == Dest.CONTINUE -> continueFocusRequester
+                current == Dest.PLAYLISTS -> playlistsFocusRequester
+                current == Dest.SETTINGS -> settingsFocusRequester
+                else -> liveFocusRequester
+            }
+            repeat(8) {
+                delay(25)
+                if (target.tryFocus()) return@LaunchedEffect
+            }
+        }
+    }
+
+
+    LaunchedEffect(Unit) {
+        if (!touch && !initialFocusDone) {
+            initialFocusDone = true
+            repeat(12) {
+                delay(60)
+                if (liveFocusRequester.tryFocus()) return@LaunchedEffect
+            }
+        }
+    }
+
     val railW by animateDpAsState(
         if (railExpanded) 176.dp else 64.dp,
         animationSpec = tween(if (g.reduceEffects) 0 else 240, easing = FastOutSlowInEasing),
@@ -167,6 +228,17 @@ fun RayShell(
                                 else -> true
                             }
                         }.forEach { item ->
+                            val req = when {
+                                item.search -> searchFocusRequester
+                                item.repeat -> repeatFocusRequester
+                                item.dest == Dest.LIVE -> liveFocusRequester
+                                item.dest == Dest.MOVIES -> moviesFocusRequester
+                                item.dest == Dest.SERIES -> seriesFocusRequester
+                                item.dest == Dest.CONTINUE -> continueFocusRequester
+                                item.dest == Dest.PLAYLISTS -> playlistsFocusRequester
+                                item.dest == Dest.SETTINGS -> settingsFocusRequester
+                                else -> null
+                            }
                             RailIcon(
                                 icon = item.icon,
                                 label = item.label(copy),
@@ -176,6 +248,7 @@ fun RayShell(
                                     else -> current == item.dest
                                 },
                                 expanded = railExpanded,
+                                focusRequester = req,
                                 onClick = {
                                     when {
                                         item.search -> onSearch()
@@ -183,8 +256,14 @@ fun RayShell(
                                         else -> item.dest?.let(onGo)
                                     }
                                 },
-                                onFocused = onRailFocused
+                                onFocused = {
+                                    if (railExpanded) onRailFocused()
+                                }
                             )
+                        }
+                        if (account?.signedIn == true) {
+                            Spacer(Modifier.height(4.dp))
+                            RailUserProfileBadge(account = account, expanded = railExpanded)
                         }
                         Spacer(Modifier.height(14.dp))
                     }
@@ -283,6 +362,7 @@ private fun RailIcon(
     label: String,
     selected: Boolean,
     expanded: Boolean,
+    focusRequester: FocusRequester? = null,
     onClick: () -> Unit,
     onFocused: () -> Unit
 ) {
@@ -307,10 +387,23 @@ private fun RailIcon(
         radius = 12.dp,
         scaleOnFocus = false,
         onClick = onClick,
-        modifier = tile.onFocusChanged {
-            focused = it.isFocused
-            if (it.isFocused) onFocused()
-        }
+        modifier = tile
+            .then(if (focusRequester != null) Modifier.focusRequester(focusRequester) else Modifier)
+            .onFocusChanged {
+                focused = it.isFocused
+                if (it.isFocused && expanded) onFocused()
+            }
+            .onPreviewKeyEvent { e ->
+                if (e.type != KeyEventType.KeyDown) return@onPreviewKeyEvent false
+                when (e.key) {
+                    Key.DirectionRight, Key.Enter, Key.DirectionCenter -> {
+                        onClick()
+                        true
+                    }
+                    else -> false
+                }
+            }
+
     ) {
         if (expanded) {
             Row(
@@ -344,6 +437,122 @@ private fun RailIcon(
                     tint = if (selected) g.accent else if (active) g.text else if (g.frostDark) g.text.copy(alpha = 0.88f) else g.muted,
                     modifier = Modifier.size(if (touch) 24.dp else 22.dp)
                 )
+            }
+        }
+    }
+}
+
+@Composable
+private fun RailUserProfileBadge(
+    account: AccountSession,
+    expanded: Boolean
+) {
+    val g = LocalGlass.current
+    val touch = LocalTouchUi.current
+    val tile = if (expanded) {
+        Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 4.dp, vertical = 2.5.dp)
+            .height(42.dp)
+    } else {
+        Modifier
+            .padding(vertical = 3.5.dp)
+            .size(if (touch) 48.dp else 44.dp)
+    }
+    val name = account.displayName.ifBlank { account.email.substringBefore('@') }
+    val avatarSize = if (expanded) 24.dp else 26.dp
+
+    Box(
+        modifier = tile
+            .clip(RoundedCornerShape(12.dp))
+            .background(Color.White.copy(alpha = 0.06f))
+            .border(0.8.dp, Color.White.copy(alpha = 0.12f), RoundedCornerShape(12.dp)),
+        contentAlignment = Alignment.Center
+    ) {
+        if (expanded) {
+            Row(
+                Modifier
+                    .fillMaxSize()
+                    .padding(horizontal = 8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                if (account.photoUrl.isNotBlank()) {
+                    AsyncImage(
+                        model = account.photoUrl,
+                        contentDescription = name,
+                        contentScale = ContentScale.Crop,
+                        modifier = Modifier
+                            .size(avatarSize)
+                            .clip(CircleShape)
+                            .border(1.dp, Color(0xFF22D3EE).copy(alpha = 0.6f), CircleShape)
+                    )
+                } else {
+                    Box(
+                        Modifier
+                            .size(avatarSize)
+                            .clip(CircleShape)
+                            .background(
+                                Brush.linearGradient(
+                                    listOf(Color(0xFF22D3EE), Color(0xFF3B82F6))
+                                )
+                            ),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = account.letter,
+                            color = Color.White,
+                            style = MaterialTheme.typography.labelSmall.copy(
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 11.sp
+                            )
+                        )
+                    }
+                }
+                Text(
+                    text = name,
+                    color = g.text.copy(alpha = 0.88f),
+                    style = MaterialTheme.typography.bodyMedium.copy(
+                        fontWeight = FontWeight.Medium,
+                        fontSize = 12.sp
+                    ),
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f)
+                )
+            }
+        } else {
+            if (account.photoUrl.isNotBlank()) {
+                AsyncImage(
+                    model = account.photoUrl,
+                    contentDescription = name,
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier
+                        .size(avatarSize)
+                        .clip(CircleShape)
+                        .border(1.dp, Color(0xFF22D3EE).copy(alpha = 0.6f), CircleShape)
+                )
+            } else {
+                Box(
+                    Modifier
+                        .size(avatarSize)
+                        .clip(CircleShape)
+                        .background(
+                            Brush.linearGradient(
+                                listOf(Color(0xFF22D3EE), Color(0xFF3B82F6))
+                            )
+                        ),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = account.letter,
+                        color = Color.White,
+                        style = MaterialTheme.typography.labelSmall.copy(
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 12.sp
+                        )
+                    )
+                }
             }
         }
     }

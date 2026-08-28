@@ -15,7 +15,7 @@ data class M3uEntry(
 )
 
 object M3uParser {
-    const val BATCH = 500
+    const val BATCH = 2500
 
     private val attrCache = mutableMapOf<String, List<Regex>>()
 
@@ -89,22 +89,46 @@ object M3uParser {
             }
             pendingGroup = null
             val name = info.name.ifBlank { "Channel" }
+
+            val rawUrl = line.trim().trim('"', '\'')
+            var finalUrl = rawUrl
+            var finalUa = userAgent
+            var finalRef = referer
+            if ('|' in rawUrl) {
+                val parts = rawUrl.split('|', limit = 2)
+                finalUrl = parts[0].trim()
+                val headers = parts.getOrNull(1).orEmpty()
+                for (param in headers.split('&')) {
+                    val kv = param.split('=', limit = 2)
+                    val k = kv[0].trim().lowercase()
+                    val v = kv.getOrNull(1)?.trim().orEmpty()
+                    if (k == "user-agent" || k == "http-user-agent") {
+                        if (v.isNotEmpty()) finalUa = v
+                    } else if (k == "referer" || k == "http-referrer" || k == "referrer") {
+                        if (v.isNotEmpty()) finalRef = v
+                    }
+                }
+            }
+            if (' ' in finalUrl) {
+                finalUrl = finalUrl.replace(" ", "%20")
+            }
+
             val kind = M3uContentClassifier.classify(
                 name = name.lowercase(),
-                url = line.lowercase(),
+                url = finalUrl.lowercase(),
                 group = group.lowercase()
             )
             emit(
                 M3uEntry(
                     name = name,
-                    url = line,
+                    url = finalUrl,
                     logo = info.logo,
                     group = group.ifBlank { "All" },
                     epgId = info.tvgId,
                     catchup = info.catchup,
                     catchupDays = info.catchupDays.toIntOrNull() ?: 0,
-                    userAgent = userAgent,
-                    referer = referer,
+                    userAgent = finalUa,
+                    referer = finalRef,
                     kindHint = kind.name,
                     plot = info.plot
                 )
@@ -116,17 +140,19 @@ object M3uParser {
 
     private fun captureHttpHint(line: String): Pair<String, String>? {
         if (!line.startsWith("#EXTVLCOPT:", ignoreCase = true) &&
-            !line.startsWith("#EXTHTTP:", ignoreCase = true)
+            !line.startsWith("#EXTHTTP:", ignoreCase = true) &&
+            !line.startsWith("#KODIPROP:", ignoreCase = true)
         ) return null
         val body = line.substringAfter(':')
         var ua = ""
         var ref = ""
         when {
-            body.contains("http-user-agent=", ignoreCase = true) ->
-                ua = body.substringAfter('=').trim()
+            body.contains("http-user-agent=", ignoreCase = true) ||
+            body.contains("inputstream.adaptive.manifest_headers=user-agent=", ignoreCase = true) ->
+                ua = body.substringAfter('=').trim().trim('"', '\'')
             body.contains("http-referrer=", ignoreCase = true) ||
-                body.contains("referer=", ignoreCase = true) ->
-                ref = body.substringAfter('=').trim()
+            body.contains("referer=", ignoreCase = true) ->
+                ref = body.substringAfter('=').trim().trim('"', '\'')
         }
         if (ua.isEmpty() && ref.isEmpty()) return null
         return ua to ref
@@ -143,7 +169,7 @@ object M3uParser {
     )
 
     private fun parseExtinfFast(line: String): ExtinfAttributes {
-        val commaIdx = line.indexOf(',')
+        val commaIdx = line.lastIndexOf(',')
         val name = if (commaIdx >= 0) line.substring(commaIdx + 1).trim() else ""
         val attrSection = if (commaIdx >= 0) line.substring(0, commaIdx) else line
 
@@ -186,7 +212,7 @@ object M3uParser {
                     "tvg-name" -> if (tvgId.isEmpty()) tvgId = value
                     "tvg-logo", "logo" -> if (logo.isEmpty()) logo = value
                     "group-title", "group" -> if (group.isEmpty()) group = value
-                    "catchup" -> catchup = value
+                    "catchup", "catchup-source" -> catchup = value
                     "catchup-days" -> catchupDays = value
                     "plot", "description", "summary", "info" -> if (plot.isEmpty()) plot = value
                 }

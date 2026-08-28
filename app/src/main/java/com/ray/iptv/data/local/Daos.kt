@@ -41,6 +41,16 @@ val MIGRATION_5_6 = object : Migration(5, 6) {
     }
 }
 
+val MIGRATION_6_7 = object : Migration(6, 7) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL("CREATE INDEX IF NOT EXISTS index_epg_channelId_startMs_endMs ON epg(channelId, startMs, endMs)")
+        db.execSQL("CREATE INDEX IF NOT EXISTS index_epg_channelId_endMs ON epg(channelId, endMs)")
+        db.execSQL("CREATE INDEX IF NOT EXISTS index_epg_endMs ON epg(endMs)")
+        db.execSQL("CREATE INDEX IF NOT EXISTS index_channels_sourceId_hidden_categoryId ON channels(sourceId, hidden, categoryId)")
+        db.execSQL("CREATE INDEX IF NOT EXISTS index_channels_hidden_categoryId ON channels(hidden, categoryId)")
+    }
+}
+
 val MIGRATION_4_5 = object : Migration(4, 5) {
     override fun migrate(db: SupportSQLiteDatabase) {
         db.execSQL(
@@ -154,7 +164,7 @@ interface ChannelDao {
     @Query("SELECT * FROM channels WHERE sourceId = :sourceId AND (:categoryId = '' OR categoryId = :categoryId) AND hidden = 0 ORDER BY CASE WHEN layoutSort >= 0 THEN 0 ELSE 1 END, layoutSort, number")
     fun observe(sourceId: String, categoryId: String): Flow<List<ChannelEntity>>
 
-    @Query("SELECT * FROM channels WHERE sourceId = :sourceId AND (:categoryId = '' OR categoryId = :categoryId) ORDER BY CASE WHEN layoutSort >= 0 THEN 0 ELSE 1 END, layoutSort, number")
+    @Query("SELECT * FROM channels WHERE (:sourceId = '' OR sourceId = :sourceId) AND (:categoryId = '' OR categoryId = :categoryId) ORDER BY CASE WHEN layoutSort >= 0 THEN 0 ELSE 1 END, layoutSort, number")
     suspend fun list(sourceId: String, categoryId: String): List<ChannelEntity>
 
     @Query("SELECT * FROM channels WHERE sourceId = :sourceId")
@@ -208,6 +218,9 @@ interface ChannelDao {
 
     @Query("SELECT * FROM channels WHERE id IN (:ids) ORDER BY number")
     suspend fun byIds(ids: List<String>): List<ChannelEntity>
+
+    @Query("SELECT * FROM channels WHERE id IN (:keys) OR remoteId IN (:keys) OR epgId IN (:keys)")
+    suspend fun byAnyKeys(keys: List<String>): List<ChannelEntity>
 
     @Query("SELECT id, hidden, layoutSort FROM channels WHERE sourceId = :sourceId")
     suspend fun layoutBySource(sourceId: String): List<ChannelLayoutSnap>
@@ -432,6 +445,9 @@ interface FavoriteDao {
 
     @Query("DELETE FROM favorites WHERE profileId = :profileId AND mediaId = :mediaId")
     suspend fun delete(profileId: String, mediaId: String)
+
+    @Query("DELETE FROM favorites")
+    suspend fun deleteAll()
 }
 
 @Dao
@@ -459,6 +475,9 @@ interface ProgressDao {
 
     @Query("DELETE FROM progress WHERE profileId = :profileId")
     suspend fun clear(profileId: String)
+
+    @Query("DELETE FROM progress")
+    suspend fun deleteAll()
 }
 
 @Dao
@@ -633,7 +652,7 @@ interface GlobalEpgProgrammeDao {
         GlobalEpgChannelEntity::class,
         GlobalEpgProgrammeEntity::class
     ],
-    version = 6,
+    version = 7,
     exportSchema = false
 )
 abstract class RayDatabase : androidx.room.RoomDatabase() {

@@ -12,10 +12,12 @@ import okhttp3.HttpUrl.Companion.toHttpUrl
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import org.json.JSONArray
+import androidx.compose.runtime.Immutable
 import org.json.JSONObject
 import javax.inject.Inject
 import javax.inject.Singleton
 
+@Immutable
 data class CastPerson(
     val name: String,
     val character: String = "",
@@ -23,6 +25,7 @@ data class CastPerson(
     val tmdbPersonId: Int? = null
 )
 
+@Immutable
 data class ActorProfileResult(
     val name: String,
     val bio: String = "",
@@ -32,6 +35,16 @@ data class ActorProfileResult(
     val filmographyTitles: List<String> = emptyList()
 )
 
+@Immutable
+data class TrailerVideo(
+    val title: String,
+    val watchUrl: String,
+    val youtubeVideoId: String = "",
+    val subtitle: String = "",
+    val thumbnailUrl: String = ""
+)
+
+@Immutable
 data class VodMeta(
     val plot: String,
     val poster: String,
@@ -41,9 +54,15 @@ data class VodMeta(
     val backdrop: String = "",
     val runtime: String = "",
     val cast: String = "",
+    val director: String = "",
     val people: List<CastPerson> = emptyList(),
     val trailerUrl: String = "",
-    val tmdbId: Int = 0
+    val tmdbId: Int = 0,
+    val certification: String = "",
+    val country: String = "",
+    val language: String = "",
+    val awards: String = "",
+    val trailers: List<TrailerVideo> = emptyList()
 )
 
 /**
@@ -88,6 +107,8 @@ class TmdbOmdbService @Inject constructor(
                 genre = seeded.genre,
                 year = seeded.year,
                 cast = xtream.cast,
+                director = xtream.director,
+                country = xtream.country,
                 people = xtreamPeople,
                 trailerUrl = xtream.trailer
             )
@@ -150,6 +171,19 @@ class TmdbOmdbService @Inject constructor(
 
         var people = tmdb.people.ifEmpty { omdb.people.ifEmpty { xtreamPeople } }
         people = fillMissingPhotos(people)
+        val allTrailers = buildList {
+            addAll(tmdb.trailers)
+            if (xtream.trailer.isNotBlank() && none { it.watchUrl == xtream.trailer }) {
+                add(
+                    TrailerVideo(
+                        title = "Fragman (Xtream)",
+                        watchUrl = if (xtream.trailer.startsWith("http")) xtream.trailer else "https://www.youtube.com/watch?v=${xtream.trailer}",
+                        youtubeVideoId = xtream.trailer.substringAfter("v=").substringAfterLast('/'),
+                        subtitle = "Xtream"
+                    )
+                )
+            }
+        }
         val meta = VodMeta(
             plot = plot,
             poster = pick(tmdb.poster, omdb.poster, seeded.poster),
@@ -159,9 +193,15 @@ class TmdbOmdbService @Inject constructor(
             backdrop = tmdb.backdrop.ifBlank { xtream.backdrop },
             runtime = tmdb.runtime.ifBlank { xtream.runtime }.ifBlank { omdb.runtime },
             cast = tmdb.cast.ifBlank { omdb.cast }.ifBlank { xtream.cast }.ifBlank { people.joinToString(", ") { it.name } },
+            director = pick(tmdb.director, omdb.director, xtream.director),
             people = people,
             trailerUrl = tmdb.trailerUrl.ifBlank { xtream.trailer },
-            tmdbId = if (tmdb.tmdbId > 0) tmdb.tmdbId else directTmdbId
+            tmdbId = if (tmdb.tmdbId > 0) tmdb.tmdbId else directTmdbId,
+            certification = pick(tmdb.certification, omdb.certification),
+            country = pick(tmdb.country, omdb.country, xtream.country),
+            language = pick(omdb.language, tmdb.language),
+            awards = omdb.awards,
+            trailers = allTrailers
         )
         synchronized(mem) {
             if (mem.size > 60) mem.remove(mem.keys.first())
@@ -260,25 +300,39 @@ class TmdbOmdbService @Inject constructor(
         val backdrop: String = "",
         val runtime: String = "",
         val cast: String = "",
+        val director: String = "",
         val trailerUrl: String = "",
         val tmdbId: Int = 0,
         val imdbId: String = "",
-        val people: List<CastPerson> = emptyList()
+        val people: List<CastPerson> = emptyList(),
+        val certification: String = "",
+        val country: String = "",
+        val language: String = "",
+        val trailers: List<TrailerVideo> = emptyList()
     )
 
     private fun searchTmdb(name: String, year: String, series: Boolean, language: String): TmdbHit {
         if (name.isBlank()) return TmdbHit()
         val folded = foldTurkish(name)
+        val yInt = year.toIntOrNull()
         val attempts = buildList {
             add(name to year)
             if (year.length == 4) add(name to "")
             if (name.contains(':')) add(name.substringBefore(':').trim() to year)
             if (name.contains('-')) add(name.substringBefore('-').trim() to year)
+            if (yInt != null && yInt in 1900..2040) {
+                add(name to (yInt - 1).toString())
+                add(name to (yInt + 1).toString())
+            }
             if (folded != name) {
                 add(folded to year)
                 if (year.length == 4) add(folded to "")
                 if (folded.contains(':')) add(folded.substringBefore(':').trim() to year)
                 if (folded.contains('-')) add(folded.substringBefore('-').trim() to year)
+                if (yInt != null && yInt in 1900..2040) {
+                    add(folded to (yInt - 1).toString())
+                    add(folded to (yInt + 1).toString())
+                }
             }
         }
         for ((q, y) in attempts.distinct()) {
@@ -296,7 +350,7 @@ class TmdbOmdbService @Inject constructor(
             "/$mediaType/$id",
             mapOf(
                 "language" to language,
-                "append_to_response" to "credits,videos,external_ids"
+                "append_to_response" to "credits,videos,external_ids,release_dates,content_ratings"
             )
         ) ?: return TmdbHit()
         return parseTmdbDetail(detail, mediaType, language, id)
@@ -339,7 +393,7 @@ class TmdbOmdbService @Inject constructor(
             "/$mediaType/$id",
             mapOf(
                 "language" to language,
-                "append_to_response" to "credits,videos,external_ids"
+                "append_to_response" to "credits,videos,external_ids,release_dates,content_ratings"
             )
         ) ?: match ?: return TmdbHit()
 
@@ -375,13 +429,91 @@ class TmdbOmdbService @Inject constructor(
         val date = jsonStr(detail, "release_date").ifBlank { jsonStr(detail, "first_air_date") }
         val runtimeMin = detail.optInt("runtime").takeIf { it > 0 }
             ?: detail.optJSONArray("episode_run_time")?.optInt(0)?.takeIf { it > 0 }
-        val trailerKey = trailerKeyFrom(detail.optJSONObject("videos")?.optJSONArray("results"))
-            .ifBlank {
-                trailerKeyFrom(tmdbGet("/$mediaType/$id/videos", mapOf("language" to language))?.optJSONArray("results"))
+        
+        // Certification (Yaş Sınırı - Mina Parity)
+        var cert = ""
+        val releaseDates = detail.optJSONObject("release_dates")?.optJSONArray("results")
+        if (releaseDates != null) {
+            for (i in 0 until releaseDates.length()) {
+                val r = releaseDates.optJSONObject(i) ?: continue
+                if (r.optString("iso_3166_1") == "TR") {
+                    val dates = r.optJSONArray("release_dates")
+                    if (dates != null) {
+                        for (j in 0 until dates.length()) {
+                            val c = dates.optJSONObject(j)?.optString("certification").orEmpty().trim()
+                            if (c.isNotBlank()) { cert = c; break }
+                        }
+                    }
+                }
+                if (cert.isNotBlank()) break
             }
-            .ifBlank {
-                trailerKeyFrom(tmdbGet("/$mediaType/$id/videos", emptyMap())?.optJSONArray("results"))
+            if (cert.isBlank()) {
+                for (i in 0 until releaseDates.length()) {
+                    val r = releaseDates.optJSONObject(i) ?: continue
+                    if (r.optString("iso_3166_1") == "US") {
+                        val dates = r.optJSONArray("release_dates")
+                        if (dates != null) {
+                            for (j in 0 until dates.length()) {
+                                val c = dates.optJSONObject(j)?.optString("certification").orEmpty().trim()
+                                if (c.isNotBlank()) { cert = c; break }
+                            }
+                        }
+                    }
+                    if (cert.isNotBlank()) break
+                }
             }
+        }
+        val contentRatings = detail.optJSONObject("content_ratings")?.optJSONArray("results")
+        if (cert.isBlank() && contentRatings != null) {
+            for (i in 0 until contentRatings.length()) {
+                val r = contentRatings.optJSONObject(i) ?: continue
+                if (r.optString("iso_3166_1") == "TR" || r.optString("iso_3166_1") == "US") {
+                    val rating = r.optString("rating").trim()
+                    if (rating.isNotBlank()) { cert = rating; break }
+                }
+            }
+        }
+
+        // Country & Language
+        val country = detail.optJSONArray("production_countries")?.let { arr ->
+            (0 until arr.length()).mapNotNull { arr.optJSONObject(it)?.optString("name") }.filter { it.isNotBlank() }
+        }?.joinToString(", ").orEmpty()
+
+        val spokenLang = detail.optJSONArray("spoken_languages")?.let { arr ->
+            (0 until arr.length()).mapNotNull { arr.optJSONObject(it)?.optString("english_name") }.filter { it.isNotBlank() }
+        }?.joinToString(", ").orEmpty()
+
+        // Trailers List (Mina Parity)
+        val videosArr = detail.optJSONObject("videos")?.optJSONArray("results")
+            ?: tmdbGet("/$mediaType/$id/videos", mapOf("language" to language))?.optJSONArray("results")
+            ?: tmdbGet("/$mediaType/$id/videos", emptyMap())?.optJSONArray("results")
+        val trailerList = parseTrailers(videosArr)
+        val trailerKey = trailerList.firstOrNull()?.youtubeVideoId.orEmpty()
+            .ifBlank { trailerKeyFrom(videosArr) }
+
+        var director = ""
+        val crewArr = detail.optJSONObject("credits")?.optJSONArray("crew")
+        if (crewArr != null) {
+            for (i in 0 until crewArr.length()) {
+                val member = crewArr.optJSONObject(i) ?: continue
+                if (member.optString("job").equals("Director", true) ||
+                    member.optString("department").equals("Directing", true)
+                ) {
+                    val dName = jsonStr(member, "name")
+                    if (dName.isNotBlank()) {
+                        director = dName
+                        break
+                    }
+                }
+            }
+        }
+        if (director.isBlank()) {
+            val createdBy = detail.optJSONArray("created_by")
+            if (createdBy != null && createdBy.length() > 0) {
+                director = jsonStr(createdBy.optJSONObject(0), "name")
+            }
+        }
+
         val imdb = jsonStr(detail, "imdb_id").ifBlank {
             jsonStr(detail.optJSONObject("external_ids"), "imdb_id").ifBlank {
                 jsonStr(tmdbGet("/$mediaType/$id/external_ids", emptyMap()), "imdb_id")
@@ -396,11 +528,42 @@ class TmdbOmdbService @Inject constructor(
             backdrop = tmdbImage(ApiKeys.tmdbBackdrop, backdropPath),
             runtime = runtimeMin?.let { "$it min" }.orEmpty(),
             cast = people.joinToString(", ") { it.name },
+            director = director,
             trailerUrl = if (trailerKey.isBlank()) "" else "https://www.youtube.com/watch?v=$trailerKey",
             tmdbId = id,
             imdbId = imdb,
-            people = people
+            people = people,
+            certification = cert,
+            country = country,
+            language = spokenLang,
+            trailers = trailerList
         )
+    }
+
+    private fun parseTrailers(videos: JSONArray?): List<TrailerVideo> {
+        if (videos == null) return emptyList()
+        val list = ArrayList<TrailerVideo>()
+        for (i in 0 until videos.length()) {
+            val v = videos.optJSONObject(i) ?: continue
+            if (!v.optString("site").equals("YouTube", true)) continue
+            val key = v.optString("key").trim()
+            if (key.isBlank()) continue
+            val type = v.optString("type").ifBlank { "Fragman" }
+            val lang = v.optString("iso_639_1").uppercase()
+            val title = v.optString("name").trim().ifBlank { type }
+            val sub = if (lang.isNotBlank()) "$type · $lang" else type
+            list.add(
+                TrailerVideo(
+                    title = title,
+                    watchUrl = "https://www.youtube.com/watch?v=$key",
+                    youtubeVideoId = key,
+                    subtitle = sub,
+                    thumbnailUrl = "https://img.youtube.com/vi/$key/hqdefault.jpg"
+                )
+            )
+            if (list.size >= 6) break
+        }
+        return list
     }
 
     private fun parseCast(credits: JSONObject?): List<CastPerson> {
@@ -564,6 +727,11 @@ class TmdbOmdbService @Inject constructor(
         if (obj == null || obj.optString("Response") == "False") return VodMeta("", "", "", "", "")
         val actors = na(jsonStr(obj, "Actors"))
         val people = namesToPeople(actors)
+        val rated = na(jsonStr(obj, "Rated")).let { if (it == "N/A") "" else it }
+        val country = na(jsonStr(obj, "Country")).let { if (it == "N/A") "" else it }
+        val language = na(jsonStr(obj, "Language")).let { if (it == "N/A") "" else it }
+        val awards = na(jsonStr(obj, "Awards")).let { if (it == "N/A") "" else it }
+        val director = na(jsonStr(obj, "Director")).let { if (it == "N/A") "" else it }
         return VodMeta(
             plot = na(jsonStr(obj, "Plot")),
             poster = jsonStr(obj, "Poster").takeIf { it.startsWith("http") && !it.equals("N/A", true) }.orEmpty(),
@@ -572,7 +740,12 @@ class TmdbOmdbService @Inject constructor(
             year = jsonStr(obj, "Year").take(4),
             runtime = na(jsonStr(obj, "Runtime")),
             cast = actors,
-            people = people
+            director = director,
+            people = people,
+            certification = rated,
+            country = country,
+            language = language,
+            awards = awards
         )
     }
 
@@ -649,12 +822,12 @@ class TmdbOmdbService @Inject constructor(
     }.getOrDefault(0 to null)
 
     private val PREFIX_REGEX = Regex(
-        """^(TR|TUR|EN|DE|FR|IT|ES|AR|RU|AZ|NL|VIP|4K|FHD|HD|SD|SINEMA|SİNEMA|YERLİ|YERLI|YABANCI|NETFLIX|EXXEN|DISNEY\+?|BLUTV|AMAZON|PRIME|TOD|GAIN|APPLE\s?TV|BEIN|SMART|DUBLAJ|ALTYAZI(LI)?|TR-DUB|TR-ALT|TR\s*DUBLAJ|TR\s*ALTYAZILI)[\s|:_\-\\/]+""",
+        """^(TR|TUR|EN|DE|FR|IT|ES|AR|RU|AZ|NL|VIP|4K|FHD|HD|SD|SINEMA|SİNEMA|YERLİ|YERLI|YABANCI|NETFLIX|EXXEN|DISNEY\+?|BLUTV|AMAZON|PRIME|TOD|GAIN|APPLE\s?TV|BEIN|SMART|DUBLAJ|ALTYAZI(LI)?|TR-DUB|TR-ALT|TR\s*DUBLAJ|TR\s*ALTYAZILI|VIZYON|VİZYON|VIZ|VIZ\s*\d+|SANSURSUZ|SANSÜRSÜZ|FILM|FİLM|DIZI|DİZİ|SERIES|MOVIES?)[\s|:_\-\\/]+""",
         RegexOption.IGNORE_CASE
     )
 
     private val QUALITY_TAGS_REGEX = Regex(
-        """\b(4K|UHD|FHD|HD|SD|1080[pi]?|720[pi]?|2160[pi]?|480[pi]?|576[pi]?|H\.?264|H\.?265|HEVC|X264|X265|HDR10\+?|HDR|DV|DOLBY|ATMOS|5\.1|7\.1|DUBLAJ|DUB|ALTYAZILI|ALT|MULTI|SUB|BLURAY|WEB-?DL|WEBRIP|HDTV|BDRIP|DVDRIP)\b""",
+        """\b(4K|UHD|FHD|HD|SD|1080[pi]?|720[pi]?|2160[pi]?|480[pi]?|576[pi]?|H\.?264|H\.?265|HEVC|X264|X265|HDR10\+?|HDR|DV|DOLBY|ATMOS|5\.1|7\.1|DUBLAJ|DUB|ALTYAZILI|ALT|MULTI|SUB|BLURAY|WEB-?DL|WEBRIP|HDTV|BDRIP|DVDRIP|VIZYON|VİZYON|SANSURSUZ|SANSÜRSÜZ|YERLI|YERLİ|YABANCI|TURKCE|TÜRKÇE|EXTENDED|REMASTERED|UNRATED|DIRECTORS?\s?CUT|FULL\s?HD|ULTRA\s?HD)\b""",
         RegexOption.IGNORE_CASE
     )
 

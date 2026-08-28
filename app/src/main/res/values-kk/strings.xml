@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Ray IPTV Player</string>
+    <string name="brand_name">Ray Player</string>
+    <string name="disclaimer_title">Плеер, каталог емес</string>
+    <string name="disclaimer_body">Ray IPTV Player арналарды, фильмдерді немесе ойнату тізімдерін ұсынбайды. Қолдануға рұқсатыңыз бар көзді қосыңыз.</string>
+    <string name="continue_label">Жалғастыру</string>
+    <string name="get_started">Бастау</string>
+</resources>

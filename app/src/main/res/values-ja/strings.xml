@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Ray IPTV Player</string>
+    <string name="brand_name">Ray Player</string>
+    <string name="disclaimer_title">プレーヤーでありカタログではありません</string>
+    <string name="disclaimer_body">Ray IPTV Playerはチャンネル、映画、プレイリストを提供しません。利用権限のあるソースを追加してください。</string>
+    <string name="continue_label">続ける</string>
+    <string name="get_started">始める</string>
+</resources>

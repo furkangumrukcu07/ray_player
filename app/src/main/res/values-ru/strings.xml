@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Ray IPTV Player</string>
+    <string name="brand_name">Ray Player</string>
+    <string name="disclaimer_title">Плеер, а не каталог</string>
+    <string name="disclaimer_body">Ray IPTV Player не предоставляет каналы, фильмы или плейлисты. Добавьте источник, который вам разрешено использовать.</string>
+    <string name="continue_label">Продолжить</string>
+    <string name="get_started">Начать</string>
+</resources>

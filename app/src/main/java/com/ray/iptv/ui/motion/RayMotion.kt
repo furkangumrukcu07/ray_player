@@ -113,7 +113,9 @@ fun <S> RaySwitch(
         modifier = modifier.then(if (clipPages) Modifier.clipToBounds() else Modifier),
         contentAlignment = Alignment.TopStart,
         transitionSpec = {
-            val transform = if (effect == null || reduce) {
+            val transform = if (reduce) {
+                EnterTransition.None togetherWith ExitTransition.None
+            } else if (effect == null) {
                 enter togetherWith exit
             } else {
                 pageTransition(effect, isPop(initialState, targetState))
@@ -220,14 +222,19 @@ fun <S> RayCrossfade(
     modifier: Modifier = Modifier,
     content: @Composable (S) -> Unit
 ) {
+    val reduce = LocalGlass.current.reduceEffects
     val msIn = animMs(FadeMs)
     val msOut = animMs(140)
     AnimatedContent(
         targetState = targetState,
         modifier = modifier,
         transitionSpec = {
-            fadeIn(tween(msIn, easing = FastOutSlowInEasing)) togetherWith
-                fadeOut(tween(msOut, easing = FastOutSlowInEasing))
+            if (reduce) {
+                EnterTransition.None togetherWith ExitTransition.None
+            } else {
+                fadeIn(tween(msIn, easing = FastOutSlowInEasing)) togetherWith
+                    fadeOut(tween(msOut, easing = FastOutSlowInEasing))
+            }
         },
         label = "ray-crossfade"
     ) { state ->
@@ -241,11 +248,12 @@ fun RayOverlay(
     modifier: Modifier = Modifier,
     content: @Composable () -> Unit
 ) {
+    val reduce = LocalGlass.current.reduceEffects
     AnimatedVisibility(
         visible = visible,
         modifier = modifier,
-        enter = rayOverlayEnter(),
-        exit = rayOverlayExit()
+        enter = if (reduce) EnterTransition.None else rayOverlayEnter(),
+        exit = if (reduce) ExitTransition.None else rayOverlayExit()
     ) {
         content()
     }

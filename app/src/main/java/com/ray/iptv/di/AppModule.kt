@@ -2,6 +2,7 @@ package com.ray.iptv.di
 
 import android.app.ActivityManager
 import android.content.Context
+import android.os.Build
 import androidx.room.Room
 import coil.ImageLoader
 import coil.disk.DiskCache
@@ -10,6 +11,7 @@ import com.ray.iptv.data.local.MIGRATION_2_3
 import com.ray.iptv.data.local.MIGRATION_3_4
 import com.ray.iptv.data.local.MIGRATION_4_5
 import com.ray.iptv.data.local.MIGRATION_5_6
+import com.ray.iptv.data.local.MIGRATION_6_7
 import com.ray.iptv.data.local.RayDatabase
 import dagger.Module
 import dagger.Provides
@@ -39,7 +41,9 @@ object AppModule {
         isLenient = true
         coerceInputValues = true
         explicitNulls = false
+        encodeDefaults = true
     }
+
 
     @Provides
     @Singleton
@@ -79,7 +83,8 @@ object AppModule {
     @Singleton
     fun database(@ApplicationContext context: Context): RayDatabase =
         Room.databaseBuilder(context, RayDatabase::class.java, "ray.db")
-            .addMigrations(MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6)
+            .setJournalMode(androidx.room.RoomDatabase.JournalMode.WRITE_AHEAD_LOGGING)
+            .addMigrations(MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7)
             .fallbackToDestructiveMigration()
             .build()
 
@@ -89,27 +94,29 @@ object AppModule {
         val am = context.getSystemService(Context.ACTIVITY_SERVICE) as ActivityManager
         val memClass = am.memoryClass
         val tv = AndroidPlaybackSocHints.isAndroidTvOrTvBox(context)
+        val socHints = AndroidPlaybackSocHints.get(context)
+        val lowRam = tv || memClass < 192 || socHints.oneGiBRamClass || socHints.playbackChallengedTv
         val memPercent = when {
-            tv || memClass < 192 -> 0.08
+            lowRam -> 0.06
             memClass < 256 -> 0.12
-            else -> 0.22
+            else -> 0.20
         }
         val diskMb = when {
-            tv || memClass < 192 -> 64
+            lowRam -> 48
             else -> (if (ImageCacheConfig.maxMb <= 0) 128 else ImageCacheConfig.maxMb.coerceIn(50, 512))
         }
         return ImageLoader.Builder(context)
             .okHttpClient(
                 okHttp.newBuilder()
-                    .connectTimeout(10, TimeUnit.SECONDS)
-                    .readTimeout(20, TimeUnit.SECONDS)
-                    .writeTimeout(20, TimeUnit.SECONDS)
+                    .connectTimeout(8, TimeUnit.SECONDS)
+                    .readTimeout(12, TimeUnit.SECONDS)
+                    .writeTimeout(12, TimeUnit.SECONDS)
                     .build()
             )
             .crossfade(false)
             .respectCacheHeaders(false)
             .allowRgb565(true)
-            .allowHardware(!tv)
+            .allowHardware(Build.VERSION.SDK_INT >= Build.VERSION_CODES.O)
             .memoryCache { MemoryCache.Builder(context).maxSizePercent(memPercent).build() }
             .diskCache {
                 DiskCache.Builder()

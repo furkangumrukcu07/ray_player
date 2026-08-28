@@ -65,6 +65,7 @@ import androidx.compose.material.icons.filled.FolderOpen
 import androidx.compose.material.icons.filled.Logout
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.DeleteForever
+import androidx.compose.material.icons.filled.DeleteOutline
 import androidx.compose.material.icons.filled.DownloadForOffline
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Language
@@ -173,6 +174,7 @@ fun SettingsScreen(
     downloads: List<DownloadEntity>,
     copy: Copy,
     railExpanded: Boolean = false,
+    contentFocusTrigger: Long = 0L,
     onExpandRail: () -> Unit = {},
     onExit: () -> Unit = {}
 ) {
@@ -182,29 +184,40 @@ fun SettingsScreen(
     val focus = LocalFocusManager.current
     val hubFocusRequester = remember { FocusRequester() }
     val subPageFocusRequester = remember { FocusRequester() }
-    LaunchedEffect(page) {
-        if (page == SettingsPage.HUB) {
-            repeat(8) {
-                delay(30)
-                if (hubFocusRequester.tryFocus()) return@LaunchedEffect
-            }
-        } else {
-            repeat(8) {
-                delay(35)
-                if (subPageFocusRequester.tryFocus()) return@LaunchedEffect
+    val generalRequesters = remember { List(30) { FocusRequester() } }
+    var lastOpenedIndex by remember { mutableStateOf(0) }
+    val tr = settings.lang == AppLang.TR
+    val mobile = settings.layoutMode == LayoutMode.MOBILE
+
+    LaunchedEffect(page, railExpanded, contentFocusTrigger) {
+        if (!railExpanded && !mobile) {
+            if (page == SettingsPage.HUB) {
+                val target = generalRequesters.getOrNull(lastOpenedIndex) ?: hubFocusRequester
+                delay(20)
+                repeat(30) {
+                    delay(35)
+                    if (target.tryFocus() || hubFocusRequester.tryFocus() || generalRequesters.firstOrNull()?.tryFocus() == true) return@LaunchedEffect
+                }
+            } else {
+                delay(20)
+                repeat(30) {
+                    delay(35)
+                    if (subPageFocusRequester.tryFocus()) return@LaunchedEffect
+                }
             }
         }
     }
+
+
+
     BackHandler {
-        if (page != SettingsPage.HUB && page != SettingsPage.LANGUAGE && page != SettingsPage.THEME) {
+        if (page != SettingsPage.HUB) {
             page = SettingsPage.HUB
         } else {
             onExpandRail()
             focus.moveFocus(FocusDirection.Left)
         }
     }
-    val tr = settings.lang == AppLang.TR
-    val mobile = settings.layoutMode == LayoutMode.MOBILE
     val titles = mapOf(
         SettingsPage.PLAYLIST to if (tr) "Liste Yönetimi" else "Playlist Manager",
         SettingsPage.CHANNELS to if (tr) "Kanal Kategori Düzeni" else "Channel layout",
@@ -221,14 +234,16 @@ fun SettingsScreen(
         SettingsPage.ACCOUNT to if (tr) "Xtream Hesap Bilgileri" else "Xtream account",
         SettingsPage.ADMIN to if (tr) "Admin Paneli" else "Admin Panel"
     )
+    val onLeftFromHub: () -> Unit = {
+        onExpandRail()
+        focus.moveFocus(FocusDirection.Left)
+    }
     CompositionLocalProvider(LocalMobileSettingsChrome provides mobile) {
-    Column(
-        Modifier
-            .fillMaxSize()
-            .focusProperties {
-                left = FocusRequester.Cancel
-            }
-    ) {
+        Column(
+            Modifier
+                .fillMaxSize()
+                .padding(top = if (mobile) 0.dp else 4.dp, start = if (mobile) 0.dp else 12.dp, end = if (mobile) 0.dp else 16.dp, bottom = if (mobile) 0.dp else 8.dp)
+        ) {
         if (mobile) {
             MobileSettingsTopBar(
                 title = if (page == SettingsPage.HUB) {
@@ -242,7 +257,11 @@ fun SettingsScreen(
             )
             Spacer(Modifier.height(8.dp))
         } else if (page != SettingsPage.HUB && page != SettingsPage.CHANNELS && page != SettingsPage.PLAYBACK && page != SettingsPage.OTHER && page != SettingsPage.ABOUT) {
-            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            Row(
+                modifier = Modifier.focusProperties { left = FocusRequester.Cancel },
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
                 GlassButton("←", focusRequester = subPageFocusRequester) { page = SettingsPage.HUB }
                 Text(titles[page].orEmpty(), color = LocalGlass.current.text, style = MaterialTheme.typography.headlineMedium)
             }
@@ -252,6 +271,11 @@ fun SettingsScreen(
             Modifier
                 .fillMaxWidth()
                 .weight(1f)
+                .then(
+                    if (!mobile && page != SettingsPage.HUB) {
+                        Modifier.focusProperties { left = FocusRequester.Cancel }
+                    } else Modifier
+                )
         ) {
             RaySwitch(
                 page,
@@ -268,10 +292,15 @@ fun SettingsScreen(
                         mobile = mobile,
                         listState = hubListState,
                         gridState = hubGridState,
+                        requesters = generalRequesters,
                         hubFocusRequester = hubFocusRequester,
-                        onLeftToRail = null
-                    ) { page = it }
-                    SettingsPage.PLAYLIST -> PlaylistPage(vm, settings, sources)
+                        onLeftToRail = onLeftFromHub,
+                        onOpen = { index, targetPage ->
+                            lastOpenedIndex = index
+                            page = targetPage
+                        }
+                    )
+                    SettingsPage.PLAYLIST -> PlaylistPage(vm, settings, sources, subPageFocusRequester) { page = SettingsPage.HUB }
                     SettingsPage.CHANNELS -> ChannelLayoutRoot(vm, settings, liveCats, tr, subPageFocusRequester) { page = SettingsPage.HUB }
                     SettingsPage.HOME -> HomePage(vm, settings, copy, tr)
                     SettingsPage.RAIL -> RailPage(vm, settings, copy, tr)
@@ -279,10 +308,10 @@ fun SettingsScreen(
                     SettingsPage.PERF -> PerfPage(vm, settings, tr)
                     SettingsPage.KEYS -> KeysPage(vm, settings, tr)
                     SettingsPage.OTHER -> OtherToolsRoot(vm, settings, epgSources, sources, tr, subPageFocusRequester) { page = SettingsPage.HUB }
-                    SettingsPage.LANGUAGE -> Hub(tr, vm, settings, mobile, hubListState, hubGridState, hubFocusRequester) { page = it }
-                    SettingsPage.THEME -> Hub(tr, vm, settings, mobile, hubListState, hubGridState, hubFocusRequester) { page = it }
+                    SettingsPage.LANGUAGE -> Hub(tr, vm, settings, mobile, hubListState, hubGridState, generalRequesters, hubFocusRequester, onLeftToRail = onLeftFromHub) { idx, it -> lastOpenedIndex = idx; page = it }
+                    SettingsPage.THEME -> Hub(tr, vm, settings, mobile, hubListState, hubGridState, generalRequesters, hubFocusRequester, onLeftToRail = onLeftFromHub) { idx, it -> lastOpenedIndex = idx; page = it }
                     SettingsPage.PROFILES -> ProfilesPage(vm, settings, profiles, tr, subPageFocusRequester)
-                    SettingsPage.BACKUP -> BackupPage(vm, settings, tr, subPageFocusRequester)
+                    SettingsPage.BACKUP -> BackupPage(vm, settings, tr, subPageFocusRequester) { page = SettingsPage.HUB }
                     SettingsPage.DOWNLOADS -> DownloadsPage(vm, downloads, tr, subPageFocusRequester)
                     SettingsPage.ABOUT -> AboutRoot(vm, tr, subPageFocusRequester) { page = SettingsPage.HUB }
                     SettingsPage.ACCOUNT -> AccountPage(vm, sources, settings, tr)
@@ -302,9 +331,10 @@ private fun Hub(
     mobile: Boolean,
     listState: LazyListState,
     gridState: LazyGridState,
+    requesters: List<FocusRequester> = emptyList(),
     hubFocusRequester: FocusRequester? = null,
     onLeftToRail: (() -> Unit)? = null,
-    open: (SettingsPage) -> Unit
+    onOpen: (Int, SettingsPage) -> Unit
 ) {
     var wipe by remember { mutableStateOf(false) }
     var themeOpen by remember { mutableStateOf(false) }
@@ -320,24 +350,24 @@ private fun Hub(
         else -> if (tr) "${settings.autoRefreshHours} saatte bir" else "Every ${settings.autoRefreshHours}h"
     }
     val general = buildList {
-        add(Triple(Icons.Filled.PlaylistPlay, if (tr) "Playlist Listesi" else "Playlist list", if (tr) "Kaynağı görüntüle veya değiştir" else "View or change the source") to { open(SettingsPage.PLAYLIST) })
-        add(Triple(Icons.Filled.Tune, if (tr) "Kanal Kategori Düzeni" else "Channel & Category Layout", if (tr) "Kategori gizleme ve canlı kanal düzeni (sıralama / çıkarma) tek noktada" else "Hide categories and edit the live list in one place") to { open(SettingsPage.CHANNELS) })
-        add(Triple(Icons.Filled.DashboardCustomize, if (tr) "Ana Ekran Ayarları" else "Home screen settings", if (tr) "Kart sırası, karışık canlı TV ve sıradaki maçlar" else "Card order, mixed live TV and upcoming matches") to { open(SettingsPage.HOME) })
+        add(Triple(Icons.Filled.PlaylistPlay, if (tr) "Playlist Listesi" else "Playlist list", if (tr) "Kaynağı görüntüle veya değiştir" else "View or change the source") to { onOpen(0, SettingsPage.PLAYLIST) })
+        add(Triple(Icons.Filled.Tune, if (tr) "Kanal Kategori Düzeni" else "Channel & Category Layout", if (tr) "Kategori gizleme ve canlı kanal düzeni (sıralama / çıkarma) tek noktada" else "Hide categories and edit the live list in one place") to { onOpen(1, SettingsPage.CHANNELS) })
+        add(Triple(Icons.Filled.DashboardCustomize, if (tr) "Ana Ekran Ayarları" else "Home screen settings", if (tr) "Kart sırası, karışık canlı TV ve sıradaki maçlar" else "Card order, mixed live TV and upcoming matches") to { onOpen(2, SettingsPage.HOME) })
         if (!mobile) {
-            add(Triple(Icons.Filled.ViewSidebar, if (tr) "Rail Görünümü" else "Rail View", if (tr) "Sol menüde (railde) hangi sekmelerin görüneceğini seçin" else "Choose which tabs appear on the left menu (rail)") to { open(SettingsPage.RAIL) })
+            add(Triple(Icons.Filled.ViewSidebar, if (tr) "Rail Görünümü" else "Rail View", if (tr) "Sol menüde (railde) hangi sekmelerin görüneceğini seçin" else "Choose which tabs appear on the left menu (rail)") to { onOpen(3, SettingsPage.RAIL) })
         }
-        add(Triple(Icons.Filled.PlayCircleFilled, if (tr) "Oynatma Ayarları" else "Playback Settings", if (tr) "Oynatıcı motoru, donanım hızlandırma, video kod çözücü ve düşük gecikme buffer" else "Player engine, hardware decode, video decoder and low-latency buffer") to { open(SettingsPage.PLAYBACK) })
-        add(Triple(Icons.Filled.Speed, if (tr) "Performans" else "Performance", if (tr) "Görsel önbelleğini boşaltır, çöp toplayıcıyı çalıştırır" else "Clears the image cache and runs the garbage collector") to { open(SettingsPage.PERF) })
+        add(Triple(Icons.Filled.PlayCircleFilled, if (tr) "Oynatma Ayarları" else "Playback Settings", if (tr) "Oynatıcı motoru, donanım hızlandırma, video kod çözücü ve düşük gecikme buffer" else "Player engine, hardware decode, video decoder and low-latency buffer") to { onOpen(4, SettingsPage.PLAYBACK) })
+        add(Triple(Icons.Filled.Speed, if (tr) "Performans" else "Performance", if (tr) "Görsel önbelleğini boşaltır, çöp toplayıcıyı çalıştırır" else "Clears the image cache and runs the garbage collector") to { onOpen(5, SettingsPage.PERF) })
         if (!mobile) {
-            add(Triple(Icons.Filled.SettingsRemote, if (tr) "Kumanda Tuş Atama" else "Remote Key Mapping", if (tr) "Kumanda üzerindeki boş veya özel tuşlara hızlı eylemler atayın" else "Assign quick actions to unused or custom remote keys") to { open(SettingsPage.KEYS) })
+            add(Triple(Icons.Filled.SettingsRemote, if (tr) "Kumanda Tuş Atama" else "Remote Key Mapping", if (tr) "Kumanda üzerindeki boş veya özel tuşlara hızlı eylemler atayın" else "Assign quick actions to unused or custom remote keys") to { onOpen(6, SettingsPage.KEYS) })
         }
         add(Triple(Icons.Filled.CloudDownload, if (tr) "İçerikleri Yenile" else "Refresh content", refreshLabel) to { refreshOpen = true })
         add(Triple(Icons.Filled.Palette, if (tr) "Tema" else "Theme", settings.glass.title(tr)) to { themeOpen = true })
-        add(Triple(Icons.Filled.Build, if (tr) "Diğer Araçlar" else "Other Tools", if (tr) "Uyku zamanlayıcısı, EPG, tema, hız testi, titreşim ve font" else "Sleep timer, EPG, theme, speed test, haptics and font") to { open(SettingsPage.OTHER) })
+        add(Triple(Icons.Filled.Build, if (tr) "Diğer Araçlar" else "Other Tools", if (tr) "Uyku zamanlayıcısı, EPG, tema, hız testi, titreşim ve font" else "Sleep timer, EPG, theme, speed test, haptics and font") to { onOpen(9, SettingsPage.OTHER) })
         add(Triple(Icons.Filled.Language, if (tr) "Uygulama Dili" else "App language", settings.lang.nativeName) to { langOpen = true })
-        add(Triple(Icons.Filled.People, if (tr) "Profiller" else "Profiles", if (tr) "Her kullanıcı için ayrı tercihler" else "Separate preferences for each user") to { open(SettingsPage.PROFILES) })
-        add(Triple(Icons.Filled.CloudSync, if (tr) "Yedekleme" else "Backup", if (tr) "Yerel dosya yedekleme" else "Local file backup") to { open(SettingsPage.BACKUP) })
-        add(Triple(Icons.Filled.DownloadForOffline, if (tr) "İndirilenler" else "Downloads", if (tr) "Telefonuna indirdiğin film ve dizi bölümlerini görüntüle, sil veya çevrimdışı oynat" else "View, delete or play downloaded movies and episodes offline") to { open(SettingsPage.DOWNLOADS) })
+        add(Triple(Icons.Filled.People, if (tr) "Profiller" else "Profiles", if (tr) "Her kullanıcı için ayrı tercihler" else "Separate preferences for each user") to { onOpen(11, SettingsPage.PROFILES) })
+        add(Triple(Icons.Filled.CloudSync, if (tr) "Yedekleme" else "Backup", if (tr) "Yerel dosya yedekleme" else "Local file backup") to { onOpen(12, SettingsPage.BACKUP) })
+        add(Triple(Icons.Filled.DownloadForOffline, if (tr) "İndirilenler" else "Downloads", if (tr) "Telefonuna indirdiğin film ve dizi bölümlerini görüntüle, sil veya çevrimdışı oynat" else "View, delete or play downloaded movies and episodes offline") to { onOpen(13, SettingsPage.DOWNLOADS) })
         add(Triple(Icons.Filled.DeleteForever, if (tr) "Tüm ayarları sil" else "Erase all settings", if (tr) "Playlist, önbellek ve tercihleri sıfırla" else "Reset playlist, cache, and preferences") to { wipe = true })
     }
     var subOpen by remember { mutableStateOf(false) }
@@ -360,11 +390,11 @@ private fun Hub(
                     Icons.Filled.AdminPanelSettings,
                     if (tr) "Admin Paneli" else "Admin Panel",
                     if (tr) "Yönetim konsolu, kullanıcılar, hata raporları ve duyurular" else "Management console, users, crashes and push notifications"
-                ) to { open(SettingsPage.ADMIN) }
+                ) to { onOpen(15, SettingsPage.ADMIN) }
             )
         }
-        add(Triple(Icons.Filled.Info, if (tr) "Hakkında" else "About", "Ray IPTV Player $version") to { open(SettingsPage.ABOUT) })
-        add(Triple(Icons.Filled.AccountCircle, if (tr) "Hesap Bilgileri" else "Account info", if (tr) "Xtream abonelik bilgilerini gör" else "View Xtream subscription details") to { open(SettingsPage.ACCOUNT) })
+        add(Triple(Icons.Filled.Info, if (tr) "Hakkında" else "About", "Ray IPTV Player $version") to { onOpen(16, SettingsPage.ABOUT) })
+        add(Triple(Icons.Filled.AccountCircle, if (tr) "Hesap Bilgileri" else "Account info", if (tr) "Xtream abonelik bilgilerini gör" else "View Xtream subscription details") to { onOpen(17, SettingsPage.ACCOUNT) })
         add(Triple(Icons.Filled.VerifiedUser, if (tr) "Abonelik Durumu" else "Subscription Status", if (settings.xtreamStatus.isNotBlank()) settings.xtreamStatus else if (tr) "Lisans ve deneme süresi detayları" else "License and trial period details") to { subOpen = true })
         add(Triple(Icons.Filled.DeleteForever, if (tr) "Hesabımı Sil" else "Delete my account", if (tr) "Hesabınızı ve buluttaki tüm verilerinizi kalıcı olarak siler." else "Permanently deletes your account and all cloud data.") to { delAcc = true })
     }
@@ -405,12 +435,13 @@ private fun Hub(
                 danger = i == general.lastIndex,
                 onLeft = if (i % 2 == 0) onLeftToRail else null,
                 isTopRow = i < 2,
-                focusRequester = if (i == 0) hubFocusRequester else null
+                focusRequester = requesters.getOrNull(i) ?: if (i == 0) hubFocusRequester else null
             )
         }
         item(span = { GridItemSpan(maxLineSpan) }) { SettingsSectionLabel(if (tr) "Uygulama Bilgileri" else "App info") }
         items(info.size) { i ->
             val (meta, action) = info[i]
+            val infoIndex = 15 + i
             HubGlassTile(
                 icon = meta.first,
                 title = meta.second,
@@ -418,7 +449,8 @@ private fun Hub(
                 onClick = action,
                 danger = i == info.lastIndex,
                 onLeft = if (i % 2 == 0) onLeftToRail else null,
-                isTopRow = false
+                isTopRow = false,
+                focusRequester = requesters.getOrNull(infoIndex)
             )
         }
     }
@@ -519,7 +551,7 @@ private fun Hub(
     }
     if (subOpen) {
         val status = settings.xtreamStatus.ifBlank { if (tr) "Premium Aktif (Sınırsız)" else "Premium Active (Lifetime)" }
-        val email = account.email.ifBlank { "" }
+        val email = if (account.signedIn) account.email.ifBlank { "" } else ""
         LicenseDetailsDialog(
             tr = tr,
             email = email,
@@ -565,14 +597,14 @@ fun LicenseDetailsDialog(
         Box(
             Modifier
                 .fillMaxWidth()
-                .clip(RoundedCornerShape(20.dp))
-                .background(Color(0xFF131A16))
-                .border(1.dp, Color.White.copy(alpha = 0.15f), RoundedCornerShape(20.dp))
+                .clip(RoundedCornerShape(24.dp))
+                .background(Color(0xFF0E281F).copy(alpha = 0.95f))
+                .border(1.dp, Color(0xFF34D399).copy(alpha = 0.35f), RoundedCornerShape(24.dp))
                 .padding(20.dp)
         ) {
             Column(Modifier.fillMaxWidth()) {
                 Text(
-                    text = if (tr) "Lisans Bilgileri" else "License details",
+                    text = if (tr) "Abonelik & Lisans Bilgileri" else "Subscription & License details",
                     color = Color.White,
                     fontSize = 18.sp,
                     fontWeight = FontWeight.Bold
@@ -581,8 +613,9 @@ fun LicenseDetailsDialog(
                     Spacer(Modifier.height(3.dp))
                     Text(
                         text = if (tr) "$email ile oturum açık" else "Signed in with $email",
-                        color = Color.White.copy(alpha = 0.55f),
-                        fontSize = 12.sp
+                        color = Color(0xFF22D3EE),
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Medium
                     )
                 }
 
@@ -1115,8 +1148,16 @@ private val blockedRemoteKeys = setOf(
     vm: RayViewModel,
     settings: RaySettings,
     tr: Boolean,
-    focusRequester: FocusRequester? = null
+    focusRequester: FocusRequester? = null,
+    onBack: () -> Unit = {}
 ) {
+    BackHandler { onBack() }
+    val initialFocus = focusRequester ?: remember { FocusRequester() }
+    LaunchedEffect(Unit) {
+        kotlinx.coroutines.delay(100)
+        initialFocus.tryFocus()
+    }
+
     val saveBackup = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/json")) { uri -> uri?.let(vm::exportBackup) }
     val openBackup = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri -> uri?.let(vm::importBackup) }
     val session by vm.account.collectAsState()
@@ -1126,6 +1167,7 @@ private val blockedRemoteKeys = setOf(
     val profiles by vm.profileList.collectAsState()
     val epgSources by vm.epgSources.collectAsState()
     val lastCloudTime by vm.lastCloudBackupTime.collectAsState()
+    val cloudSummary by vm.cloudBackupSummary.collectAsState()
     val isCloudBusy by vm.isCloudBusy.collectAsState()
     val cloudProgressMsg by vm.cloudProgressMsg.collectAsState()
     val scope = rememberCoroutineScope()
@@ -1158,9 +1200,6 @@ private val blockedRemoteKeys = setOf(
         }
     }
 
-    val cyan = Color(0xFF00E5FF)
-    val green = Color(0xFF10B981)
-
     if (backupConfirmOpen && session?.signedIn == true) {
         CloudBackupSummaryDialog(
             tr = tr,
@@ -1186,10 +1225,27 @@ private val blockedRemoteKeys = setOf(
             onDismiss = { restoreConfirmOpen = false },
             onConfirm = {
                 restoreConfirmOpen = false
-                vm.restoreFromCloud()
+                vm.fetchCloudBackupForPreview()
             }
         )
     }
+
+    val pendingCloudBackup by vm.pendingCloudBackup.collectAsState()
+    if (pendingCloudBackup != null) {
+        com.ray.iptv.ui.components.CloudRestorePreviewDialog(
+            tr = tr,
+            backup = pendingCloudBackup!!,
+            localSourcesCount = sources.size,
+            localProfilesCount = profiles.size,
+            localFavoritesCount = favorites.size,
+            localProgressCount = continueList.size,
+            localEpgCount = epgSources.size,
+            onMerge = { vm.applyCloudRestore(overwrite = false) },
+            onOverwrite = { vm.applyCloudRestore(overwrite = true) },
+            onDismiss = vm::dismissCloudRestorePreview
+        )
+    }
+
 
     Column(
         Modifier
@@ -1198,7 +1254,7 @@ private val blockedRemoteKeys = setOf(
             .padding(horizontal = 4.dp, vertical = 6.dp),
         verticalArrangement = Arrangement.spacedBy(14.dp)
     ) {
-        // Header Text Hint (Matching Mina IPTV)
+        // Header Text Hint
         Text(
             if (tr) "Google hesabınızla buluta yedekleyin veya şifreli dosyayı cihaza/paylaşımla alın."
             else "Backup to cloud with Google account or export encrypted file.",
@@ -1207,21 +1263,38 @@ private val blockedRemoteKeys = setOf(
             lineHeight = 18.sp
         )
 
-        // 1. Status Card (Senkron aktif)
+        // 1. Status Card (Senkron aktif) - TV Focusable Top Card
+        var statusCardFocused by remember { mutableStateOf(false) }
+        val statusShape = RoundedCornerShape(20.dp)
         Box(
             Modifier
                 .fillMaxWidth()
-                .clip(RoundedCornerShape(16.dp))
-                .background(Color(0xFF141F18).copy(alpha = 0.9f))
-                .border(1.dp, Color.White.copy(alpha = 0.12f), RoundedCornerShape(16.dp))
+                .focusRequester(initialFocus)
+                .onFocusChanged { statusCardFocused = it.isFocused }
+                .focusable()
+                .clip(statusShape)
+                .background(if (statusCardFocused) Color(0xFF1E4938) else Color(0xFF16382B).copy(alpha = 0.38f), statusShape)
+                .border(
+                    if (statusCardFocused) 2.5.dp else 1.dp,
+                    if (statusCardFocused) Color(0xFF34D399) else Color(0xFF4ADE80).copy(alpha = 0.18f),
+                    statusShape
+                )
+                .rayClickable(onClick = {
+                    if (session?.signedIn != true) {
+                        googleSignInLauncher.launch(vm.getGoogleSignInIntent())
+                    }
+                })
                 .padding(16.dp)
         ) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically
+            ) {
                 Box(
                     Modifier
                         .size(40.dp)
                         .clip(RoundedCornerShape(12.dp))
-                        .background(Color(0xFF10B981).copy(alpha = 0.22f)),
+                        .background(Color(0xFF10B981).copy(alpha = 0.22f))
+                        .border(1.dp, Color(0xFF10B981).copy(alpha = 0.35f), RoundedCornerShape(12.dp)),
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
@@ -1251,16 +1324,26 @@ private val blockedRemoteKeys = setOf(
             }
         }
 
-        // 2. Last Backup Summary Card (Son yedek)
+        // 2. Last Backup Summary Card (Son yedek) - TV Focusable
+        var summaryCardFocused by remember { mutableStateOf(false) }
+        val summaryShape = RoundedCornerShape(20.dp)
         Box(
             Modifier
                 .fillMaxWidth()
-                .clip(RoundedCornerShape(18.dp))
-                .background(Color(0xFF101713).copy(alpha = 0.85f))
-                .border(1.dp, Color.White.copy(alpha = 0.12f), RoundedCornerShape(18.dp))
+                .onFocusChanged { summaryCardFocused = it.isFocused }
+                .focusable()
+                .clip(summaryShape)
+                .background(if (summaryCardFocused) Color(0xFF162B38) else Color(0xFF16382B).copy(alpha = 0.38f), summaryShape)
+                .border(
+                    if (summaryCardFocused) 2.5.dp else 1.dp,
+                    if (summaryCardFocused) Color(0xFF22D3EE) else Color(0xFF4ADE80).copy(alpha = 0.18f),
+                    summaryShape
+                )
                 .padding(16.dp)
         ) {
-            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            Column(
+                verticalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
                 Row(
                     Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
@@ -1281,7 +1364,8 @@ private val blockedRemoteKeys = setOf(
                             fontSize = 16.sp
                         )
                     }
-                    MobileBadge("38 KB", MobileCyan)
+                    val badgeText = cloudSummary?.sizeLabel ?: if (lastCloudTime != null && lastCloudTime != 0L) "Yedekli" else "0 KB"
+                    MobileBadge(badgeText, MobileCyan)
                 }
 
                 Spacer(Modifier.height(4.dp))
@@ -1297,10 +1381,11 @@ private val blockedRemoteKeys = setOf(
                         Spacer(Modifier.width(8.dp))
                         Text(if (tr) "Tarih" else "Date", color = Color.White.copy(alpha = 0.75f), fontSize = 13.5.sp)
                     }
-                    val dateStr = if (lastCloudTime != null && lastCloudTime != 0L) {
+                    val effectiveTime = cloudSummary?.updatedAt ?: lastCloudTime
+                    val dateStr = if (effectiveTime != null && effectiveTime != 0L) {
                         val sdf = java.text.SimpleDateFormat("dd.MM.yyyy HH:mm", java.util.Locale.getDefault())
-                        sdf.format(java.util.Date(lastCloudTime!!))
-                    } else "26.08.2026 15:07"
+                        sdf.format(java.util.Date(effectiveTime))
+                    } else (if (tr) "Henüz yedek yok" else "No backup yet")
                     Text(dateStr, color = Color.White, fontSize = 13.5.sp, fontWeight = FontWeight.SemiBold)
                 }
 
@@ -1315,8 +1400,10 @@ private val blockedRemoteKeys = setOf(
                         Spacer(Modifier.width(8.dp))
                         Text(if (tr) "Listeler" else "Playlists", color = Color.White.copy(alpha = 0.75f), fontSize = 13.5.sp)
                     }
-                    Text("${sources.size.coerceAtLeast(1)}", color = Color.White, fontSize = 13.5.sp, fontWeight = FontWeight.SemiBold)
+                    val pCount = cloudSummary?.sourcesCount ?: if (lastCloudTime != null && lastCloudTime != 0L) sources.size else 0
+                    Text("$pCount", color = Color.White, fontSize = 13.5.sp, fontWeight = FontWeight.SemiBold)
                 }
+
 
                 // Ayarlar
                 Row(
@@ -1329,7 +1416,9 @@ private val blockedRemoteKeys = setOf(
                         Spacer(Modifier.width(8.dp))
                         Text(if (tr) "Ayarlar" else "Settings", color = Color.White.copy(alpha = 0.75f), fontSize = 13.5.sp)
                     }
-                    Text("543", color = Color.White, fontSize = 13.5.sp, fontWeight = FontWeight.SemiBold)
+                    val sCount = cloudSummary?.settingsCount ?: if (lastCloudTime != null && lastCloudTime != 0L) 65 else 0
+                    Text("$sCount", color = Color.White, fontSize = 13.5.sp, fontWeight = FontWeight.SemiBold)
+
                 }
 
                 // Cihaz
@@ -1343,70 +1432,40 @@ private val blockedRemoteKeys = setOf(
                         Spacer(Modifier.width(8.dp))
                         Text(if (tr) "Cihaz" else "Device", color = Color.White.copy(alpha = 0.75f), fontSize = 13.5.sp)
                     }
-                    Text("android", color = Color.White, fontSize = 13.5.sp, fontWeight = FontWeight.SemiBold)
+                    val platformStr = cloudSummary?.platform ?: "android"
+                    Text(platformStr, color = Color.White, fontSize = 13.5.sp, fontWeight = FontWeight.SemiBold)
                 }
             }
+
         }
 
-        // 3. Primary Action Buttons (Google'a yedekle / Google'dan geri yükle)
-        Box(
-            Modifier
-                .fillMaxWidth()
-                .height(48.dp)
-                .clip(RoundedCornerShape(14.dp))
-                .background(MobileCyan)
-                .rayClickable(onClick = {
-                    if (session?.signedIn == true) backupConfirmOpen = true
-                    else googleSignInLauncher.launch(vm.getGoogleSignInIntent())
-                }),
-            contentAlignment = Alignment.Center
-        ) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(Icons.Filled.CloudUpload, null, tint = Color.Black, modifier = Modifier.size(20.dp))
-                Spacer(Modifier.width(8.dp))
-                Text(
-                    if (tr) "Google'a yedekle" else "Backup to Google",
-                    color = Color.Black,
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 14.5.sp
-                )
+        // 3. Primary Action Buttons (Google'a yedekle / Google'dan geri yükle) - TV D-Pad Focusable
+        BackupTvActionCard(
+            text = if (tr) "Google'a yedekle" else "Backup to Google",
+            icon = Icons.Filled.CloudUpload,
+            accentColor = MobileCyan,
+            onClick = {
+                if (session?.signedIn == true) backupConfirmOpen = true
+                else googleSignInLauncher.launch(vm.getGoogleSignInIntent())
             }
-        }
+        )
 
-        Box(
-            Modifier
-                .fillMaxWidth()
-                .height(48.dp)
-                .clip(RoundedCornerShape(14.dp))
-                .background(MobileCyan)
-                .rayClickable(onClick = {
-                    if (session?.signedIn == true) restoreConfirmOpen = true
-                    else googleSignInLauncher.launch(vm.getGoogleSignInIntent())
-                }),
-            contentAlignment = Alignment.Center
-        ) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(Icons.Filled.CloudDownload, null, tint = Color.Black, modifier = Modifier.size(20.dp))
-                Spacer(Modifier.width(8.dp))
-                Text(
-                    if (tr) "Google'dan geri yükle" else "Restore from Google",
-                    color = Color.Black,
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 14.5.sp
-                )
+        BackupTvActionCard(
+            text = if (tr) "Google'dan geri yükle" else "Restore from Google",
+            icon = Icons.Filled.CloudDownload,
+            accentColor = MobileCyan,
+            onClick = {
+                if (session?.signedIn == true) restoreConfirmOpen = true
+                else googleSignInLauncher.launch(vm.getGoogleSignInIntent())
             }
-        }
+        )
 
         // 4. Auto Backup Schedule Section (Otomatik yedekleme)
-        Box(
-            Modifier
-                .fillMaxWidth()
-                .clip(RoundedCornerShape(18.dp))
-                .background(Color(0xFF101713).copy(alpha = 0.85f))
-                .border(1.dp, Color.White.copy(alpha = 0.12f), RoundedCornerShape(18.dp))
-                .padding(16.dp)
-        ) {
-            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        MobileSettingsFrame {
+            Column(
+                Modifier.padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Icon(Icons.Filled.Schedule, null, tint = Color(0xFF22D3EE), modifier = Modifier.size(20.dp))
                     Spacer(Modifier.width(8.dp))
@@ -1434,85 +1493,38 @@ private val blockedRemoteKeys = setOf(
 
                 intervals.forEach { (interval, label) ->
                     val selected = interval == currentInterval || (interval == com.ray.iptv.data.repo.AutoBackupInterval.DAILY && currentInterval != com.ray.iptv.data.repo.AutoBackupInterval.OFF && currentInterval != com.ray.iptv.data.repo.AutoBackupInterval.EVERY_3_DAYS && currentInterval != com.ray.iptv.data.repo.AutoBackupInterval.EVERY_4_DAYS)
-                    Box(
-                        Modifier
-                            .fillMaxWidth()
-                            .clip(RoundedCornerShape(14.dp))
-                            .background(if (selected) Color(0xFF133630).copy(alpha = 0.4f) else Color.White.copy(alpha = 0.04f))
-                            .border(
-                                if (selected) 1.5.dp else 1.dp,
-                                if (selected) Color(0xFF22D3EE) else Color.White.copy(alpha = 0.10f),
-                                RoundedCornerShape(14.dp)
-                            )
-                            .rayClickable(onClick = { vm.setAutoBackupInterval(interval) })
-                            .padding(horizontal = 16.dp, vertical = 14.dp)
-                    ) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(
-                                imageVector = if (selected) Icons.Filled.RadioButtonChecked else Icons.Filled.RadioButtonUnchecked,
-                                contentDescription = null,
-                                tint = if (selected) Color(0xFF22D3EE) else Color.White.copy(alpha = 0.5f),
-                                modifier = Modifier.size(20.dp)
-                            )
-                            Spacer(Modifier.width(12.dp))
-                            Text(
-                                label,
-                                color = Color.White,
-                                fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
-                                fontSize = 14.sp
-                            )
-                        }
-                    }
+                    BackupTvIntervalCard(
+                        label = label,
+                        selected = selected,
+                        onClick = { vm.setAutoBackupInterval(interval) }
+                    )
                 }
             }
         }
 
-        // 5. Bottom Sign Out / Sign In Button
+        // 5. Bottom Sign Out / Sign In Button - TV D-Pad Focusable
         if (session?.signedIn == true) {
-            Box(
-                Modifier
-                    .fillMaxWidth()
-                    .clip(RoundedCornerShape(14.dp))
-                    .background(Color.White.copy(alpha = 0.05f))
-                    .border(1.dp, Color.White.copy(alpha = 0.18f), RoundedCornerShape(14.dp))
-                    .rayClickable(onClick = { vm.signOutAccount() })
-                    .padding(vertical = 14.dp),
-                contentAlignment = Alignment.Center
-            ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(Icons.AutoMirrored.Filled.Logout, null, tint = Color.White.copy(alpha = 0.8f), modifier = Modifier.size(18.dp))
-                    Spacer(Modifier.width(8.dp))
-                    Text(
-                        if (tr) "Google oturumunu kapat" else "Sign out from Google",
-                        color = Color.White,
-                        fontWeight = FontWeight.SemiBold,
-                        fontSize = 14.sp
-                    )
-                }
-            }
+            BackupTvAccountCard(
+                text = if (tr) "Buluttaki yedeği sil" else "Delete cloud backup",
+                icon = Icons.Filled.DeleteOutline,
+                iconTint = Color(0xFFEF4444),
+                onClick = { vm.deleteCloudData() }
+            )
+            BackupTvAccountCard(
+                text = if (tr) "Google oturumunu kapat" else "Sign out from Google",
+                icon = Icons.AutoMirrored.Filled.Logout,
+                iconTint = Color.White.copy(alpha = 0.85f),
+                onClick = { vm.signOutAccount() }
+            )
         } else {
-            Box(
-                Modifier
-                    .fillMaxWidth()
-                    .clip(RoundedCornerShape(14.dp))
-                    .background(Color.White.copy(alpha = 0.05f))
-                    .border(1.dp, Color.White.copy(alpha = 0.18f), RoundedCornerShape(14.dp))
-                    .rayClickable(onClick = { googleSignInLauncher.launch(vm.getGoogleSignInIntent()) })
-                    .padding(vertical = 14.dp),
-                contentAlignment = Alignment.Center
-            ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(Icons.Filled.AccountCircle, null, tint = Color(0xFF22D3EE), modifier = Modifier.size(18.dp))
-                    Spacer(Modifier.width(8.dp))
-                    Text(
-                        if (tr) "Google ile oturum aç" else "Sign in with Google",
-                        color = Color.White,
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 14.sp
-                    )
-                }
-            }
+            BackupTvAccountCard(
+                text = if (tr) "Google ile oturum aç" else "Sign in with Google",
+                icon = Icons.Filled.AccountCircle,
+                iconTint = Color(0xFF22D3EE),
+                onClick = { googleSignInLauncher.launch(vm.getGoogleSignInIntent()) }
+            )
         }
+
 
         Spacer(Modifier.height(16.dp))
 
@@ -1527,8 +1539,9 @@ private val blockedRemoteKeys = setOf(
                 Box(
                     Modifier
                         .widthIn(max = 400.dp)
-                        .clip(RoundedCornerShape(16.dp))
-                        .background(Color(0xFF1E293B))
+                        .clip(RoundedCornerShape(22.dp))
+                        .background(Color(0xFF0F172A).copy(alpha = 0.96f))
+                        .border(1.dp, Color(0xFF34D399).copy(alpha = 0.30f), RoundedCornerShape(22.dp))
                         .padding(20.dp)
                 ) {
                     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -1562,9 +1575,9 @@ private val blockedRemoteKeys = setOf(
                 Box(
                     Modifier
                         .widthIn(max = 360.dp)
-                        .clip(RoundedCornerShape(20.dp))
-                        .background(Color(0xFF1E293B))
-                        .border(1.dp, Color(0xFF00E5FF).copy(alpha = 0.4f), RoundedCornerShape(20.dp))
+                        .clip(RoundedCornerShape(22.dp))
+                        .background(Color(0xFF0F172A).copy(alpha = 0.96f))
+                        .border(1.dp, Color(0xFF34D399).copy(alpha = 0.35f), RoundedCornerShape(22.dp))
                         .padding(24.dp)
                 ) {
                     Column(
@@ -1622,6 +1635,151 @@ private val blockedRemoteKeys = setOf(
             GlassButton(if (tr) "Dosyadan Geri Yükle" else "Restore from File", icon = Icons.Filled.FolderOpen) {
                 openBackup.launch(arrayOf("application/json", "*/*"))
             }
+        }
+    }
+}
+
+@Composable
+private fun BackupTvActionCard(
+    text: String,
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    accentColor: Color,
+    textColor: Color = Color.Black,
+    modifier: Modifier = Modifier,
+    focusRequester: FocusRequester? = null,
+    onClick: () -> Unit
+) {
+    var focused by remember { mutableStateOf(false) }
+    Box(
+        modifier = modifier
+            .fillMaxWidth()
+            .height(50.dp)
+            .then(if (focusRequester != null) Modifier.focusRequester(focusRequester) else Modifier)
+            .onFocusChanged { focused = it.isFocused }
+            .focusable()
+            .clip(RoundedCornerShape(14.dp))
+            .background(if (focused) Color(0xFF22D3EE) else accentColor)
+            .border(
+                if (focused) 2.5.dp else 1.dp,
+                if (focused) Color.White else Color.Transparent,
+                RoundedCornerShape(14.dp)
+            )
+            .rayClickable(onClick = onClick),
+        contentAlignment = Alignment.Center
+    ) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.Center
+        ) {
+            Icon(
+                icon,
+                contentDescription = null,
+                tint = if (focused) Color.Black else textColor,
+                modifier = Modifier.size(22.dp)
+            )
+            Spacer(Modifier.width(10.dp))
+            Text(
+                text,
+                color = if (focused) Color.Black else textColor,
+                fontWeight = FontWeight.Bold,
+                fontSize = 15.sp
+            )
+        }
+    }
+}
+
+@Composable
+private fun BackupTvIntervalCard(
+    label: String,
+    selected: Boolean,
+    onClick: () -> Unit
+) {
+    var focused by remember { mutableStateOf(false) }
+    Box(
+        Modifier
+            .fillMaxWidth()
+            .onFocusChanged { focused = it.isFocused }
+            .focusable()
+            .clip(RoundedCornerShape(14.dp))
+            .background(
+                when {
+                    focused -> Color(0xFF22D3EE).copy(alpha = 0.28f)
+                    selected -> Color(0xFF16382B).copy(alpha = 0.55f)
+                    else -> Color.White.copy(alpha = 0.05f)
+                }
+            )
+            .border(
+                when {
+                    focused -> 2.dp
+                    selected -> 1.5.dp
+                    else -> 1.dp
+                },
+                when {
+                    focused -> Color(0xFF00E5FF)
+                    selected -> Color(0xFF22D3EE)
+                    else -> Color(0xFF4ADE80).copy(alpha = 0.16f)
+                },
+                RoundedCornerShape(14.dp)
+            )
+            .rayClickable(onClick = onClick)
+            .padding(horizontal = 16.dp, vertical = 14.dp)
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Icon(
+                imageVector = if (selected) Icons.Filled.RadioButtonChecked else Icons.Filled.RadioButtonUnchecked,
+                contentDescription = null,
+                tint = if (focused || selected) Color(0xFF22D3EE) else Color.White.copy(alpha = 0.5f),
+                modifier = Modifier.size(20.dp)
+            )
+            Spacer(Modifier.width(12.dp))
+            Text(
+                label,
+                color = if (focused) Color(0xFF00E5FF) else Color.White,
+                fontWeight = if (selected || focused) FontWeight.Bold else FontWeight.Medium,
+                fontSize = 14.sp
+            )
+        }
+    }
+}
+
+@Composable
+private fun BackupTvAccountCard(
+    text: String,
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    iconTint: Color,
+    onClick: () -> Unit
+) {
+    var focused by remember { mutableStateOf(false) }
+    Box(
+        Modifier
+            .fillMaxWidth()
+            .onFocusChanged { focused = it.isFocused }
+            .focusable()
+            .clip(RoundedCornerShape(14.dp))
+            .background(
+                if (focused) Color.White.copy(alpha = 0.18f) else Color.White.copy(alpha = 0.06f)
+            )
+            .border(
+                if (focused) 2.dp else 1.dp,
+                if (focused) Color(0xFF22D3EE) else Color.White.copy(alpha = 0.15f),
+                RoundedCornerShape(14.dp)
+            )
+            .rayClickable(onClick = onClick)
+            .padding(vertical = 14.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        Row(
+            horizontalArrangement = Arrangement.Center,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Icon(icon, null, tint = if (focused) Color(0xFF22D3EE) else iconTint, modifier = Modifier.size(20.dp))
+            Spacer(Modifier.width(8.dp))
+            Text(
+                text,
+                color = if (focused) Color(0xFF22D3EE) else Color.White,
+                fontWeight = FontWeight.Bold,
+                fontSize = 14.sp
+            )
         }
     }
 }
@@ -1757,14 +1915,25 @@ private fun CloudBackupSummaryDialog(
     onDismiss: () -> Unit,
     onConfirm: () -> Unit
 ) {
-    val cyan = Color(0xFF00E5FF)
-    Dialog(onDismissRequest = onDismiss) {
+    val cyan = Color(0xFF22D3EE)
+    val emerald = Color(0xFF34D399)
+    val initialFocus = remember { FocusRequester() }
+    LaunchedEffect(Unit) {
+        delay(150)
+        try { initialFocus.requestFocus() } catch (_: Exception) {}
+    }
+
+    Dialog(
+        onDismissRequest = onDismiss,
+        properties = androidx.compose.ui.window.DialogProperties(usePlatformDefaultWidth = false)
+    ) {
+        androidx.activity.compose.BackHandler { onDismiss() }
         Box(
             Modifier
-                .widthIn(max = 460.dp)
-                .clip(RoundedCornerShape(20.dp))
-                .background(Color(0xFF0F172A))
-                .border(1.dp, cyan.copy(alpha = 0.35f), RoundedCornerShape(20.dp))
+                .width(460.dp)
+                .clip(RoundedCornerShape(22.dp))
+                .background(Color(0xFF0E281F).copy(alpha = 0.96f))
+                .border(1.dp, emerald.copy(alpha = 0.35f), RoundedCornerShape(22.dp))
                 .padding(20.dp)
         ) {
             Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
@@ -1848,7 +2017,7 @@ private fun CloudBackupSummaryDialog(
                     horizontalArrangement = Arrangement.spacedBy(10.dp, Alignment.End)
                 ) {
                     GlassButton(if (tr) "Vazgeç" else "Cancel") { onDismiss() }
-                    GlassButton(if (tr) "Yedeklemeyi Başlat" else "Start Backup", primary = true) {
+                    GlassButton(if (tr) "Yedeklemeyi Başlat" else "Start Backup", primary = true, focusRequester = initialFocus) {
                         onConfirm()
                     }
                 }
@@ -1865,14 +2034,25 @@ private fun CloudRestoreSummaryDialog(
     onDismiss: () -> Unit,
     onConfirm: () -> Unit
 ) {
-    val cyan = Color(0xFF00E5FF)
-    Dialog(onDismissRequest = onDismiss) {
+    val cyan = Color(0xFF22D3EE)
+    val emerald = Color(0xFF34D399)
+    val initialFocus = remember { FocusRequester() }
+    LaunchedEffect(Unit) {
+        delay(150)
+        try { initialFocus.requestFocus() } catch (_: Exception) {}
+    }
+
+    Dialog(
+        onDismissRequest = onDismiss,
+        properties = androidx.compose.ui.window.DialogProperties(usePlatformDefaultWidth = false)
+    ) {
+        androidx.activity.compose.BackHandler { onDismiss() }
         Box(
             Modifier
-                .widthIn(max = 460.dp)
-                .clip(RoundedCornerShape(20.dp))
-                .background(Color(0xFF0F172A))
-                .border(1.dp, cyan.copy(alpha = 0.35f), RoundedCornerShape(20.dp))
+                .width(460.dp)
+                .clip(RoundedCornerShape(22.dp))
+                .background(Color(0xFF0E281F).copy(alpha = 0.96f))
+                .border(1.dp, emerald.copy(alpha = 0.35f), RoundedCornerShape(22.dp))
                 .padding(20.dp)
         ) {
             Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
@@ -1951,7 +2131,7 @@ private fun CloudRestoreSummaryDialog(
                     horizontalArrangement = Arrangement.spacedBy(10.dp, Alignment.End)
                 ) {
                     GlassButton(if (tr) "Vazgeç" else "Cancel") { onDismiss() }
-                    GlassButton(if (tr) "Geri Yüklemeyi Başlat" else "Start Restore", primary = true) {
+                    GlassButton(if (tr) "Geri Yüklemeyi Başlat" else "Start Restore", primary = true, focusRequester = initialFocus) {
                         onConfirm()
                     }
                 }
@@ -1959,6 +2139,7 @@ private fun CloudRestoreSummaryDialog(
         }
     }
 }
+
 
 @Composable
 private fun BackupSummaryRow(icon: ImageVector, label: String, detail: String) {

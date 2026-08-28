@@ -170,13 +170,7 @@ fun MobileVodWatchScreen(
                     .rayClickable(onClick = onBack)
                     .padding(6.dp)
             )
-            if (playback.poster.isNotBlank()) {
-                AsyncImage(
-                    playback.poster, null,
-                    Modifier.align(Alignment.TopEnd).padding(10.dp).size(42.dp).clip(RoundedCornerShape(8.dp)),
-                    contentScale = ContentScale.Fit
-                )
-            }
+            // poster removed from portrait player overlay
             if (showSkip) {
                 Box(
                     Modifier

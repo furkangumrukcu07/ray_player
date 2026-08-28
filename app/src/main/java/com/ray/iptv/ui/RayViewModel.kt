@@ -3,8 +3,11 @@ package com.ray.iptv.ui
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
+import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import kotlinx.coroutines.withTimeoutOrNull
+
 import com.ray.iptv.data.catalog.SeriesNameGrouping
 import com.ray.iptv.data.local.CategoryEntity
 import com.ray.iptv.data.local.ChannelEntity
@@ -26,6 +29,7 @@ import com.ray.iptv.player.SubtitleLanguages
 import com.ray.iptv.player.XtreamStreamUrls
 import com.ray.iptv.data.remote.XtreamAccountSnapshot
 import com.ray.iptv.data.parser.M3uXtreamSniffer
+import com.ray.iptv.net.PlaylistHttp
 import com.ray.iptv.data.account.AccountRepository
 import com.ray.iptv.data.account.AccountSession
 import com.ray.iptv.data.account.GoogleAuthClient
@@ -72,6 +76,7 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.stateIn
@@ -102,7 +107,9 @@ class RayViewModel @Inject constructor(
     private val accounts: AccountRepository,
     private val googleAuth: GoogleAuthClient,
     val firebaseService: com.ray.iptv.data.firebase.FirebaseService,
-    val openSubtitles: com.ray.iptv.data.meta.OpenSubtitlesService
+    val openSubtitles: com.ray.iptv.data.meta.OpenSubtitlesService,
+    val speedTestService: com.ray.iptv.net.SpeedTestService,
+    val dataUsageService: com.ray.iptv.net.DataUsageService
 ) : ViewModel() {
 
     private val settingsHydrated = MutableStateFlow(false)
@@ -120,7 +127,7 @@ class RayViewModel @Inject constructor(
     val sources = catalog.sources()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
-    val dest = MutableStateFlow(Dest.CONTINUE)
+    val dest = MutableStateFlow(Dest.LIVE)
     val overlay = MutableStateFlow(Overlay.NONE)
     val playback = MutableStateFlow<Playback?>(null)
     val pendingNext = MutableStateFlow<NextUpPrompt?>(null)
@@ -133,6 +140,8 @@ class RayViewModel @Inject constructor(
     private var previewJob: Job? = null
     private val vodOpenGen = AtomicInteger(0)
     private var liveHoverJob: Job? = null
+    private var zapRelativeJob: Job? = null
+    private var pendingZapIndex: Int = -1
     private var guideSlotsJob: Job? = null
     private var lastGuideChunk: List<String> = emptyList()
     val resumePrompt = MutableStateFlow<Pair<VodEntity, ProgressEntity>?>(null)
@@ -230,7 +239,8 @@ class RayViewModel @Inject constructor(
                 s.combineM3u -> catalog.liveVisibleCount("", true)
                 else -> catalog.liveVisibleCount(src.id, false)
             }
-        }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), 0)
+        }.flowOn(Dispatchers.Default)
+        .stateIn(viewModelScope, SharingStarted.Eagerly, 0)
 
     val liveCounts = combine(activeSource, settings) { src, s -> src to s }
         .flatMapLatest { (src, s) ->
@@ -240,7 +250,8 @@ class RayViewModel @Inject constructor(
                 else -> catalog.liveCounts(src.id, false)
             }
         }.map { rows -> rows.associate { row -> row.categoryId to row.total } }
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyMap())
+        .flowOn(Dispatchers.Default)
+        .stateIn(viewModelScope, SharingStarted.Eagerly, emptyMap())
 
     val favorites = activeProfile.flatMapLatest { p ->
         if (p == null) flowOf(emptyList()) else catalog.favorites(p.id)
@@ -279,7 +290,8 @@ class RayViewModel @Inject constructor(
                 s.combineM3u -> catalog.vodKindCount("", "MOVIE", true)
                 else -> catalog.vodKindCount(src.id, "MOVIE", false)
             }
-        }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), 0)
+        }.flowOn(Dispatchers.Default)
+        .stateIn(viewModelScope, SharingStarted.Eagerly, 0)
 
     val movieCounts = combine(activeSource, settings) { src, s -> src to s }
         .flatMapLatest { (src, s) ->
@@ -289,7 +301,8 @@ class RayViewModel @Inject constructor(
                 else -> catalog.vodCounts(src.id, "MOVIE", false)
             }
         }.map { rows -> rows.associate { row -> row.categoryId to row.total } }
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyMap())
+        .flowOn(Dispatchers.Default)
+        .stateIn(viewModelScope, SharingStarted.Eagerly, emptyMap())
 
     val series = combine(activeSource, settings, seriesCategoryId, seriesLimit) { src, s, cat, limit ->
         Triple(src to s.combineM3u, cat, limit)
@@ -329,7 +342,8 @@ class RayViewModel @Inject constructor(
                 s.combineM3u -> catalog.vodKindCount("", "SERIES", true)
                 else -> catalog.vodKindCount(src.id, "SERIES", false)
             }
-        }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), 0)
+        }.flowOn(Dispatchers.Default)
+        .stateIn(viewModelScope, SharingStarted.Eagerly, 0)
 
     val seriesCounts = combine(activeSource, settings) { src, s -> src to s }
         .flatMapLatest { (src, s) ->
@@ -339,7 +353,8 @@ class RayViewModel @Inject constructor(
                 else -> catalog.vodCounts(src.id, "SERIES", false)
             }
         }.map { rows -> rows.associate { row -> row.categoryId to row.total } }
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyMap())
+        .flowOn(Dispatchers.Default)
+        .stateIn(viewModelScope, SharingStarted.Eagerly, emptyMap())
 
     val continueWatching = combine(
         activeProfile.flatMapLatest { p ->
@@ -415,8 +430,8 @@ class RayViewModel @Inject constructor(
                     railExpanded.value = false
                     seriesPhase.value = LiveBrowsePhase.CATEGORIES
                 }
-                Dest.PLAYLISTS -> railExpanded.value = false
-                Dest.CONTINUE, Dest.SETTINGS, Dest.WRAPPED, Dest.EPG_MIX, Dest.CHAT, Dest.ADMIN -> railExpanded.value = true
+                Dest.PLAYLISTS, Dest.SETTINGS -> railExpanded.value = false
+                Dest.CONTINUE, Dest.WRAPPED, Dest.EPG_MIX, Dest.CHAT, Dest.ADMIN -> railExpanded.value = true
                 Dest.PLAYER -> Unit
             }
             if (s.startup == StartupScreen.GUIDE) overlay.value = Overlay.GUIDE
@@ -438,6 +453,63 @@ class RayViewModel @Inject constructor(
                 maybeCleanImages(it)
             }
         }
+        viewModelScope.launch {
+            accounts.session.collect { sess ->
+                val authUser = com.google.firebase.auth.FirebaseAuth.getInstance().currentUser
+                val uid = when {
+                    sess.uid.isNotBlank() -> sess.uid
+                    authUser?.uid != null -> authUser.uid
+                    else -> {
+                        val androidId = try {
+                            android.provider.Settings.Secure.getString(app.contentResolver, android.provider.Settings.Secure.ANDROID_ID).orEmpty().take(12)
+                        } catch (_: Exception) { "" }
+                        if (androidId.isNotBlank()) "dev-$androidId" else "user-${sess.email.hashCode().toString().take(8)}"
+                    }
+                }
+                val email = sess.email.ifBlank { authUser?.email.orEmpty() }
+                val displayName = sess.displayName.ifBlank { authUser?.displayName.orEmpty() }
+                val photoUrl = sess.photoUrl.ifBlank { authUser?.photoUrl?.toString().orEmpty() }
+                val isSigned = sess.signedIn || email.isNotBlank() || (authUser != null && !authUser.isAnonymous)
+
+                firebaseService.syncUserProfile(
+                    uid = uid,
+                    email = email,
+                    displayName = displayName,
+                    photoUrl = photoUrl,
+                    isPremium = sess.isPremium,
+                    isAnonymous = !isSigned,
+                    licenseCode = sess.licenseCode
+                )
+            }
+        }
+        viewModelScope.launch {
+            while (isActive) {
+                val sess = account.value
+                val authUser = com.google.firebase.auth.FirebaseAuth.getInstance().currentUser
+                val uid = when {
+                    sess.uid.isNotBlank() -> sess.uid
+                    authUser?.uid != null -> authUser.uid
+                    else -> {
+                        val androidId = try {
+                            android.provider.Settings.Secure.getString(app.contentResolver, android.provider.Settings.Secure.ANDROID_ID).orEmpty().take(12)
+                        } catch (_: Exception) { "" }
+                        if (androidId.isNotBlank()) "dev-$androidId" else "user-${sess.email.hashCode().toString().take(8)}"
+                    }
+                }
+                val email = sess.email.ifBlank { authUser?.email.orEmpty() }
+                val name = sess.displayName.ifBlank { authUser?.displayName.orEmpty() }
+                val photoUrl = sess.photoUrl.ifBlank { authUser?.photoUrl?.toString().orEmpty() }
+
+                firebaseService.syncPresence(
+                    uid = uid,
+                    name = name,
+                    email = email,
+                    photoUrl = photoUrl
+                )
+                delay(45_000L)
+            }
+        }
+
         viewModelScope.launch {
             var handledEnded = false
             player.state.collect { st ->
@@ -483,12 +555,15 @@ class RayViewModel @Inject constructor(
         }
     }
 
+    val contentFocusTrigger = MutableStateFlow(0L)
+
     fun go(d: Dest) {
         if (dest.value == Dest.PLAYER && d != Dest.PLAYER && !settings.value.backgroundPlayback) {
             player.pause()
         }
         overlay.value = Overlay.NONE
         dest.value = d
+        contentFocusTrigger.value = System.currentTimeMillis()
         when (d) {
             Dest.LIVE -> {
                 railExpanded.value = false
@@ -586,6 +661,8 @@ class RayViewModel @Inject constructor(
         }
     }
 
+    var syncToCloudOnComplete = false
+
     fun acceptDisclaimer() = viewModelScope.launch { settingsRepo.acceptDisclaimer() }
 
     fun completeSetup() = viewModelScope.launch {
@@ -595,7 +672,13 @@ class RayViewModel @Inject constructor(
         }
         settingsRepo.acceptDisclaimer()
         settingsRepo.setOnboarded(true)
+
+        if (syncToCloudOnComplete && account.value.signedIn) {
+            syncToCloudOnComplete = false
+            backupToCloud()
+        }
     }
+
 
     fun restartSetup() {
         viewModelScope.launch { settingsRepo.setOnboarded(false) }
@@ -636,17 +719,24 @@ class RayViewModel @Inject constructor(
                 catalog.syncSource(id)
             }
             toast.value = playlistSavedMsg()
+            triggerAutoCloudBackupIfSignedIn()
         }.onFailure { failCatalogLoad(it) }
     }
 
     fun addM3u(name: String, url: String) = saveM3u(null, name, url)
 
     fun saveM3u(existingId: String?, name: String, url: String) = viewModelScope.launch {
+        val trimmed = PlaylistHttp.normalizeUrl(url)
+        if (trimmed.isBlank()) {
+            val tr = settings.value.lang == AppLang.TR
+            toast.value = if (tr) "Lütfen geçerli bir URL girin" else "Please enter a valid URL"
+            return@launch
+        }
         catalog.beginCatalogSync()
         runCatching {
             withContext(Dispatchers.IO) {
-                M3uXtreamSniffer.liveFormatHint(url)?.let { settingsRepo.applyAutoDetectedLiveStreamFormat(it) }
-                val id = catalog.addM3u(name, url, existingId)
+                M3uXtreamSniffer.liveFormatHint(trimmed)?.let { settingsRepo.applyAutoDetectedLiveStreamFormat(it) }
+                val id = catalog.addM3u(name, trimmed, existingId)
                 catalog.source(id)?.baseUrl?.let { resolved ->
                     M3uXtreamSniffer.liveFormatHint(resolved)?.let { settingsRepo.applyAutoDetectedLiveStreamFormat(it) }
                 }
@@ -656,6 +746,7 @@ class RayViewModel @Inject constructor(
                 if (src?.kind != "XTREAM") catalog.syncSource(id)
             }
             toast.value = playlistSavedMsg()
+            triggerAutoCloudBackupIfSignedIn()
         }.onFailure { failCatalogLoad(it) }
     }
 
@@ -671,8 +762,10 @@ class RayViewModel @Inject constructor(
                 catalog.syncSource(id)
             }
             toast.value = playlistSavedMsg()
+            triggerAutoCloudBackupIfSignedIn()
         }.onFailure { failCatalogLoad(it) }
     }
+
 
     fun addStalker(name: String, portal: String, mac: String) = saveStalker(null, name, portal, mac)
 
@@ -866,6 +959,7 @@ class RayViewModel @Inject constructor(
 
     private fun actuallyPlayChannel(ch: ChannelEntity) {
         liveHoverJob?.cancel()
+        browsePreviewUrl.value = ""
         viewModelScope.launch {
             val url = catalog.resolvePlayUrl(ch)
             val p = Playback(
@@ -998,6 +1092,7 @@ class RayViewModel @Inject constructor(
     fun openMovie(item: VodEntity, fromHome: Boolean = false) {
         val gen = vodOpenGen.incrementAndGet()
         previewJob?.cancel()
+        if (item.categoryId.isNotBlank()) movieCategoryId.value = item.categoryId
         selectedMovie.value = item
         selectedSeries.value = null
         episodes.value = emptyList()
@@ -1005,13 +1100,17 @@ class RayViewModel @Inject constructor(
         vodExtras.value = vodMeta.seed(item, settings.value)
         vodMetaLoading.value = true
         moviePhase.value = LiveBrowsePhase.CONTENT
-        if (fromHome) railExpanded.value = false
+        if (fromHome) {
+            railExpanded.value = false
+            dest.value = Dest.MOVIES
+        }
         viewModelScope.launch { finishVodMeta(item, gen, series = false) }
     }
     fun openSeries(item: VodEntity, fromHome: Boolean = false) {
         if (hidingAdult() && Parental.isAnyAdult(item.name, item.categoryName, item.genre)) return
         val gen = vodOpenGen.incrementAndGet()
         previewJob?.cancel()
+        if (item.categoryId.isNotBlank()) seriesCategoryId.value = item.categoryId
         selectedSeries.value = item
         selectedMovie.value = null
         episodes.value = emptyList()
@@ -1019,7 +1118,10 @@ class RayViewModel @Inject constructor(
         vodExtras.value = vodMeta.seed(item, settings.value)
         vodMetaLoading.value = true
         seriesPhase.value = LiveBrowsePhase.CONTENT
-        if (fromHome) railExpanded.value = false
+        if (fromHome) {
+            railExpanded.value = false
+            dest.value = Dest.SERIES
+        }
         viewModelScope.launch {
             val cached = withContext(Dispatchers.IO) { catalog.listEpisodes(item.id) }
             if (gen != vodOpenGen.get() || selectedSeries.value?.id != item.id) return@launch
@@ -1089,6 +1191,8 @@ class RayViewModel @Inject constructor(
             backdrop = xtream.backdrop.ifBlank { xtream.poster }.ifBlank { cur.backdrop }.ifBlank { item.poster },
             runtime = xtream.runtime.ifBlank { cur.runtime },
             cast = xtream.cast.ifBlank { cur.cast },
+            director = xtream.director.ifBlank { cur.director },
+            country = xtream.country.ifBlank { cur.country },
             people = if (cur.people.isEmpty() && xtream.cast.isNotBlank()) {
                 xtream.cast.split(',', ';', '|').map { it.trim() }.filter { it.isNotBlank() }.map { com.ray.iptv.data.meta.CastPerson(it, "") }
             } else cur.people,
@@ -1208,19 +1312,21 @@ class RayViewModel @Inject constructor(
     fun pickSearchLive(ch: ChannelEntity) {
         recordSearchQuery()
         closeOverlay()
+        if (ch.categoryId.isNotBlank()) liveCategoryId.value = ch.categoryId
+        dest.value = Dest.LIVE
         playChannel(ch)
     }
 
     fun pickSearchMovie(item: VodEntity) {
         recordSearchQuery()
-        openMovie(item, fromHome = true)
         closeOverlay()
+        openMovie(item, fromHome = true)
     }
 
     fun pickSearchSeries(item: VodEntity) {
         recordSearchQuery()
-        openSeries(item, fromHome = true)
         closeOverlay()
+        openSeries(item, fromHome = true)
     }
 
     fun toggleFav(mediaId: String, kind: String, on: Boolean = true) = viewModelScope.launch {
@@ -1290,8 +1396,9 @@ class RayViewModel @Inject constructor(
     fun setAppFontKey(v: String) = viewModelScope.launch { settingsRepo.setAppFontKey(v) }
     fun setLayoutMode(v: LayoutMode) = viewModelScope.launch {
         settingsRepo.setLayoutMode(v)
-        if (v == LayoutMode.MOBILE && dest.value != Dest.PLAYER) dest.value = Dest.CONTINUE
+        if ((v == LayoutMode.MOBILE || v == LayoutMode.TABLET) && dest.value != Dest.PLAYER) dest.value = Dest.CONTINUE
     }
+
 
     fun cycleAspect() {
         setAspect(
@@ -1460,10 +1567,14 @@ class RayViewModel @Inject constructor(
         if (matchesOnly) {
             val rows = catalog.epgUpcomingRange(now - 3600_000L, now + 12L * 3600_000)
             if (rows.isEmpty()) return emptyList()
-            val chans = catalog.channelsByIds(rows.map { it.channelId }.distinct()).associateBy { it.id }
+            val rawKeys = rows.map { it.channelId }.distinct()
+            val chans = catalog.channelsByAnyKeys(rawKeys)
+            val byId = chans.associateBy { it.id }
+            val byRemote = chans.filter { it.remoteId.isNotBlank() }.associateBy { it.remoteId }
+            val byEpg = chans.filter { it.epgId.isNotBlank() }.associateBy { it.epgId }
             val chips = rows.mapNotNull { p ->
                 if (p.endMs <= now) return@mapNotNull null
-                val ch = chans[p.channelId] ?: return@mapNotNull null
+                val ch = byId[p.channelId] ?: byRemote[p.channelId] ?: byEpg[p.channelId] ?: return@mapNotNull null
                 val sport = classifyEpgMix(p.title, ch.name, ch.categoryName) == EpgMixKind.SPORT ||
                     isSportProgramme(p.title, ch.categoryName, ch.name)
                 if (!sport) return@mapNotNull null
@@ -1477,15 +1588,21 @@ class RayViewModel @Inject constructor(
         }
         val until = now + 8L * 3600_000
         val rows = catalog.epgUpcomingRange(now, until)
-        if (rows.isEmpty()) return emptyList()
-        val chans = catalog.channelsByIds(rows.map { it.channelId }.distinct()).associateBy { it.id }
-        val byCh = rows.groupBy { it.channelId }
+        val rawKeys = rows.map { it.channelId }.distinct()
+        val chans = catalog.channelsByAnyKeys(rawKeys)
+        val byId = chans.associateBy { it.id }
+        val byRemote = chans.filter { it.remoteId.isNotBlank() }.associateBy { it.remoteId }
+        val byEpg = chans.filter { it.epgId.isNotBlank() }.associateBy { it.epgId }
+        val byCh = rows.groupBy { p ->
+            val ch = byId[p.channelId] ?: byRemote[p.channelId] ?: byEpg[p.channelId]
+            ch?.id ?: p.channelId
+        }
         val favIds = favorites.value.filter { it.kind == "LIVE" }.map { it.mediaId }
         val favSet = favIds.toHashSet()
         val orderedIds = (favIds.filter { it in byCh } + byCh.keys.filter { it !in favSet }).distinct()
-        val chips = ArrayList<ShowcaseEpgChip>(12)
+        val chips = ArrayList<ShowcaseEpgChip>(16)
         for (id in orderedIds) {
-            val ch = chans[id] ?: continue
+            val ch = byId[id] ?: catalog.channel(id) ?: continue
             val ordered = byCh[id]?.sortedBy { it.startMs }.orEmpty()
             val live = ordered.firstOrNull { it.startMs <= now && it.endMs > now }
             val next = ordered.firstOrNull { it.startMs > now }
@@ -1493,7 +1610,7 @@ class RayViewModel @Inject constructor(
             chips += ShowcaseEpgChip(
                 ch.id, ch.name, ch.logo, prog.title, prog.startMs, prog.endMs, next == null
             )
-            if (chips.size >= 12) break
+            if (chips.size >= 14) break
         }
         if (chips.size < 10) {
             val have = chips.map { it.channelId }.toHashSet()
@@ -1509,7 +1626,7 @@ class RayViewModel @Inject constructor(
                 if (chips.size >= 12) break
             }
         }
-        return chips.sortedBy { it.startMs }.take(10)
+        return chips.sortedBy { it.startMs }.take(12)
     }
 
     private fun armSleepTimer(untilMs: Long) {
@@ -1889,10 +2006,31 @@ class RayViewModel @Inject constructor(
         val pb = playback.value ?: return
         if (pb.kind != "LIVE") return
         val list = liveChannels.value
-        val idx = list.indexOfFirst { it.id == pb.mediaId }
-        if (idx < 0) return
-        val next = list.getOrNull(idx + if (settings.value.zapInvert) -delta else delta) ?: return
-        playChannel(next)
+        if (list.isEmpty()) return
+        val baseIdx = if (pendingZapIndex in list.indices) pendingZapIndex else list.indexOfFirst { it.id == pb.mediaId }
+        if (baseIdx < 0) return
+        val step = if (settings.value.zapInvert) -delta else delta
+        val targetIdx = (baseIdx + step).coerceIn(0, list.lastIndex)
+        if (targetIdx == baseIdx && pendingZapIndex == targetIdx) return
+        pendingZapIndex = targetIdx
+        val next = list[targetIdx]
+        
+        // Update OSD title/poster immediately so UI feels instantaneous
+        playback.value = pb.copy(
+            title = next.name,
+            subtitle = next.categoryName,
+            poster = next.logo,
+            mediaId = next.id,
+            channelNumber = next.number
+        )
+        refreshNowNext(next.id)
+        
+        zapRelativeJob?.cancel()
+        zapRelativeJob = viewModelScope.launch {
+            delay(180)
+            pendingZapIndex = -1
+            actuallyPlayChannel(next)
+        }
     }
 
     fun resumeItem(item: ProgressEntity) {
@@ -2013,14 +2151,18 @@ class RayViewModel @Inject constructor(
     }
 
     val lastCloudBackupTime = MutableStateFlow<Long?>(null)
+    val cloudBackupSummary = MutableStateFlow<com.ray.iptv.data.firebase.CloudBackupSummary?>(null)
     val isCloudBusy = MutableStateFlow(false)
     val cloudProgressMsg = MutableStateFlow("")
 
     fun refreshCloudBackupTime() = viewModelScope.launch {
         val uid = account.value.uid.ifBlank { null } ?: return@launch
-        lastCloudBackupTime.value = withContext(Dispatchers.IO) { firebaseService.getCloudBackupTimestamp(uid) }
+        val summary = withContext(Dispatchers.IO) { firebaseService.getCloudBackupSummary(uid) }
+        cloudBackupSummary.value = summary
+        lastCloudBackupTime.value = summary?.updatedAt
         checkAutoBackup()
     }
+
 
     fun setAutoBackupInterval(v: com.ray.iptv.data.repo.AutoBackupInterval) = viewModelScope.launch {
         settingsRepo.setAutoBackupInterval(v)
@@ -2031,6 +2173,7 @@ class RayViewModel @Inject constructor(
         val s = account.value
         val interval = settings.value.autoBackupInterval
         if (!s.signedIn || s.uid.isBlank() || interval == com.ray.iptv.data.repo.AutoBackupInterval.OFF) return@launch
+        if (sources.value.isEmpty()) return@launch
         val last = settings.value.lastAutoBackupTime
         val now = System.currentTimeMillis()
         val requiredIntervalMs = interval.days * 86_400_000L
@@ -2040,6 +2183,182 @@ class RayViewModel @Inject constructor(
             res.onSuccess { time ->
                 settingsRepo.setLastAutoBackupTime(now)
                 lastCloudBackupTime.value = time
+            }
+        }
+    }
+
+
+    fun deleteCloudData() = viewModelScope.launch {
+        val s = account.value
+        val tr = settings.value.lang == AppLang.TR
+        if (!s.signedIn || s.uid.isBlank()) return@launch
+        isCloudBusy.value = true
+        cloudProgressMsg.value = if (tr) "Bulut verisi siliniyor..." else "Deleting cloud data..."
+        try {
+            val res = withContext(Dispatchers.IO) { firebaseService.deleteCloudData(s.uid) }
+            res.onSuccess {
+                lastCloudBackupTime.value = null
+                cloudBackupSummary.value = null
+                toast.value = if (tr) "Buluttaki yedek verisi silindi" else "Cloud backup data deleted"
+            }.onFailure {
+                toast.value = if (tr) "Bulut verisi silinemedi" else "Failed to delete cloud data"
+            }
+        } finally {
+            isCloudBusy.value = false
+            cloudProgressMsg.value = ""
+        }
+    }
+
+    fun deleteAccount() = viewModelScope.launch {
+        val tr = settings.value.lang == AppLang.TR
+        isCloudBusy.value = true
+        cloudProgressMsg.value = if (tr) "Hesap ve bulut verisi siliniyor..." else "Deleting account and cloud data..."
+        try {
+            val res = withContext(Dispatchers.IO) { firebaseService.deleteAccount() }
+            res.onSuccess {
+                googleAuth.signOut()
+                lastCloudBackupTime.value = null
+                cloudBackupSummary.value = null
+                toast.value = if (tr) "Hesap başarıyla silindi" else "Account successfully deleted"
+            }.onFailure {
+                toast.value = if (tr) "Hesap silinemedi" else "Failed to delete account"
+            }
+        } finally {
+            isCloudBusy.value = false
+            cloudProgressMsg.value = ""
+        }
+    }
+
+
+
+    // Speed Test
+    val speedTestState = speedTestService.state
+    fun startSpeedTest() = viewModelScope.launch {
+        speedTestService.startTest(activeSource.value?.baseUrl)
+    }
+    fun stopSpeedTest() = speedTestService.stopTest()
+
+    // Data Usage
+    val dataUsageState = dataUsageService.state
+    fun toggleDataSaver(enabled: Boolean) = dataUsageService.toggleDataSaver(enabled)
+    fun resetDataUsage() = dataUsageService.resetStats()
+
+    // Cloud Restore Diff & Preview
+    val pendingCloudBackup = MutableStateFlow<com.ray.iptv.data.repo.BackupFile?>(null)
+    val pendingCloudJson = MutableStateFlow<String?>(null)
+
+    fun fetchCloudBackupForPreview() = viewModelScope.launch {
+        val s = account.value
+        if (!s.signedIn || s.uid.isBlank()) return@launch
+        isCloudBusy.value = true
+        cloudProgressMsg.value = "Bulut yedeği indiriliyor..."
+        val res = withContext(Dispatchers.IO) { firebaseService.restoreFromCloud(s.uid) }
+        isCloudBusy.value = false
+        res.onSuccess { jsonStr ->
+            runCatching {
+                val parsed = backup.parseBackup(jsonStr)
+                pendingCloudJson.value = jsonStr
+                pendingCloudBackup.value = parsed
+            }.onFailure {
+                toast.value = "Yedek formatı okunamadı"
+            }
+        }.onFailure {
+            toast.value = "Bulut yedeği bulunamadı"
+        }
+    }
+
+    fun applyCloudRestore(overwrite: Boolean) = viewModelScope.launch {
+        val jsonStr = pendingCloudJson.value ?: return@launch
+        isCloudBusy.value = true
+        cloudProgressMsg.value = if (overwrite) "Üzerine yazılıyor..." else "Birleştiriliyor..."
+        runCatching {
+            withContext(Dispatchers.IO) { backup.importJsonWithMode(jsonStr, overwrite) }
+        }.onSuccess {
+            toast.value = if (overwrite) "Yedek tamamen yüklendi" else "Yedek başarıyla birleştirildi"
+            pendingCloudBackup.value = null
+            pendingCloudJson.value = null
+        }.onFailure {
+            toast.value = it.message.orEmpty()
+        }
+        isCloudBusy.value = false
+    }
+
+    fun dismissCloudRestorePreview() {
+        pendingCloudBackup.value = null
+        pendingCloudJson.value = null
+    }
+
+    suspend fun fetchCloudBackupData(): Pair<com.ray.iptv.data.repo.BackupFile, String>? {
+        val s = runCatching {
+            withTimeoutOrNull(4000) {
+                accounts.session.first { it.signedIn && it.uid.isNotBlank() }
+            }
+        }.getOrNull() ?: account.value
+
+        val firebaseUid = com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.uid
+        val targetUid = when {
+            s.signedIn && s.uid.isNotBlank() -> s.uid
+            !firebaseUid.isNullOrBlank() -> firebaseUid
+            else -> ""
+        }
+        if (targetUid.isBlank()) return null
+        return withContext(Dispatchers.IO) {
+            val res = firebaseService.restoreFromCloud(targetUid)
+            res.getOrNull()?.let { jsonStr ->
+                runCatching {
+                    val parsed = backup.parseBackup(jsonStr)
+                    Pair(parsed, jsonStr)
+                }.getOrNull()
+            }
+        }
+    }
+
+    suspend fun restoreOnboardingCloud(
+        jsonStr: String,
+        onProgress: (String) -> Unit
+    ): Boolean {
+        val tr = settings.value.lang == AppLang.TR
+        return try {
+            onProgress(if (tr) "1/3 Ayarlar ve profiller yükleniyor..." else "1/3 Restoring settings & profiles...")
+            withContext(Dispatchers.IO) {
+                backup.importJsonWithMode(jsonStr, overwrite = true)
+            }
+            onProgress(if (tr) "2/3 Oynatma listeleri ve kanallar aktarılıyor..." else "2/3 Importing playlists and channels...")
+            refresh()
+            delay(600)
+            onProgress(if (tr) "3/3 Katalog senkronize ediliyor..." else "3/3 Syncing catalog...")
+            val sourceList = sources.value
+            if (sourceList.isNotEmpty()) {
+                val active = sourceList.firstOrNull { it.id == settings.value.activeSourceId } ?: sourceList.first()
+                selectSource(active.id)
+            }
+
+            delay(1000)
+            catalog.acknowledgeSync()
+            onProgress(if (tr) "✓ Kurulum ve geri yükleme başarıyla tamamlandı!" else "✓ Setup and restore completed successfully!")
+            delay(800)
+            true
+        } catch (e: Exception) {
+            toast.value = e.message ?: "Geri yükleme hatası"
+            false
+        }
+    }
+
+    fun triggerAutoCloudBackupIfSignedIn() {
+        viewModelScope.launch {
+            val s = runCatching {
+                withTimeoutOrNull(2000) { accounts.session.first { it.signedIn && it.uid.isNotBlank() } }
+            }.getOrNull() ?: account.value
+            val firebaseUid = com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.uid
+            val targetUid = if (s.signedIn && s.uid.isNotBlank()) s.uid else firebaseUid.orEmpty()
+            if (targetUid.isNotBlank()) {
+                try {
+                    val jsonStr = withContext(Dispatchers.IO) { backup.exportJson() }
+                    withContext(Dispatchers.IO) { firebaseService.backupToCloud(targetUid, jsonStr) }
+                    Log.d("RayViewModel", "Auto cloud backup finished successfully")
+                } catch (e: Exception) {
+                    Log.w("RayViewModel", "Auto cloud backup failed: ${e.message}")
+                }
             }
         }
     }
@@ -2094,9 +2413,13 @@ class RayViewModel @Inject constructor(
     }
 
     fun backupToCloud() = viewModelScope.launch {
-        val s = account.value
+        val s = runCatching {
+            withTimeoutOrNull(2000) { accounts.session.first { it.signedIn && it.uid.isNotBlank() } }
+        }.getOrNull() ?: account.value
+        val firebaseUid = com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.uid
+        val targetUid = if (s.signedIn && s.uid.isNotBlank()) s.uid else firebaseUid.orEmpty()
         val tr = settings.value.lang == AppLang.TR
-        if (!s.signedIn || s.uid.isBlank()) {
+        if (targetUid.isBlank()) {
             toast.value = if (tr) "Buluta yedeklemek için lütfen Google ile oturum açın" else "Please sign in with Google to backup to cloud"
             return@launch
         }
@@ -2104,9 +2427,11 @@ class RayViewModel @Inject constructor(
         cloudProgressMsg.value = if (tr) "Verileriniz Google buluta yedekleniyor..." else "Backing up your data to Google cloud..."
         try {
             val jsonStr = withContext(Dispatchers.IO) { backup.exportJson() }
-            val res = withContext(Dispatchers.IO) { firebaseService.backupToCloud(s.uid, jsonStr) }
+            val res = withContext(Dispatchers.IO) { firebaseService.backupToCloud(targetUid, jsonStr) }
             res.onSuccess { time ->
                 lastCloudBackupTime.value = time
+                val summary = withContext(Dispatchers.IO) { firebaseService.getCloudBackupSummary(targetUid) }
+                cloudBackupSummary.value = summary
                 toast.value = if (tr) "Yedek Google buluta kaydedildi!" else "Backup saved to Google cloud!"
             }.onFailure { err ->
                 toast.value = (if (tr) "Bulut yedeği hatası: " else "Cloud backup error: ") + err.message
@@ -2117,29 +2442,41 @@ class RayViewModel @Inject constructor(
         }
     }
 
-    fun restoreFromCloud() = viewModelScope.launch {
-        val s = account.value
+    suspend fun restoreFromCloud(): Boolean {
+        val s = runCatching {
+            withTimeoutOrNull(2000) { accounts.session.first { it.signedIn && it.uid.isNotBlank() } }
+        }.getOrNull() ?: account.value
+        val firebaseUid = com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.uid
+        val targetUid = if (s.signedIn && s.uid.isNotBlank()) s.uid else firebaseUid.orEmpty()
         val tr = settings.value.lang == AppLang.TR
-        if (!s.signedIn || s.uid.isBlank()) {
+        if (targetUid.isBlank()) {
             toast.value = if (tr) "Buluttan geri yüklemek için lütfen Google ile oturum açın" else "Please sign in with Google to restore from cloud"
-            return@launch
+            return false
         }
         isCloudBusy.value = true
         cloudProgressMsg.value = if (tr) "Yedekleriniz Google buluttan indiriliyor ve yükleniyor..." else "Downloading and restoring your backup from Google cloud..."
-        try {
-            val res = withContext(Dispatchers.IO) { firebaseService.restoreFromCloud(s.uid) }
+        return try {
+            val res = withContext(Dispatchers.IO) { firebaseService.restoreFromCloud(targetUid) }
+            var ok = false
             res.onSuccess { jsonStr ->
                 withContext(Dispatchers.IO) { backup.importJson(jsonStr) }
                 refresh()
                 toast.value = if (tr) "Bulut yedeği başarıyla geri yüklendi!" else "Cloud backup successfully restored!"
+                ok = true
             }.onFailure { err ->
-                toast.value = (if (tr) "Geri yükleme hatası: " else "Restore error: ") + err.message
+                if (err is NoSuchElementException || err.message == "NO_BACKUP") {
+                    toast.value = if (tr) "Google ile oturum açıldı. Bulutta kayıtlı yedek bulunamadı." else "Signed in with Google. No backup found in cloud."
+                } else {
+                    toast.value = (if (tr) "Geri yükleme: " else "Restore: ") + (err.message ?: "Bulutta yedek bulunamadı")
+                }
             }
+            ok
         } finally {
             isCloudBusy.value = false
             cloudProgressMsg.value = ""
         }
     }
+
 
     fun addEpgSource(name: String, url: String) = viewModelScope.launch { catalog.addEpgSource(name, url) }
     fun removeEpgSource(id: String) = viewModelScope.launch { catalog.removeEpgSource(id) }
@@ -2185,19 +2522,22 @@ class RayViewModel @Inject constructor(
             return
         }
         liveHoverJob = viewModelScope.launch {
+            delay(180)
+            if (!isActive) return@launch
             val clock = epgClock()
             val (now, upcoming) = withContext(Dispatchers.IO) {
                 catalog.nowEpg(ch.id, clock) to
                     catalog.epgWindow(ch.id, clock - 30 * 60_000L, clock + 12 * 3600_000L)
                         .filter { it.endMs > clock }.take(8)
             }
+            if (!isActive) return@launch
             browseNow.value = now
             browseUpcoming.value = upcoming
             if (!settings.value.previewLive) {
                 browsePreviewUrl.value = ""
                 return@launch
             }
-            delay(150)
+            delay(2000)
             if (!isActive) return@launch
             val url = catalog.resolvePlayUrl(ch)
             if (!isActive) return@launch
@@ -2210,11 +2550,13 @@ class RayViewModel @Inject constructor(
     }
 
     fun loadGuideSlots(ids: List<String>) {
-        val chunk = ids.take(80)
+        val chunk = ids.take(60)
         if (chunk == lastGuideChunk) return
         lastGuideChunk = chunk
         guideSlotsJob?.cancel()
         guideSlotsJob = viewModelScope.launch {
+            delay(260)
+            if (!isActive) return@launch
             val clock = epgClock()
             val cal = java.util.Calendar.getInstance()
             cal.timeInMillis = clock
@@ -2500,6 +2842,16 @@ class RayViewModel @Inject constructor(
     fun skipIntro() {
         val t = introTargetMs()
         if (t > 0) player.seek(t)
+    }
+
+    override fun onCleared() {
+        super.onCleared()
+        liveHoverJob?.cancel()
+        zapRelativeJob?.cancel()
+        guideSlotsJob?.cancel()
+        previewJob?.cancel()
+        searchJob?.cancel()
+        player.release()
     }
 }
 

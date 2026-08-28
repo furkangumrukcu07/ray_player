@@ -44,13 +44,16 @@ fun PlaylistPickerDialog(
     onSelect: (String) -> Unit,
     onDismiss: () -> Unit
 ) {
+    val cyan = Color(0xFF22D3EE)
+    val emerald = Color(0xFF34D399)
+
     Dialog(onDismissRequest = onDismiss) {
         Box(
             Modifier
                 .widthIn(max = 420.dp)
-                .clip(RoundedCornerShape(22.dp))
-                .background(Color(0xFF1E293B))
-                .border(1.dp, Color.White.copy(alpha = 0.15f), RoundedCornerShape(22.dp))
+                .clip(RoundedCornerShape(24.dp))
+                .background(Color(0xFF0E281F).copy(alpha = 0.94f))
+                .border(1.dp, emerald.copy(alpha = 0.35f), RoundedCornerShape(24.dp))
                 .padding(20.dp)
         ) {
             Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
@@ -60,13 +63,22 @@ fun PlaylistPickerDialog(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(
-                            Icons.AutoMirrored.Filled.PlaylistPlay,
-                            contentDescription = null,
-                            tint = Color(0xFF00E5FF),
-                            modifier = Modifier.size(28.dp)
-                        )
-                        Spacer(Modifier.width(10.dp))
+                        Box(
+                            Modifier
+                                .size(38.dp)
+                                .clip(RoundedCornerShape(10.dp))
+                                .background(cyan.copy(alpha = 0.16f))
+                                .border(1.dp, cyan.copy(alpha = 0.28f), RoundedCornerShape(10.dp)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                Icons.AutoMirrored.Filled.PlaylistPlay,
+                                contentDescription = null,
+                                tint = cyan,
+                                modifier = Modifier.size(24.dp)
+                            )
+                        }
+                        Spacer(Modifier.width(12.dp))
                         Text(
                             if (tr) "Oynatma Listeleri" else "Playlists",
                             color = Color.White,
@@ -86,7 +98,7 @@ fun PlaylistPickerDialog(
                     }
                 }
 
-                Box(Modifier.fillMaxWidth().height(1.dp).background(Color.White.copy(alpha = 0.12f)))
+                Box(Modifier.fillMaxWidth().height(1.dp).background(Color.White.copy(alpha = 0.10f)))
 
                 LazyColumn(
                     verticalArrangement = Arrangement.spacedBy(10.dp),
@@ -94,16 +106,18 @@ fun PlaylistPickerDialog(
                 ) {
                     items(sources, key = { it.id }) { src ->
                         val selected = src.id == activeSourceId
-                        val cyan = Color(0xFF00E5FF)
                         Box(
                             Modifier
                                 .fillMaxWidth()
-                                .clip(RoundedCornerShape(14.dp))
-                                .background(if (selected) cyan.copy(alpha = 0.18f) else Color.White.copy(alpha = 0.06f))
+                                .clip(RoundedCornerShape(16.dp))
+                                .background(
+                                    if (selected) Color(0xFF16382B).copy(alpha = 0.70f)
+                                    else Color.White.copy(alpha = 0.05f)
+                                )
                                 .border(
-                                    1.dp,
-                                    if (selected) cyan.copy(alpha = 0.6f) else Color.White.copy(alpha = 0.10f),
-                                    RoundedCornerShape(14.dp)
+                                    if (selected) 1.5.dp else 1.dp,
+                                    if (selected) cyan else Color(0xFF4ADE80).copy(alpha = 0.15f),
+                                    RoundedCornerShape(16.dp)
                                 )
                                 .rayClickable(onClick = {
                                     onSelect(src.id)

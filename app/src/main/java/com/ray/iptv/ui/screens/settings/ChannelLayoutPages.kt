@@ -8,13 +8,16 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
@@ -33,10 +36,12 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateListOf
+import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshots.SnapshotStateList
+import androidx.compose.runtime.snapshots.SnapshotStateMap
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -66,6 +71,11 @@ import com.ray.iptv.ui.glass.GlassPanel
 import com.ray.iptv.ui.screens.onboarding.GlassField
 import com.ray.iptv.ui.theme.LocalGlass
 
+import androidx.activity.compose.BackHandler
+import androidx.compose.ui.focus.focusRequester
+import com.ray.iptv.ui.input.tryFocus
+import kotlinx.coroutines.delay
+
 private enum class ChannelLayoutSub { HUB, HIDE, LIVE, PARENTAL }
 
 @Composable
@@ -78,18 +88,55 @@ internal fun ChannelLayoutRoot(
     onBack: () -> Unit
 ) {
     var sub by remember { mutableStateOf(ChannelLayoutSub.HUB) }
+    var lastSubIndex by remember { mutableStateOf(0) }
+    val hubRequesters = remember { List(4) { FocusRequester() } }
+    val subItemFocusRequester = remember { FocusRequester() }
     val movieCats by vm.movieCategories.collectAsState()
     val seriesCats by vm.seriesCategories.collectAsState()
     val hasPin = settings.parentalPinHash.isNotBlank()
+
+    BackHandler {
+        if (sub != ChannelLayoutSub.HUB) {
+            sub = ChannelLayoutSub.HUB
+        } else {
+            onBack()
+        }
+    }
+
+    LaunchedEffect(sub) {
+        if (sub == ChannelLayoutSub.HUB) {
+            val target = hubRequesters.getOrNull(lastSubIndex) ?: focusRequester
+            repeat(8) {
+                delay(30)
+                if (target?.tryFocus() == true) return@LaunchedEffect
+            }
+        } else {
+            repeat(8) {
+                delay(35)
+                if (subItemFocusRequester.tryFocus()) return@LaunchedEffect
+            }
+        }
+    }
+
     when (sub) {
         ChannelLayoutSub.HUB -> ChannelLayoutHub(
             tr = tr,
             hasPin = hasPin,
             onBack = onBack,
             focusRequester = focusRequester,
-            onHide = { sub = if (hasPin) ChannelLayoutSub.PARENTAL else ChannelLayoutSub.HIDE },
-            onLive = { sub = ChannelLayoutSub.LIVE },
-            onParental = { sub = ChannelLayoutSub.PARENTAL }
+            requesters = hubRequesters,
+            onHide = {
+                lastSubIndex = 0
+                sub = if (hasPin) ChannelLayoutSub.PARENTAL else ChannelLayoutSub.HIDE
+            },
+            onLive = {
+                lastSubIndex = 1
+                sub = ChannelLayoutSub.LIVE
+            },
+            onParental = {
+                lastSubIndex = 2
+                sub = ChannelLayoutSub.PARENTAL
+            }
         )
         ChannelLayoutSub.HIDE -> CategoryHidePage(
             vm, liveCats, movieCats, seriesCats, tr,
@@ -113,6 +160,7 @@ private fun ChannelLayoutHub(
     hasPin: Boolean,
     onBack: () -> Unit,
     focusRequester: FocusRequester? = null,
+    requesters: List<FocusRequester> = emptyList(),
     onHide: () -> Unit,
     onLive: () -> Unit,
     onParental: () -> Unit
@@ -138,18 +186,21 @@ private fun ChannelLayoutHub(
                     append(if (tr) "Kanallar, filmler ve diziler için kategori göster / gizle" else "Show or hide categories for channels, movies and series")
                     if (hasPin) append("  🔒")
                 },
+                focusRequester = requesters.getOrNull(0),
                 onClick = onHide
             )
             ChannelLayoutNavRow(
                 icon = Icons.AutoMirrored.Filled.Sort,
                 title = if (tr) "Canlı kanal düzeni" else "Live channel layout",
                 subtitle = if (tr) "Yalnızca canlı TV: kategori seçip kanalları sıralayın veya çıkarın" else "Live TV only: pick a category and reorder or remove channels",
+                focusRequester = requesters.getOrNull(1),
                 onClick = onLive
             )
             ChannelLayoutNavRow(
                 icon = Icons.Filled.ChildCare,
                 title = if (tr) "Ebeveyn denetimi" else "Parental controls",
                 subtitle = if (tr) "PIN ile koruma; Xtream kategorilerini gizleyin (canlı, film, dizi)" else "PIN protection; hide Xtream categories (live, movies, series)",
+                focusRequester = requesters.getOrNull(2),
                 onClick = onParental
             )
         }
@@ -162,7 +213,8 @@ private fun ChannelLayoutNavRow(
     title: String,
     subtitle: String,
     onClick: () -> Unit,
-    iconTint: Color? = null
+    iconTint: Color? = null,
+    focusRequester: FocusRequester? = null
 ) {
     if (LocalMobileSettingsChrome.current) {
         MobileOptionTile(
@@ -181,7 +233,10 @@ private fun ChannelLayoutNavRow(
         focused = focused,
         radius = 18.dp,
         onClick = onClick,
-        modifier = Modifier.fillMaxWidth().onFocusChanged { focused = it.isFocused }
+        modifier = Modifier
+            .fillMaxWidth()
+            .then(if (focusRequester != null) Modifier.focusRequester(focusRequester) else Modifier)
+            .onFocusChanged { focused = it.isFocused }
     ) {
         Row(Modifier.padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
             Box(
@@ -267,14 +322,15 @@ private fun CategoryHidePage(
     Column(Modifier.fillMaxSize()) {
         if (!embedded) {
             LayoutHeader(
-                title = if (tr) "Kategori göster / gizle" else "Show / hide categories",
+                title = if (tr) "Kategori Göster / Gizle" else "Show / Hide Categories",
+                hint = if (tr) "Kategoriyi açıp kapatmak için üzerine tıklayın. Sıralamak için ▲ ▼ butonlarını kullanın." else "Click a category to toggle visibility. Use ▲ ▼ to reorder.",
                 onBack = onBack,
-                trailing = { if (!unavailable) GlassButton(if (tr) "Kaydet" else "Save", onClick = save) }
+                trailing = { if (!unavailable) GlassButton(if (tr) "✓ Kaydet" else "✓ Save", onClick = save) }
             )
             Spacer(Modifier.height(10.dp))
         } else {
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
-                if (!unavailable) GlassButton(if (tr) "Kaydet" else "Save", onClick = save)
+                if (!unavailable) GlassButton(if (tr) "✓ Kaydet" else "✓ Save", onClick = save)
             }
             Spacer(Modifier.height(8.dp))
         }
@@ -288,20 +344,37 @@ private fun CategoryHidePage(
             }
         } else {
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                listOf(if (tr) "Canlı" else "Live", if (tr) "Filmler" else "Movies", if (tr) "Diziler" else "Series").forEachIndexed { i, label ->
-                    GlassButton(label, modifier = Modifier.weight(1f)) { tab = i }
+                listOf(if (tr) "📺 Canlı" else "📺 Live", if (tr) "🎬 Filmler" else "🎬 Movies", if (tr) "🍿 Diziler" else "🍿 Series").forEachIndexed { i, label ->
+                    val isSel = tab == i
+                    var isFocused by remember { mutableStateOf(false) }
+                    GlassPanel(
+                        focused = isFocused,
+                        strong = isSel,
+                        accentFill = isSel && !isFocused,
+                        radius = 12.dp,
+                        onClick = { tab = i },
+                        modifier = Modifier
+                            .weight(1f)
+                            .onFocusChanged { isFocused = it.isFocused }
+                    ) {
+                        Box(Modifier.fillMaxWidth().padding(vertical = 10.dp), contentAlignment = Alignment.Center) {
+                            Text(
+                                label,
+                                color = if (isSel || isFocused) Color.White else g.muted,
+                                fontWeight = if (isSel || isFocused) FontWeight.ExtraBold else FontWeight.SemiBold,
+                                style = MaterialTheme.typography.bodyMedium
+                            )
+                        }
+                    }
                 }
             }
             Spacer(Modifier.height(8.dp))
-            Text(if (tr) "Sıralamayı değiştirmek için sağdaki okları kullanın." else "Use the arrows on the right to change the order.", color = g.muted, style = MaterialTheme.typography.labelMedium)
-            Text(if (tr) "Anahtar açık = kategori görünür, kapalı = gizli." else "Switch on = category visible, off = hidden.", color = g.muted, style = MaterialTheme.typography.labelMedium)
-            Spacer(Modifier.height(8.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.fillMaxWidth()) {
-                GlassButton(if (tr) "Tümünü Gizle" else "Hide all", modifier = Modifier.weight(1f)) {
-                    rows.indices.forEach { rows[it] = rows[it].copy(hidden = true) }
-                }
-                GlassButton(if (tr) "Tümünü Göster" else "Show all", modifier = Modifier.weight(1f)) {
+                GlassButton(if (tr) "👁️ Tümünü Göster" else "👁️ Show all", modifier = Modifier.weight(1f)) {
                     rows.indices.forEach { rows[it] = rows[it].copy(hidden = false) }
+                }
+                GlassButton(if (tr) "🚫 Tümünü Gizle" else "🚫 Hide all", modifier = Modifier.weight(1f)) {
+                    rows.indices.forEach { rows[it] = rows[it].copy(hidden = true) }
                 }
             }
             Spacer(Modifier.height(10.dp))
@@ -312,11 +385,18 @@ private fun CategoryHidePage(
                     itemsIndexed(rows, key = { _, c -> c.id }) { index, cat ->
                         CategoryHideRow(
                             cat = cat,
+                            index = index,
                             tr = tr,
                             canUp = index > 0,
                             canDown = index < rows.lastIndex,
                             onToggle = { rows[index] = cat.copy(hidden = !cat.hidden) },
-                            onMove = { delta -> rows.move(index, index + delta) }
+                            onMove = { delta -> rows.move(index, index + delta) },
+                            onMoveToTop = {
+                                if (index > 0) {
+                                    val item = rows.removeAt(index)
+                                    rows.add(0, item)
+                                }
+                            }
                         )
                     }
                 }
@@ -328,24 +408,70 @@ private fun CategoryHidePage(
 @Composable
 private fun CategoryHideRow(
     cat: CategoryEntity,
+    index: Int,
     tr: Boolean,
     canUp: Boolean,
     canDown: Boolean,
     onToggle: () -> Unit,
-    onMove: (Int) -> Unit
+    onMove: (Int) -> Unit,
+    onMoveToTop: () -> Unit
 ) {
     val g = LocalGlass.current
     var focused by remember { mutableStateOf(false) }
-    GlassPanel(focused = focused, radius = 14.dp, modifier = Modifier.fillMaxWidth().onFocusChanged { focused = it.isFocused }) {
-        Row(Modifier.padding(horizontal = 12.dp, vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) {
-            Column(Modifier.weight(1f)) {
-                Text(cat.name.ifBlank { cat.remoteId }, color = g.text, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                Text(if (tr) "Kimlik: ${cat.remoteId}" else "ID: ${cat.remoteId}", color = g.muted, style = MaterialTheme.typography.labelSmall)
+    val isHidden = cat.hidden
+
+    GlassPanel(
+        focused = focused,
+        radius = 14.dp,
+        onClick = onToggle,
+        modifier = Modifier
+            .fillMaxWidth()
+            .onFocusChanged { focused = it.isFocused }
+    ) {
+        Row(
+            Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            Box(
+                Modifier
+                    .size(28.dp)
+                    .clip(RoundedCornerShape(6.dp))
+                    .background(if (focused) g.accent else g.panelStrong),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    "${index + 1}",
+                    color = if (focused) Color.Black else g.text,
+                    style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold)
+                )
             }
-            GlassSwitch(on = !cat.hidden, onToggle = onToggle)
-            Spacer(Modifier.width(6.dp))
+            Column(Modifier.weight(1f)) {
+                Text(
+                    cat.name.ifBlank { cat.remoteId },
+                    color = if (isHidden) g.muted else g.text,
+                    fontWeight = FontWeight.Bold,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Text(
+                        if (tr) "ID: ${cat.remoteId}" else "ID: ${cat.remoteId}",
+                        color = g.muted,
+                        style = MaterialTheme.typography.labelSmall
+                    )
+                    Text(
+                        if (isHidden) (if (tr) "• GİZLİ" else "• HIDDEN") else (if (tr) "• GÖRÜNÜR" else "• VISIBLE"),
+                        color = if (isHidden) Color(0xFFFF5252) else Color(0xFF4CAF50),
+                        fontWeight = FontWeight.Bold,
+                        style = MaterialTheme.typography.labelSmall
+                    )
+                }
+            }
+            GlassSwitch(on = !isHidden, onToggle = onToggle)
             GlassButton("▲") { if (canUp) onMove(-1) }
             GlassButton("▼") { if (canDown) onMove(1) }
+            GlassButton(if (tr) "Başa" else "Top") { onMoveToTop() }
         }
     }
 }
@@ -358,30 +484,44 @@ private fun LiveChannelEditorPage(
     onBack: () -> Unit
 ) {
     val g = LocalGlass.current
-    val lists = remember { mutableMapOf<String, SnapshotStateList<ChannelEntity>>() }
+    val lists = remember { mutableStateMapOf<String, SnapshotStateList<ChannelEntity>>() }
     val hiddenIds = remember { mutableStateListOf<String>() }
-    var selected by remember { mutableStateOf(liveCats.firstOrNull()?.id.orEmpty()) }
+    var selected by remember(liveCats) { mutableStateOf(liveCats.firstOrNull()?.id.orEmpty()) }
     var pendingRemove by remember { mutableStateOf<ChannelEntity?>(null) }
-    LaunchedEffect(selected, liveCats) {
-        val id = selected.ifBlank { liveCats.firstOrNull()?.id.orEmpty() }
-        if (id.isBlank() || lists.containsKey(id)) return@LaunchedEffect
-        val loaded = vm.layoutChannels(id)
-        val row = mutableStateListOf<ChannelEntity>()
-        row.addAll(
-            loaded.sortedWith(compareBy({ if (it.layoutSort >= 0) 0 else 1 }, { it.layoutSort }, { it.number }))
-        )
-        lists[id] = row
-        if (selected.isBlank()) selected = id
+    var loadingId by remember { mutableStateOf<String?>(null) }
+    var movingChannelId by remember { mutableStateOf<String?>(null) }
+
+    val catListState = androidx.compose.foundation.lazy.rememberLazyListState()
+    val channelListState = androidx.compose.foundation.lazy.rememberLazyListState()
+    val firstChannelFocus = remember { FocusRequester() }
+    val firstCategoryFocus = remember { FocusRequester() }
+
+    LaunchedEffect(selected) {
+        if (selected.isBlank()) return@LaunchedEffect
+        if (!lists.containsKey(selected)) {
+            loadingId = selected
+            val loaded = vm.layoutChannels(selected)
+            val row = mutableStateListOf<ChannelEntity>()
+            row.addAll(
+                loaded.sortedWith(compareBy({ if (it.layoutSort >= 0) 0 else 1 }, { it.layoutSort }, { it.number }))
+            )
+            lists[selected] = row
+            loadingId = null
+        }
     }
+
     val current = lists[selected]
+    val isLoading = loadingId == selected
+    val activeCat = liveCats.firstOrNull { it.id == selected }
+
     Column(Modifier.fillMaxSize()) {
         LayoutHeader(
-            title = if (tr) "Canlı kanal düzeni" else "Live channel layout",
-            hint = if (tr) "Üstten canlı kategori seçin. Kumanda: ▲ ▼ sıra · Sil ile kanalı çıkarın." else "Pick a live category above. Remote: ▲ ▼ reorder · Delete removes the channel.",
+            title = if (tr) "Canlı Kanal Düzeni" else "Live Channel Layout",
+            hint = if (tr) "Kategori seçin. Kumanda: Sol (◄) / Sağ (►) ile kanalı yukarı/aşağı taşıyın. OK tuşu ile Taşıma Modu'na geçin. Silmek için [Gizle] butonunu kullanın." else "Select category. Remote: Left (◄) / Right (►) to move channel up/down. Press OK for Move Mode.",
             onBack = onBack,
             trailing = {
                 if (liveCats.isNotEmpty()) {
-                    GlassButton(if (tr) "Kaydet" else "Save") {
+                    GlassButton(if (tr) "✓ Kaydet" else "✓ Save") {
                         vm.saveLiveChannelLayout(hiddenIds.toSet(), lists.mapValues { e -> e.value.map { it.id } })
                     }
                 }
@@ -393,26 +533,141 @@ private fun LiveChannelEditorPage(
                 Text(if (tr) "Önce bir oynatma listesi yükleyin (Xtream veya M3U)." else "Load a playlist first (Xtream or M3U).", color = g.muted, modifier = Modifier.padding(24.dp))
             }
         } else {
-            Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                liveCats.forEach { cat ->
-                    val on = cat.id == selected
-                    GlassButton((if (on) "● " else "") + cat.name.ifBlank { cat.remoteId }) { selected = cat.id }
+            // 🏷️ Üst Yatay Kategori Çubuğu (Horizontal Category Chips)
+            LazyRow(
+                state = catListState,
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)
+            ) {
+                itemsIndexed(liveCats, key = { _, c -> c.id }) { index, cat ->
+                    val isSel = cat.id == selected
+                    var isFocused by remember { mutableStateOf(false) }
+                    GlassPanel(
+                        focused = isFocused,
+                        strong = isSel,
+                        accentFill = isSel && !isFocused,
+                        radius = 12.dp,
+                        onClick = { selected = cat.id },
+                        modifier = Modifier
+                            .then(if (index == 0) Modifier.focusRequester(firstCategoryFocus) else Modifier)
+                            .onFocusChanged {
+                                isFocused = it.isFocused
+                                if (it.isFocused) {
+                                    selected = cat.id
+                                }
+                            }
+                            .onPreviewKeyEvent { e ->
+                                if (e.type == KeyEventType.KeyDown && e.key == Key.DirectionDown) {
+                                    firstChannelFocus.tryFocus()
+                                    true
+                                } else false
+                            }
+                    ) {
+                        Row(
+                            Modifier.padding(horizontal = 14.dp, vertical = 9.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
+                            Text(
+                                cat.name.ifBlank { cat.remoteId },
+                                color = if (isSel || isFocused) Color.White else g.muted,
+                                fontWeight = if (isSel || isFocused) FontWeight.ExtraBold else FontWeight.SemiBold,
+                                style = MaterialTheme.typography.bodyMedium
+                            )
+                        }
+                    }
                 }
             }
-            Spacer(Modifier.height(10.dp))
-            if (current.isNullOrEmpty()) {
-                Text(if (tr) "Bu kategoride kanal yok." else "No channels in this category.", color = g.muted, modifier = Modifier.padding(24.dp))
-            } else {
-                LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxSize()) {
-                    itemsIndexed(current, key = { _, ch -> ch.id }) { index, ch ->
-                        LiveChannelRow(
-                            channel = ch,
-                            tr = tr,
-                            canUp = index > 0,
-                            canDown = index < current.lastIndex,
-                            onMove = { delta -> current.move(index, index + delta) },
-                            onRemove = { pendingRemove = ch }
+
+            Spacer(Modifier.height(8.dp))
+
+            // 📺 Bilgi / Durum Şeridi
+            Row(
+                Modifier.fillMaxWidth().padding(horizontal = 4.dp, vertical = 2.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    "${activeCat?.name ?: ""} • ${current?.size ?: 0} ${if (tr) "Kanal" else "Channels"}",
+                    color = g.accent,
+                    style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold)
+                )
+                if (movingChannelId != null) {
+                    Box(
+                        Modifier
+                            .clip(RoundedCornerShape(8.dp))
+                            .background(Color(0xFFFFC107).copy(alpha = 0.2f))
+                            .border(1.dp, Color(0xFFFFC107), RoundedCornerShape(8.dp))
+                            .padding(horizontal = 8.dp, vertical = 3.dp)
+                    ) {
+                        Text(
+                            if (tr) "★ TAŞIMA MODU (▲ ▼ ile taşı, OK ile bırak)" else "★ MOVE MODE (▲ ▼ to move, OK to place)",
+                            color = Color(0xFFFFC107),
+                            style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold)
                         )
+                    }
+                }
+            }
+
+            Spacer(Modifier.height(6.dp))
+
+            // 📋 Tam Genişlikte Kanal Listesi
+            when {
+                isLoading -> {
+                    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                        Text(if (tr) "Kanallar yükleniyor…" else "Loading channels…", color = g.muted)
+                    }
+                }
+                current.isNullOrEmpty() -> {
+                    GlassPanel(strong = true, radius = 16.dp, modifier = Modifier.fillMaxWidth()) {
+                        Text(
+                            if (tr) "Bu kategoride kanal bulunamadı." else "No channels in this category.",
+                            color = g.muted,
+                            modifier = Modifier.padding(24.dp)
+                        )
+                    }
+                }
+                else -> {
+                    val chList = current
+                    if (chList != null) {
+                        LazyColumn(
+                            state = channelListState,
+                            verticalArrangement = Arrangement.spacedBy(6.dp),
+                            modifier = Modifier.fillMaxSize()
+                        ) {
+                            itemsIndexed(chList, key = { _, ch -> ch.id }) { index, ch ->
+                                val isMoving = movingChannelId == ch.id
+                                LiveChannelRow(
+                                    channel = ch,
+                                    index = index,
+                                    tr = tr,
+                                    canUp = index > 0,
+                                    canDown = index < chList.size - 1,
+                                    isMoving = isMoving,
+                                    focusRequester = if (index == 0) firstChannelFocus else null,
+                                    onToggleMove = {
+                                        movingChannelId = if (isMoving) null else ch.id
+                                    },
+                                    onMove = { delta ->
+                                        val activeList = lists[selected] ?: return@LiveChannelRow
+                                        val newIdx = (index + delta).coerceIn(0, activeList.size - 1)
+                                        if (newIdx != index && newIdx in activeList.indices && index in activeList.indices) {
+                                            val item = activeList.removeAt(index)
+                                            activeList.add(newIdx, item)
+                                        }
+                                    },
+                                    onMoveToTop = {
+                                        val activeList = lists[selected] ?: return@LiveChannelRow
+                                        if (index > 0 && index in activeList.indices) {
+                                            val item = activeList.removeAt(index)
+                                            activeList.add(0, item)
+                                        }
+                                    },
+                                    onRemove = { pendingRemove = ch },
+                                    onFocusUpOnFirst = { firstCategoryFocus.tryFocus() }
+                                )
+                            }
+                        }
                     }
                 }
             }
@@ -425,7 +680,11 @@ private fun LiveChannelEditorPage(
             confirm = if (tr) "Sil" else "Delete",
             onDismiss = { pendingRemove = null },
             onConfirm = {
-                lists[selected]?.removeAll { it.id == ch.id }
+                val activeList = lists[selected]
+                if (activeList != null) {
+                    val idx = activeList.indexOfFirst { it.id == ch.id }
+                    if (idx >= 0) activeList.removeAt(idx)
+                }
                 if (ch.id !in hiddenIds) hiddenIds.add(ch.id)
                 pendingRemove = null
             }
@@ -436,23 +695,115 @@ private fun LiveChannelEditorPage(
 @Composable
 private fun LiveChannelRow(
     channel: ChannelEntity,
+    index: Int,
     tr: Boolean,
     canUp: Boolean,
     canDown: Boolean,
+    isMoving: Boolean,
+    focusRequester: FocusRequester? = null,
+    onToggleMove: () -> Unit,
     onMove: (Int) -> Unit,
-    onRemove: () -> Unit
+    onMoveToTop: () -> Unit,
+    onRemove: () -> Unit,
+    onFocusUpOnFirst: () -> Unit = {}
 ) {
     val g = LocalGlass.current
     var focused by remember { mutableStateOf(false) }
-    GlassPanel(focused = focused, radius = 14.dp, modifier = Modifier.fillMaxWidth().onFocusChanged { focused = it.isFocused }) {
-        Row(Modifier.padding(horizontal = 10.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+    val active = focused || isMoving
+
+    GlassPanel(
+        focused = active,
+        strong = isMoving,
+        accentFill = isMoving,
+        radius = 12.dp,
+        onClick = onToggleMove,
+        modifier = Modifier
+            .fillMaxWidth()
+            .then(if (focusRequester != null) Modifier.focusRequester(focusRequester) else Modifier)
+            .onFocusChanged { focused = it.isFocused }
+            .onPreviewKeyEvent { e ->
+                if (e.type != KeyEventType.KeyDown) return@onPreviewKeyEvent false
+                if (isMoving) {
+                    when (e.key) {
+                        Key.DirectionUp -> {
+                            if (canUp) onMove(-1)
+                            true
+                        }
+                        Key.DirectionDown -> {
+                            if (canDown) onMove(1)
+                            true
+                        }
+                        Key.Enter, Key.DirectionCenter, Key.NumPadEnter, Key.Spacebar -> {
+                            onToggleMove()
+                            true
+                        }
+                        else -> false
+                    }
+                } else {
+                    when (e.key) {
+                        Key.DirectionUp -> {
+                            if (index == 0) {
+                                onFocusUpOnFirst()
+                                true
+                            } else false
+                        }
+                        Key.DirectionLeft -> {
+                            if (canUp) {
+                                onMove(-1)
+                                true
+                            } else false
+                        }
+                        Key.DirectionRight -> {
+                            if (canDown) {
+                                onMove(1)
+                                true
+                            } else false
+                        }
+                        Key.Backspace, Key.Delete -> {
+                            onRemove()
+                            true
+                        }
+                        else -> false
+                    }
+                }
+            }
+    ) {
+        Row(
+            Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            Box(
+                Modifier
+                    .size(32.dp)
+                    .clip(RoundedCornerShape(8.dp))
+                    .background(if (isMoving) g.accent else g.panelStrong),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    "${index + 1}",
+                    color = if (isMoving) Color.Black else g.text,
+                    style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold)
+                )
+            }
             Column(Modifier.weight(1f)) {
-                Text(channel.name, color = g.text, fontWeight = FontWeight.SemiBold, maxLines = 2, overflow = TextOverflow.Ellipsis)
-                Text(if (tr) "Kimlik: ${channel.remoteId}" else "ID: ${channel.remoteId}", color = g.muted, style = MaterialTheme.typography.labelSmall)
+                Text(
+                    channel.name,
+                    color = if (isMoving) Color.Black else g.text,
+                    fontWeight = FontWeight.Bold,
+                    style = MaterialTheme.typography.bodyMedium,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+                Text(
+                    (if (tr) "Kanal No: " else "Ch No: ") + (channel.number),
+                    color = if (isMoving) Color.Black.copy(alpha = 0.7f) else g.muted,
+                    style = MaterialTheme.typography.labelSmall
+                )
             }
             GlassButton("▲") { if (canUp) onMove(-1) }
             GlassButton("▼") { if (canDown) onMove(1) }
-            GlassButton(if (tr) "Sil" else "Del") { onRemove() }
+            GlassButton(if (tr) "Gizle" else "Hide") { onRemove() }
         }
     }
 }
@@ -593,19 +944,28 @@ private fun ParentalControlPage(
                 Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(bottom = 16.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                GlassPanel(strong = true, radius = 22.dp, modifier = Modifier.fillMaxWidth()) {
-                    Column(Modifier.padding(20.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                        Text(intro, color = g.muted, style = MaterialTheme.typography.bodySmall)
-                        Spacer(Modifier.height(16.dp))
+                GlassPanel(
+                    strong = true,
+                    radius = 22.dp,
+                    modifier = Modifier.widthIn(max = 440.dp).fillMaxWidth()
+                ) {
+                    Column(Modifier.padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text(
+                            intro,
+                            color = g.muted,
+                            style = MaterialTheme.typography.bodyMedium,
+                            textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                        )
+                        Spacer(Modifier.height(18.dp))
                         if (recoveryStep) {
                             GlassField(if (tr) "Gizli kurtarma kelimesi" else "Secret recovery word", recoveryWord) { recoveryWord = it; error = "" }
                             if (error.isNotBlank()) {
                                 Spacer(Modifier.height(8.dp))
                                 StatusBanner(error, Color(0xFFEF4444))
                             }
-                            Spacer(Modifier.height(14.dp))
-                            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                GlassButton(if (tr) "Vazgeç" else "Cancel") {
+                            Spacer(Modifier.height(16.dp))
+                            Row(horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.fillMaxWidth()) {
+                                GlassButton(if (tr) "Vazgeç" else "Cancel", modifier = Modifier.weight(1f)) {
                                     recoveryStep = false
                                     phase = 0
                                     entered = ""
@@ -613,32 +973,69 @@ private fun ParentalControlPage(
                                     error = ""
                                     recoveryWord = ""
                                 }
-                                GlassButton(if (tr) "PIN’i kaydet" else "Save PIN") { saveRecovery() }
+                                GlassButton(if (tr) "✓ PIN’i Kaydet" else "✓ Save PIN", modifier = Modifier.weight(1f)) { saveRecovery() }
                             }
                         } else {
                             PinDots(entered, g.accent)
                             if (error.isNotBlank()) {
-                                Spacer(Modifier.height(10.dp))
+                                Spacer(Modifier.height(12.dp))
                                 StatusBanner(error, Color(0xFFEF4444))
                             }
                             if (success.isNotBlank()) {
-                                Spacer(Modifier.height(10.dp))
+                                Spacer(Modifier.height(12.dp))
                                 StatusBanner(success, Color(0xFF22C55E))
                             }
-                            Spacer(Modifier.height(14.dp))
+                            Spacer(Modifier.height(18.dp))
                             PinPad(onDigit = ::digit, onBackspace = ::backspace, onClear = ::clearPin)
-                            Spacer(Modifier.height(12.dp))
-                            GlassButton(
-                                when {
-                                    creating && phase == 0 -> if (tr) "İleri" else "Next"
-                                    creating -> if (tr) "PIN’i kaydet" else "Save PIN"
-                                    else -> if (tr) "Devam" else "Continue"
+                            Spacer(Modifier.height(16.dp))
+                            
+                            val submitLabel = when {
+                                creating && phase == 0 -> if (tr) "İleri →" else "Next →"
+                                creating -> if (tr) "✓ PIN’i Kaydet" else "✓ Save PIN"
+                                else -> if (tr) "✓ Devam Et" else "✓ Continue"
+                            }
+                            var isSubmitFocused by remember { mutableStateOf(false) }
+                            GlassPanel(
+                                focused = isSubmitFocused,
+                                strong = true,
+                                accentFill = isSubmitFocused,
+                                radius = 14.dp,
+                                onClick = { submit() },
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(52.dp)
+                                    .onFocusChanged { isSubmitFocused = it.isFocused }
+                            ) {
+                                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                                    Text(
+                                        submitLabel,
+                                        color = if (isSubmitFocused) Color.Black else Color.White,
+                                        style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold)
+                                    )
                                 }
-                            ) { submit() }
+                            }
+
                             if (!creating) {
                                 Spacer(Modifier.height(10.dp))
-                                GlassButton(if (tr) "PIN’i sıfırla" else "Reset PIN") {
-                                    if (settings.pinRecoveryHash.isNotBlank()) recoveryPrompt = true else resetOpen = true
+                                var isResetFocused by remember { mutableStateOf(false) }
+                                GlassPanel(
+                                    focused = isResetFocused,
+                                    radius = 12.dp,
+                                    onClick = {
+                                        if (settings.pinRecoveryHash.isNotBlank()) recoveryPrompt = true else resetOpen = true
+                                    },
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .height(44.dp)
+                                        .onFocusChanged { isResetFocused = it.isFocused }
+                                ) {
+                                    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                                        Text(
+                                            if (tr) "🔑 PIN’i Sıfırla (Kurtarma Kelimesiyle)" else "🔑 Reset PIN (With Recovery Word)",
+                                            color = g.muted,
+                                            style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Medium)
+                                        )
+                                    }
                                 }
                             }
                         }
@@ -649,22 +1046,22 @@ private fun ParentalControlPage(
     }
     if (resetOpen) {
         GlassConfirmDialog(
-                title = if (tr) "PIN’i sıfırla" else "Reset PIN",
-                body = if (tr) "Mevcut PIN silinecek ve yeniden oluşturmanız gerekecek. Devam etmek istiyor musunuz?" else "The current PIN will be deleted and you will need to create a new one. Continue?",
-                confirm = if (tr) "Tamam" else "OK",
-                onDismiss = { resetOpen = false },
-                onConfirm = {
-                    vm.clearParental()
-                    creating = true
-                    phase = 0
-                    unlocked = false
-                    recoveryStep = false
-                    entered = ""
-                    firstPin = ""
-                    error = ""
-                    resetOpen = false
-                }
-            )
+            title = if (tr) "PIN’i sıfırla" else "Reset PIN",
+            body = if (tr) "Mevcut PIN silinecek ve yeniden oluşturmanız gerekecek. Devam etmek istiyor musunuz?" else "The current PIN will be deleted and you will need to create a new one. Continue?",
+            confirm = if (tr) "Tamam" else "OK",
+            onDismiss = { resetOpen = false },
+            onConfirm = {
+                vm.clearParental()
+                creating = true
+                phase = 0
+                unlocked = false
+                recoveryStep = false
+                entered = ""
+                firstPin = ""
+                error = ""
+                resetOpen = false
+            }
+        )
     }
     if (recoveryPrompt) {
         Dialog(onDismissRequest = { recoveryPrompt = false }) {
@@ -705,11 +1102,11 @@ private fun PinDots(entered: String, accent: Color) {
             val active = i == entered.length
             Box(
                 Modifier
-                    .padding(horizontal = 6.dp)
-                    .size(if (filled) 14.dp else 12.dp)
+                    .padding(horizontal = 8.dp)
+                    .size(if (filled) 18.dp else 14.dp)
                     .clip(CircleShape)
-                    .background(when { filled -> accent.copy(alpha = 0.95f); active -> Color.White.copy(alpha = 0.32f); else -> Color.White.copy(alpha = 0.16f) })
-                    .border(1.dp, Color.White.copy(alpha = if (filled) 0.55f else 0.28f), CircleShape)
+                    .background(when { filled -> accent.copy(alpha = 0.95f); active -> Color.White.copy(alpha = 0.40f); else -> Color.White.copy(alpha = 0.16f) })
+                    .border(1.5.dp, if (filled) accent else Color.White.copy(alpha = 0.35f), CircleShape)
             )
         }
     }
@@ -717,16 +1114,44 @@ private fun PinDots(entered: String, accent: Color) {
 
 @Composable
 private fun PinPad(onDigit: (String) -> Unit, onBackspace: () -> Unit, onClear: () -> Unit) {
-    val keys = listOf(listOf("1", "2", "3"), listOf("4", "5", "6"), listOf("7", "8", "9"), listOf("⌫", "0", "C"))
-    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+    val g = LocalGlass.current
+    val keys = listOf(
+        listOf("1", "2", "3"),
+        listOf("4", "5", "6"),
+        listOf("7", "8", "9"),
+        listOf("⌫", "0", "C")
+    )
+    Column(
+        verticalArrangement = Arrangement.spacedBy(10.dp),
+        modifier = Modifier.fillMaxWidth()
+    ) {
         keys.forEach { row ->
             Row(horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.fillMaxWidth()) {
                 row.forEach { key ->
-                    GlassButton(key, modifier = Modifier.weight(1f)) {
-                        when (key) {
-                            "⌫" -> onBackspace()
-                            "C" -> onClear()
-                            else -> onDigit(key)
+                    var isFocused by remember { mutableStateOf(false) }
+                    val isAction = key == "⌫" || key == "C"
+                    GlassPanel(
+                        focused = isFocused,
+                        strong = true,
+                        radius = 14.dp,
+                        onClick = {
+                            when (key) {
+                                "⌫" -> onBackspace()
+                                "C" -> onClear()
+                                else -> onDigit(key)
+                            }
+                        },
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(56.dp)
+                            .onFocusChanged { isFocused = it.isFocused }
+                    ) {
+                        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                            Text(
+                                key,
+                                color = if (isFocused) Color.Black else if (isAction) g.accent else g.text,
+                                style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.ExtraBold)
+                            )
                         }
                     }
                 }

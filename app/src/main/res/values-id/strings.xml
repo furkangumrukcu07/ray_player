@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Ray IPTV Player</string>
+    <string name="brand_name">Ray Player</string>
+    <string name="disclaimer_title">Pemutar, bukan katalog</string>
+    <string name="disclaimer_body">Ray IPTV Player tidak menyediakan saluran, film, atau daftar putar. Tambahkan sumber yang Anda berwenang menggunakannya.</string>
+    <string name="continue_label">Lanjutkan</string>
+    <string name="get_started">Mulai</string>
+</resources>

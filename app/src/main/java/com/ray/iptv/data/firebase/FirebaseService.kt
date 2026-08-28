@@ -1,6 +1,7 @@
 package com.ray.iptv.data.firebase
 
 import android.content.Context
+import android.os.Build
 import android.util.Log
 import com.google.firebase.FirebaseApp
 import com.google.firebase.analytics.FirebaseAnalytics
@@ -52,6 +53,15 @@ class FirebaseService @Inject constructor(
                 FirebaseAnalytics.getInstance(context).setAnalyticsCollectionEnabled(true)
                 Log.d("RayFirebase", "Firebase initialized successfully for package: ${context.packageName}")
                 
+                try {
+                    val auth = com.google.firebase.auth.FirebaseAuth.getInstance()
+                    if (auth.currentUser == null) {
+                        auth.signInAnonymously().addOnSuccessListener {
+                            Log.d("RayFirebase", "Anonymous auth established: ${it.user?.uid}")
+                        }
+                    }
+                } catch (_: Exception) {}
+
                 fetchRemoteConfig()
                 logAdminTelemetry()
             }
@@ -158,14 +168,28 @@ class FirebaseService @Inject constructor(
         if (!isFirebaseReady) return Result.failure(IllegalStateException("Firebase is not initialized"))
         return try {
             val now = System.currentTimeMillis()
-            val docData = mapOf(
+            val authUser = com.google.firebase.auth.FirebaseAuth.getInstance().currentUser
+            val docData = mutableMapOf<String, Any>(
                 "data" to jsonString,
                 "updatedAt" to now,
+                "lastActive" to now,
                 "schema" to 1,
                 "platform" to "android"
             )
+            if (authUser != null) {
+                if (!authUser.email.isNullOrBlank()) {
+                    docData["email"] = authUser.email!!
+                    docData["isAnonymous"] = false
+                }
+                if (!authUser.displayName.isNullOrBlank()) {
+                    docData["displayName"] = authUser.displayName!!
+                }
+                if (authUser.photoUrl != null) {
+                    docData["photoUrl"] = authUser.photoUrl.toString()
+                }
+            }
             val docRef = FirebaseFirestore.getInstance().collection("users").document(uid)
-            val setTask = docRef.set(docData)
+            val setTask = docRef.set(docData, com.google.firebase.firestore.SetOptions.merge())
 
             val taskOk = try {
                 com.google.android.gms.tasks.Tasks.await(setTask, 15, java.util.concurrent.TimeUnit.SECONDS)
@@ -191,22 +215,189 @@ class FirebaseService @Inject constructor(
         }
     }
 
+
+    private suspend fun getDocSnapshotWithListener(docRef: com.google.firebase.firestore.DocumentReference, timeoutMs: Long = 10_000L): com.google.firebase.firestore.DocumentSnapshot? {
+        return kotlinx.coroutines.withTimeoutOrNull(timeoutMs) {
+            kotlinx.coroutines.suspendCancellableCoroutine { cont ->
+                var reg: com.google.firebase.firestore.ListenerRegistration? = null
+                reg = docRef.addSnapshotListener { snap, err ->
+                    if (cont.isActive) {
+                        if (snap != null) {
+                            reg?.remove()
+                            cont.resume(snap, null)
+                        } else if (err != null) {
+                            Log.w("RayFirebase", "addSnapshotListener error: ${err.message}")
+                        }
+                    }
+                }
+                cont.invokeOnCancellation {
+                    reg?.remove()
+                }
+            }
+        }
+    }
+
     suspend fun restoreFromCloud(uid: String): Result<String> {
+        if (!isFirebaseReady) initFirebaseGuarded()
+        if (!isFirebaseReady) return Result.failure(IllegalStateException("Firebase is not initialized"))
+        
+        val firestore = FirebaseFirestore.getInstance()
+        runCatching { firestore.enableNetwork() }
+        val docRef = firestore.collection("users").document(uid)
+
+        for (attempt in 0 until 3) {
+            try {
+                val snapshot = try {
+                    com.google.android.gms.tasks.Tasks.await(docRef.get(), 10, java.util.concurrent.TimeUnit.SECONDS)
+                } catch (e: Exception) {
+                    getDocSnapshotWithListener(docRef, timeoutMs = 6_000L)
+                }
+                if (snapshot != null && snapshot.exists()) {
+                    val jsonString = snapshot.getString("data")
+                    if (!jsonString.isNullOrEmpty()) {
+                        return Result.success(jsonString)
+                    }
+                    return Result.failure(NoSuchElementException("NO_BACKUP"))
+                }
+                if (attempt < 2) {
+                    kotlinx.coroutines.delay(400)
+                }
+            } catch (e: Exception) {
+                Log.w("RayFirebase", "Cloud restore attempt $attempt failed: ${e.message}")
+                if (attempt < 2) {
+                    kotlinx.coroutines.delay(400)
+                } else {
+                    return Result.failure(e)
+                }
+            }
+        }
+        return Result.failure(NoSuchElementException("NO_BACKUP"))
+    }
+
+
+    suspend fun deleteCloudData(uid: String): Result<Boolean> {
         if (!isFirebaseReady) return Result.failure(IllegalStateException("Firebase is not initialized"))
         return try {
             val docRef = FirebaseFirestore.getInstance().collection("users").document(uid)
-            val snapshot = com.google.android.gms.tasks.Tasks.await(docRef.get(), 20, java.util.concurrent.TimeUnit.SECONDS)
-            if (!snapshot.exists()) {
-                return Result.failure(IllegalStateException("No cloud backup found for this account"))
-            }
-            val jsonString = snapshot.getString("data")
-            if (jsonString.isNullOrEmpty()) {
-                return Result.failure(IllegalStateException("Cloud backup data is empty"))
-            }
-            Result.success(jsonString)
+            val task = docRef.delete()
+            com.google.android.gms.tasks.Tasks.await(task, 10, java.util.concurrent.TimeUnit.SECONDS)
+            Result.success(true)
         } catch (e: Exception) {
-            Log.e("RayFirebase", "Cloud restore failed: ${e.message}", e)
+            Log.e("RayFirebase", "deleteCloudData failed: ${e.message}", e)
             Result.failure(e)
+        }
+    }
+
+    suspend fun deleteAccount(): Result<Boolean> {
+        return try {
+            val user = com.google.firebase.auth.FirebaseAuth.getInstance().currentUser
+            if (user != null) {
+                deleteCloudData(user.uid)
+                com.google.android.gms.tasks.Tasks.await(user.delete(), 10, java.util.concurrent.TimeUnit.SECONDS)
+            }
+            Result.success(true)
+        } catch (e: Exception) {
+            Log.e("RayFirebase", "deleteAccount failed: ${e.message}", e)
+            Result.failure(e)
+        }
+    }
+
+
+    suspend fun syncUserProfile(
+        uid: String,
+        email: String,
+        displayName: String,
+        photoUrl: String = "",
+        isPremium: Boolean = false,
+        isAnonymous: Boolean = false,
+        licenseCode: String = ""
+    ) {
+        if (!isFirebaseReady || uid.isBlank()) return
+        scope.launch {
+            try {
+                val firestore = FirebaseFirestore.getInstance()
+                val devName = "${Build.MANUFACTURER.replaceFirstChar { it.uppercase() }} ${Build.MODEL}"
+                val devOs = "Android ${Build.VERSION.RELEASE}"
+                val isAnon = if (email.isNotBlank()) false else isAnonymous
+                val data = mutableMapOf<String, Any>(
+                    "uid" to uid,
+                    "email" to email,
+                    "displayName" to displayName.ifBlank { if (email.isNotBlank()) email.substringBefore("@") else "Kullanıcı" },
+                    "photoUrl" to photoUrl,
+                    "isPremium" to isPremium,
+                    "isAnonymous" to isAnon,
+                    "lastDeviceName" to devName,
+                    "lastDeviceOs" to devOs,
+                    "appVersion" to "1.3.13",
+                    "lastActive" to System.currentTimeMillis()
+                )
+                if (licenseCode.isNotBlank()) {
+                    data["licenseCode"] = licenseCode
+                }
+                firestore.collection("users").document(uid).set(data, com.google.firebase.firestore.SetOptions.merge())
+                Log.d("RayFirebase", "User profile synced to Firestore: $uid ($email, isAnon=$isAnon)")
+            } catch (e: Exception) {
+                Log.w("RayFirebase", "syncUserProfile error: ${e.message}")
+            }
+        }
+    }
+
+
+    fun syncPresence(
+        uid: String,
+        name: String,
+        email: String = "",
+        photoUrl: String = ""
+    ) {
+        if (!isFirebaseReady || uid.isBlank()) return
+        scope.launch {
+            try {
+                val firestore = FirebaseFirestore.getInstance()
+                val devName = "${Build.MANUFACTURER.replaceFirstChar { it.uppercase() }} ${Build.MODEL}"
+                val data = mapOf(
+                    "uid" to uid,
+                    "name" to name.ifBlank { email.substringBefore("@").ifBlank { "Kullanıcı" } },
+                    "email" to email,
+                    "photoUrl" to photoUrl,
+                    "deviceName" to devName,
+                    "lastSeen" to System.currentTimeMillis()
+                )
+                firestore.collection("presence").document(uid).set(data, com.google.firebase.firestore.SetOptions.merge())
+            } catch (e: Exception) {
+                Log.w("RayFirebase", "syncPresence error: ${e.message}")
+            }
+        }
+    }
+
+    fun logOrder(
+        uid: String,
+        email: String,
+        productId: String,
+        playOrderId: String,
+        source: String = "Google Play",
+        adminNote: String = ""
+    ) {
+        if (!isFirebaseReady) return
+        scope.launch {
+            try {
+                val firestore = FirebaseFirestore.getInstance()
+                val id = playOrderId.ifBlank { "ORD-" + UUID.randomUUID().toString().take(8).uppercase() }
+                val nowStr = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'", Locale.US).format(Date())
+                val data = mapOf(
+                    "uid" to uid,
+                    "email" to email,
+                    "productId" to productId,
+                    "playOrderId" to id,
+                    "source" to source,
+                    "adminNote" to adminNote,
+                    "purchaseDate" to nowStr,
+                    "timestamp" to System.currentTimeMillis()
+                )
+                firestore.collection("orders").document(id).set(data, com.google.firebase.firestore.SetOptions.merge())
+                Log.d("RayFirebase", "Order recorded in Firestore: $id")
+            } catch (e: Exception) {
+                Log.w("RayFirebase", "logOrder error: ${e.message}")
+            }
         }
     }
 
@@ -220,7 +411,79 @@ class FirebaseService @Inject constructor(
             null
         }
     }
+
+    suspend fun getCloudBackupSummary(uid: String): CloudBackupSummary? {
+        if (!isFirebaseReady) return null
+        return try {
+            val docRef = FirebaseFirestore.getInstance().collection("users").document(uid)
+            val snapshot = try {
+                com.google.android.gms.tasks.Tasks.await(docRef.get(), 10, java.util.concurrent.TimeUnit.SECONDS)
+            } catch (e: Exception) {
+                getDocSnapshotWithListener(docRef, timeoutMs = 6_000L)
+            }
+            if (snapshot == null || !snapshot.exists()) return null
+
+            val jsonStr = snapshot.getString("data") ?: return null
+            val updatedAt = snapshot.getLong("updatedAt") ?: 0L
+            val platform = snapshot.getString("platform") ?: "android"
+            val sizeBytes = jsonStr.toByteArray(Charsets.UTF_8).size.toLong()
+            
+            var sourcesCount = 0
+            var profilesCount = 0
+            var favoritesCount = 0
+            var progressCount = 0
+            var epgCount = 0
+            var settingsCount = 0
+            
+            runCatching {
+                val json = kotlinx.serialization.json.Json { ignoreUnknownKeys = true }
+                val obj = json.decodeFromString<kotlinx.serialization.json.JsonObject>(jsonStr)
+                sourcesCount = (obj["sources"] as? kotlinx.serialization.json.JsonArray)?.size ?: 0
+                profilesCount = (obj["profiles"] as? kotlinx.serialization.json.JsonArray)?.size ?: 0
+                favoritesCount = (obj["favorites"] as? kotlinx.serialization.json.JsonArray)?.size ?: 0
+                progressCount = (obj["progress"] as? kotlinx.serialization.json.JsonArray)?.size ?: 0
+                epgCount = (obj["epgSources"] as? kotlinx.serialization.json.JsonArray)?.size ?: 0
+                settingsCount = (obj["settings"] as? kotlinx.serialization.json.JsonObject)?.size ?: 0
+            }
+            
+            CloudBackupSummary(
+                sizeBytes = sizeBytes,
+                updatedAt = updatedAt,
+                sourcesCount = sourcesCount,
+                profilesCount = profilesCount,
+                favoritesCount = favoritesCount,
+                progressCount = progressCount,
+                epgCount = epgCount,
+                settingsCount = settingsCount,
+                platform = platform
+            )
+        } catch (_: Exception) {
+            null
+        }
+    }
 }
+
+data class CloudBackupSummary(
+    val sizeBytes: Long = 0L,
+    val updatedAt: Long = 0L,
+    val sourcesCount: Int = 0,
+    val profilesCount: Int = 0,
+    val favoritesCount: Int = 0,
+    val progressCount: Int = 0,
+    val epgCount: Int = 0,
+    val settingsCount: Int = 0,
+    val platform: String = "android"
+) {
+    val sizeLabel: String
+        get() {
+            if (sizeBytes <= 0) return "0 KB"
+            val mb = sizeBytes / (1024f * 1024f)
+            if (mb >= 1f) return String.format(java.util.Locale.US, "%.2f MB", mb)
+            val kb = sizeBytes / 1024f
+            return String.format(java.util.Locale.US, "%.1f KB", kb)
+        }
+}
+
 
 class RayFirebaseMessagingService : FirebaseMessagingService() {
     override fun onNewToken(token: String) {

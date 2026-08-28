@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Ray IPTV Player</string>
+    <string name="brand_name">Ray Player</string>
+    <string name="disclaimer_title">Një luajtës, jo katalog</string>
+    <string name="disclaimer_body">Ray IPTV Player nuk ofron kanale, filma ose lista luajtjeje. Shtoni një burim që jeni i autorizuar ta përdorni.</string>
+    <string name="continue_label">Vazhdo</string>
+    <string name="get_started">Fillo</string>
+</resources>

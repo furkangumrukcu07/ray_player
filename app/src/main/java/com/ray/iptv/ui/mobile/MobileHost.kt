@@ -346,52 +346,52 @@ fun MobileHost(
                         introTargetMs = vm.introTargetMs()
                     )
                 } else {
-                RaySwitch(dest, Modifier.fillMaxSize(), effect = settings.pageTransitionEffect) {
-                when {
-                    dest == Dest.SETTINGS -> SettingsScreen(
-                        vm, settings, sources, profiles, epgSources, groups,
-                        visibleLiveCats, dls, strings,
-                        railExpanded = true,
-                        onExpandRail = { vm.go(Dest.CONTINUE) },
-                        onExit = { vm.go(Dest.CONTINUE) }
-                    )
-                    dest == Dest.ADMIN -> AdminHost(vm, tr) { vm.go(Dest.CONTINUE) }
-                    dest == Dest.WRAPPED -> MobileWrappedScreen(vm, tr) { vm.go(Dest.CONTINUE) }
-                    dest == Dest.EPG_MIX -> MobileEpgMixScreen(
-                        vm = vm,
-                        tr = tr,
-                        onBack = { vm.go(Dest.CONTINUE) },
-                        onPlayLive = vm::playChannel,
-                        onCatchup = { ch, p -> vm.playCatchup(ch, p) }
-                    )
-                    dest == Dest.LIVE -> MobileLiveBrowseScreen(
-                        tr = tr,
-                        categories = visibleLiveCats,
-                        channels = channels,
-                        allCount = liveTotal,
-                        categoryCounts = liveCounts,
-                        favorites = favs,
-                        recent = recent,
-                        selectedCategory = liveCat,
-                        nowByChannel = browseNowMap,
-                        onCategory = {
-                            vm.liveCategoryId.value = it
-                            vm.enterLiveContent()
-                        },
-                        onPlay = vm::playChannel,
-                        onLoadNowMap = vm::loadListNow,
-                        onLoadMore = vm::loadMoreLive,
-                        stripPrefix = settings.stripChannelPrefix,
-                        pills = true,
-                        startOnChannels = livePhase == LiveBrowsePhase.CONTENT,
-                        onBrowseChannels = vm::enterLiveContent,
-                        onBrowseCategories = vm::backFromLiveContent
-                    )
-                    dest == Dest.MOVIES || dest == Dest.SERIES -> {
+                RaySwitch(dest, Modifier.fillMaxSize(), effect = settings.pageTransitionEffect) { targetDest ->
+                    when (targetDest) {
+                        Dest.SETTINGS -> SettingsScreen(
+                            vm, settings, sources, profiles, epgSources, groups,
+                            visibleLiveCats, dls, strings,
+                            railExpanded = true,
+                            onExpandRail = { vm.go(Dest.CONTINUE) },
+                            onExit = { vm.go(Dest.CONTINUE) }
+                        )
+                        Dest.ADMIN -> AdminHost(vm, tr) { vm.go(Dest.CONTINUE) }
+                        Dest.WRAPPED -> MobileWrappedScreen(vm, tr) { vm.go(Dest.CONTINUE) }
+                        Dest.EPG_MIX -> MobileEpgMixScreen(
+                            vm = vm,
+                            tr = tr,
+                            onBack = { vm.go(Dest.CONTINUE) },
+                            onPlayLive = vm::playChannel,
+                            onCatchup = { ch, p -> vm.playCatchup(ch, p) }
+                        )
+                        Dest.LIVE -> MobileLiveBrowseScreen(
+                            tr = tr,
+                            categories = visibleLiveCats,
+                            channels = channels,
+                            allCount = liveTotal,
+                            categoryCounts = liveCounts,
+                            favorites = favs,
+                            recent = recent,
+                            selectedCategory = liveCat,
+                            nowByChannel = browseNowMap,
+                            onCategory = {
+                                vm.liveCategoryId.value = it
+                                vm.enterLiveContent()
+                            },
+                            onPlay = vm::playChannel,
+                            onLoadNowMap = vm::loadListNow,
+                            onLoadMore = vm::loadMoreLive,
+                            stripPrefix = settings.stripChannelPrefix,
+                            pills = true,
+                            startOnChannels = livePhase == LiveBrowsePhase.CONTENT,
+                            onBrowseChannels = vm::enterLiveContent,
+                            onBrowseCategories = vm::backFromLiveContent
+                        )
+                        Dest.MOVIES, Dest.SERIES -> {
                             MobileCinemaScreen(
                                 tr = tr,
                                 vm = vm,
-                                seriesMode = dest == Dest.SERIES || seriesUi,
+                                seriesMode = targetDest == Dest.SERIES || seriesUi,
                                 onSeriesMode = { on ->
                                     seriesUi = on
                                     vm.closeDetail()
@@ -415,27 +415,27 @@ fun MobileHost(
                                 },
                                 onResume = vm::resumeItem
                             )
+                        }
+                        else -> MobileHomeScreen(
+                            tr = tr,
+                            vm = vm,
+                            settings = settings,
+                            continueWatching = if (settings.homeContinue) cont else emptyList(),
+                            movies = movies,
+                            series = series,
+                            movieCats = visibleMovieCats,
+                            seriesCats = visibleSeriesCats,
+                            favorites = favs,
+                            recentLive = recent,
+                            liveSample = channels.take(12),
+                            onPlayVod = vm::playVod,
+                            onPlaySeries = vm::playSeriesDirect,
+                            onOpenMovie = { vm.openMovie(it, fromHome = true) },
+                            onOpenSeries = { vm.openSeries(it, fromHome = true) },
+                            onResume = vm::resumeItem,
+                            onPlayLive = vm::playChannel
+                        )
                     }
-                    else -> MobileHomeScreen(
-                        tr = tr,
-                        vm = vm,
-                        settings = settings,
-                        continueWatching = if (settings.homeContinue) cont else emptyList(),
-                        movies = movies,
-                        series = series,
-                        movieCats = visibleMovieCats,
-                        seriesCats = visibleSeriesCats,
-                        favorites = favs,
-                        recentLive = recent,
-                        liveSample = channels.take(12),
-                        onPlayVod = vm::playVod,
-                        onPlaySeries = vm::playSeriesDirect,
-                        onOpenMovie = { vm.openMovie(it, fromHome = true) },
-                        onOpenSeries = { vm.openSeries(it, fromHome = true) },
-                        onResume = vm::resumeItem,
-                        onPlayLive = vm::playChannel
-                    )
-                }
                 }
                 }
             }
@@ -464,45 +464,30 @@ fun MobileHost(
                 )
             }
         }
-        if (overlay == Overlay.SEARCH) {
-            Box(Modifier.fillMaxSize().statusBarsPadding().background(Color.Black.copy(alpha = 0.42f))) {
-                Box(
-                    Modifier
-                        .fillMaxSize()
-                        .clickable(
-                            indication = null,
-                            interactionSource = remember { MutableInteractionSource() }
-                        ) { vm.closeOverlay() }
-                )
-                GlassPanel(
-                    strong = true,
-                    radius = 20.dp,
-                    modifier = Modifier.fillMaxSize().padding(8.dp)
-                ) {
-                    Box(Modifier.padding(12.dp)) {
-                        SearchScreen(
-                            copy = strings,
-                            query = q,
-                            live = sLive,
-                            movies = sMov,
-                            series = sSer,
-                            onQuery = vm::search,
-                            onLive = vm::pickSearchLive,
-                            onMovie = vm::pickSearchMovie,
-                            onSeries = vm::pickSearchSeries,
-                            recents = searchHist,
-                            searching = searchBusy,
-                            liveCats = visibleLiveCats,
-                            movieCats = visibleMovieCats,
-                            seriesCats = visibleSeriesCats,
-                            onRecent = { vm.search(it, immediate = true) },
-                            onRemoveRecent = vm::removeRecentSearch,
-                            onClearRecents = vm::clearSearchHistory
-                        )
-                    }
-                }
-            }
+        AnimatedVisibility(
+            visible = overlay == Overlay.SEARCH,
+            enter = fadeIn(tween(200)),
+            exit = fadeOut(tween(180))
+        ) {
+            MobileDynamicSearchSheet(
+                query = q,
+                searching = searchBusy,
+                liveResults = sLive,
+                movieResults = sMov,
+                seriesResults = sSer,
+                searchHistory = searchHist,
+                tr = tr,
+                onQueryChange = vm::search,
+                onPlayLive = vm::pickSearchLive,
+                onOpenMovie = vm::pickSearchMovie,
+                onOpenSeries = vm::pickSearchSeries,
+                onRecentClick = { vm.search(it, immediate = true) },
+                onRemoveRecent = vm::removeRecentSearch,
+                onClearHistory = vm::clearSearchHistory,
+                onDismiss = vm::closeOverlay
+            )
         }
+
         val detailIncoming = movie ?: show
         var detailPage by remember { mutableStateOf(detailIncoming) }
         androidx.compose.runtime.SideEffect {
@@ -552,7 +537,8 @@ fun MobileHost(
                         onOpenSimilar = { other ->
                             if (other.kind == "SERIES") vm.openSeries(other) else vm.openMovie(other)
                         },
-                        loading = metaLoading || extrasId != detailItem.id
+                        loading = metaLoading || extrasId != detailItem.id,
+                        onActorClick = vm::openActorProfile
                     )
                 }
             }

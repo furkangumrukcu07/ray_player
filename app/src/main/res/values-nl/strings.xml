@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Ray IPTV Player</string>
+    <string name="brand_name">Ray Player</string>
+    <string name="disclaimer_title">Een speler, geen catalogus</string>
+    <string name="disclaimer_body">Ray IPTV Player levert geen kanalen, films of afspeellijsten. Voeg een bron toe die u mag gebruiken.</string>
+    <string name="continue_label">Doorgaan</string>
+    <string name="get_started">Aan de slag</string>
+</resources>

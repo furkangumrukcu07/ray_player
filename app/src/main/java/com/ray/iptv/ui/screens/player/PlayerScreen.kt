@@ -114,9 +114,12 @@ import com.ray.iptv.data.local.ChannelEntity
 import com.ray.iptv.data.local.EpgEntity
 import com.ray.iptv.data.repo.AspectMode
 import com.ray.iptv.data.repo.PlaybackEngine
+import com.ray.iptv.data.repo.StreamFormat
 import com.ray.iptv.player.MediaKitSurfaceHost
 import com.ray.iptv.player.RayPlayer
+import com.ray.iptv.player.StreamHints
 import com.ray.iptv.player.TrackOption
+import com.ray.iptv.player.XtreamStreamUrls
 import com.ray.iptv.ui.Playback
 import com.ray.iptv.ui.NextUpPrompt
 import com.ray.iptv.ui.RayViewModel
@@ -124,6 +127,7 @@ import com.ray.iptv.ui.glass.GlassPanel
 import com.ray.iptv.ui.i18n.Copy
 import com.ray.iptv.ui.input.LocalTouchUi
 import com.ray.iptv.ui.input.playerTouch
+import com.ray.iptv.ui.input.isTelevisionDevice
 import com.ray.iptv.ui.screens.guide.GuideScreen
 import com.ray.iptv.ui.theme.LocalGlass
 import kotlinx.coroutines.delay
@@ -205,6 +209,7 @@ fun RayPlayerRoute(vm: RayViewModel, strings: Copy) {
         subtitleOutline = settings.subtitleOutline,
         subtitleColor = settings.subtitleColor,
         subtitleFont = settings.subtitleFont,
+        streamFormat = settings.effectiveStreamFormat(),
         onSelectSubtitle = vm::pickSubtitle
     )
 }
@@ -251,6 +256,7 @@ fun PlayerScreen(
     subtitleOutline: Boolean = true,
     subtitleColor: String = "white",
     subtitleFont: String = "sans",
+    streamFormat: StreamFormat = StreamFormat.AUTO,
     onSelectSubtitle: (String) -> Unit = {}
 ) {
     val g = LocalGlass.current
@@ -318,16 +324,29 @@ fun PlayerScreen(
     var lastBackHandledMs by remember { mutableLongStateOf(0L) }
     val handleBack: () -> Boolean = {
         val now = System.currentTimeMillis()
-        if (now - lastBackHandledMs < 350L) {
+        if (now - lastBackHandledMs < 400L) {
             true
         } else {
             lastBackHandledMs = now
             when {
-                sheet != null -> { sheet = null; showOsd() }
-                guide -> { guide = false; showOsd() }
-                peek -> { peek = false; showOsd() }
-                overlay -> { overlay = false }
-                else -> { leavePlayer() }
+                sheet != null -> {
+                    sheet = null
+                    showOsd()
+                }
+                peek -> {
+                    peek = false
+                    showOsd()
+                }
+                guide -> {
+                    guide = false
+                    showOsd()
+                }
+                overlay -> {
+                    overlay = false
+                }
+                else -> {
+                    leavePlayer()
+                }
             }
             true
         }
@@ -343,7 +362,7 @@ fun PlayerScreen(
             .onPreviewKeyEvent { ev ->
                 val code = ev.nativeKeyEvent.keyCode
                 if (code == KeyEvent.KEYCODE_BACK) {
-                    if (ev.nativeKeyEvent.action == KeyEvent.ACTION_DOWN) {
+                    if (ev.nativeKeyEvent.action == KeyEvent.ACTION_UP) {
                         handleBack()
                     }
                     return@onPreviewKeyEvent true
@@ -481,6 +500,7 @@ fun PlayerScreen(
                     factory = { ctx ->
                         MediaKitSurfaceHost(ctx).apply {
                             player = rayPlayer
+                            keepScreenOn = true
                             layoutParams = FrameLayout.LayoutParams(
                                 ViewGroup.LayoutParams.MATCH_PARENT,
                                 ViewGroup.LayoutParams.MATCH_PARENT
@@ -489,6 +509,7 @@ fun PlayerScreen(
                     },
                     update = { view ->
                         view.player = rayPlayer
+                        view.keepScreenOn = true
                         rayPlayer.applyVideoLayout(
                             fill = aspect == AspectMode.FILL || aspect == AspectMode.STRETCH,
                             zoom = aspect == AspectMode.ZOOM
@@ -505,6 +526,7 @@ fun PlayerScreen(
                     factory = { ctx ->
                         PlayerView(ctx).apply {
                             useController = false
+                            keepScreenOn = true
                             resizeMode = resize
                             player = rayPlayer.exo
                             isClickable = false
@@ -517,8 +539,10 @@ fun PlayerScreen(
                         }
                     },
                     update = { view ->
+                        view.keepScreenOn = true
                         view.resizeMode = resize
                         view.player = rayPlayer.exo
+
                         view.subtitleView?.setFixedTextSize(TypedValue.COMPLEX_UNIT_SP, subtitleSize.toFloat())
                         view.subtitleView?.setStyle(
                             CaptionStyleCompat(
@@ -580,20 +604,9 @@ fun PlayerScreen(
                 )
             }
             if (guide) {
-                BackHandler { guide = false; showOsd() }
                 Box(
                     Modifier
                         .fillMaxSize()
-                        .onPreviewKeyEvent { ev ->
-                            if (ev.nativeKeyEvent.keyCode == KeyEvent.KEYCODE_BACK) {
-                                if (ev.nativeKeyEvent.action == KeyEvent.ACTION_DOWN) {
-                                    guide = false
-                                    showOsd()
-                                }
-                                return@onPreviewKeyEvent true
-                            }
-                            false
-                        }
                         .padding(24.dp)
                 ) {
                     GlassPanel(strong = true, radius = 20.dp, modifier = Modifier.fillMaxSize()) {
@@ -723,6 +736,7 @@ fun PlayerScreen(
                             favorite = favorite,
                             playing = tick.playing,
                             speed = speed,
+                            streamFormat = streamFormat,
                             fillAlpha = (osdOpacity.coerceIn(20, 100)) / 100f,
                             onRewind = {
                                 showOsd()
@@ -771,7 +785,7 @@ fun PlayerScreen(
                             },
                             onSpeed = { showOsd(); onSpeed() },
                             onExternal = { showOsd(); onExternal() },
-                            onPortrait = if (touch) ({
+                            onPortrait = if (touch && !context.isTelevisionDevice()) ({
                                 showOsd()
                                 context.setPortrait()
                             }) else null,
@@ -1033,6 +1047,7 @@ private fun MinaOsdBar(
     favorite: Boolean,
     playing: Boolean,
     speed: Float,
+    streamFormat: StreamFormat = StreamFormat.AUTO,
     onRewind: () -> Unit,
     onPlayPause: () -> Unit,
     onForward: () -> Unit,
@@ -1065,7 +1080,7 @@ private fun MinaOsdBar(
         else -> ""
     }
     val hd = qualityLabel(videoSize)
-    val transport = transportLabel(playback.url)
+    val transport = transportLabel(playback.url, streamFormat)
     val kindLabel = when {
         playback.live || playback.kind == "LIVE" -> "CANLI"
         playback.kind == "SERIES" || playback.kind == "EPISODE" -> "DİZİ"
@@ -1324,12 +1339,22 @@ private fun qualityLabel(size: String): String {
     }
 }
 
-private fun transportLabel(url: String): String {
-    val u = url.lowercase()
+private fun transportLabel(url: String, format: StreamFormat = StreamFormat.AUTO): String {
+    val effectiveUrl = if (format != StreamFormat.AUTO) {
+        XtreamStreamUrls.applyFormat(url, format)
+    } else {
+        url
+    }.lowercase()
+    val clean = effectiveUrl.substringBefore('?')
     return when {
-        ".m3u8" in u || "type=m3u8" in u || "/hls/" in u -> "HLS"
-        ".mpd" in u -> "DASH"
-        ".ts" in u || "mpegts" in u || "format=ts" in u -> "TS"
+        clean.endsWith(".ts") || "output=ts" in effectiveUrl || "format=ts" in effectiveUrl || ".ts?" in effectiveUrl -> "TS"
+        clean.endsWith(".m3u8") || "output=m3u8" in effectiveUrl || "type=m3u8" in effectiveUrl || "/hls/" in effectiveUrl || ".m3u8?" in effectiveUrl -> "HLS"
+        clean.endsWith(".mpd") || ".mpd?" in effectiveUrl -> "DASH"
+        format == StreamFormat.TS -> "TS"
+        format == StreamFormat.HLS -> "HLS"
+        StreamHints.mpegTs(effectiveUrl) -> "TS"
+        StreamHints.hls(effectiveUrl) -> "HLS"
+        StreamHints.dash(effectiveUrl) -> "DASH"
         else -> ""
     }
 }
@@ -1342,19 +1367,8 @@ private fun OsdTrackSheet(
     onPick: (String) -> Unit,
     onDismiss: () -> Unit
 ) {
-    BackHandler { onDismiss() }
     Box(
-        Modifier
-            .fillMaxSize()
-            .onPreviewKeyEvent { ev ->
-                if (ev.nativeKeyEvent.keyCode == KeyEvent.KEYCODE_BACK) {
-                    if (ev.nativeKeyEvent.action == KeyEvent.ACTION_DOWN) {
-                        onDismiss()
-                    }
-                    return@onPreviewKeyEvent true
-                }
-                false
-            },
+        Modifier.fillMaxSize(),
         contentAlignment = Alignment.Center
     ) {
         Box(

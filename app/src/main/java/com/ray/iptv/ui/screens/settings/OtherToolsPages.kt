@@ -88,8 +88,11 @@ import java.net.URI
 import androidx.compose.ui.focus.FocusRequester
 import java.net.URL
 import kotlin.math.roundToInt
+import androidx.activity.compose.BackHandler
+import com.ray.iptv.ui.input.tryFocus
+import androidx.compose.material.icons.filled.DataUsage
 
-private enum class OtherToolsSub { LIST, EPG, SOURCES, SPEED }
+private enum class OtherToolsSub { LIST, EPG, SOURCES, SPEED, DATA_USAGE }
 
 @Composable
 internal fun OtherToolsRoot(
@@ -102,11 +105,69 @@ internal fun OtherToolsRoot(
     onBack: () -> Unit
 ) {
     var sub by remember { mutableStateOf(OtherToolsSub.LIST) }
+    var lastSubIndex by remember { mutableStateOf(0) }
+    val subItemFocusRequester = remember { FocusRequester() }
+    val speedState by vm.speedTestState.collectAsState()
+    val dataUsageState by vm.dataUsageState.collectAsState()
+
+    BackHandler {
+        if (sub != OtherToolsSub.LIST) {
+            sub = if (sub == OtherToolsSub.SOURCES) OtherToolsSub.EPG else OtherToolsSub.LIST
+        } else {
+            onBack()
+        }
+    }
+
+    LaunchedEffect(sub) {
+        if (sub == OtherToolsSub.LIST) {
+            repeat(8) {
+                delay(30)
+                if (focusRequester?.tryFocus() == true) return@LaunchedEffect
+            }
+        } else {
+            repeat(8) {
+                delay(35)
+                if (subItemFocusRequester.tryFocus()) return@LaunchedEffect
+            }
+        }
+    }
+
     when (sub) {
-        OtherToolsSub.LIST -> OtherToolsList(vm, settings, tr, onBack, focusRequester, { sub = OtherToolsSub.EPG }, { sub = OtherToolsSub.SPEED })
+        OtherToolsSub.LIST -> OtherToolsList(
+            vm = vm,
+            settings = settings,
+            tr = tr,
+            onBack = onBack,
+            focusRequester = focusRequester,
+            onEpg = {
+                lastSubIndex = 0
+                sub = OtherToolsSub.EPG
+            },
+            onSpeed = {
+                lastSubIndex = 1
+                sub = OtherToolsSub.SPEED
+            },
+            onDataUsage = {
+                lastSubIndex = 2
+                sub = OtherToolsSub.DATA_USAGE
+            }
+        )
         OtherToolsSub.EPG -> EpgSettingsPage(vm, settings, sources, tr, { sub = OtherToolsSub.LIST }, { sub = OtherToolsSub.SOURCES })
         OtherToolsSub.SOURCES -> EpgSourcesPage(vm, settings, epgSources, tr) { sub = OtherToolsSub.EPG }
-        OtherToolsSub.SPEED -> SpeedTestPage(sources, tr) { sub = OtherToolsSub.LIST }
+        OtherToolsSub.SPEED -> SpeedTestScreen(
+            tr = tr,
+            state = speedState,
+            onStartTest = vm::startSpeedTest,
+            onStopTest = vm::stopSpeedTest,
+            onBack = { sub = OtherToolsSub.LIST }
+        )
+        OtherToolsSub.DATA_USAGE -> DataUsageScreen(
+            tr = tr,
+            state = dataUsageState,
+            onToggleDataSaver = vm::toggleDataSaver,
+            onResetStats = vm::resetDataUsage,
+            onBack = { sub = OtherToolsSub.LIST }
+        )
     }
 }
 
@@ -118,7 +179,8 @@ private fun OtherToolsList(
     onBack: () -> Unit,
     focusRequester: FocusRequester? = null,
     onEpg: () -> Unit,
-    onSpeed: () -> Unit
+    onSpeed: () -> Unit,
+    onDataUsage: () -> Unit
 ) {
     var sleepOpen by remember { mutableStateOf(false) }
     var fontOpen by remember { mutableStateOf(false) }
@@ -154,7 +216,9 @@ private fun OtherToolsList(
                 subtitle = when (settings.layoutMode) {
                     LayoutMode.MOBILE -> if (tr) "Mobil" else "Mobile"
                     LayoutMode.TV -> "TV"
+                    LayoutMode.TABLET -> if (tr) "Tablet" else "Tablet"
                 },
+
                 onClick = { layoutOpen = true }
             )
         }
@@ -187,9 +251,17 @@ private fun OtherToolsList(
         item {
             ToolsTile(
                 icon = Icons.Filled.NetworkCheck,
-                title = if (tr) "Hız Testi" else "Speed test",
-                subtitle = if (tr) "İnternet hızını ölç" else "Measure internet speed",
+                title = if (tr) "Hız Testi & IPTV Ping" else "Speed & IPTV Ping",
+                subtitle = if (tr) "İnternet hızını ve IPTV sunucu gecikmesini ölç" else "Measure download speed and IPTV server ping",
                 onClick = onSpeed
+            )
+        }
+        item {
+            ToolsTile(
+                icon = Icons.Filled.DataUsage,
+                title = if (tr) "Veri Kullanım Takibi" else "Data Usage Tracking",
+                subtitle = if (tr) "Wi-Fi & Mobil veri tüketimi ve veri tasarruf modu" else "Wi-Fi & cellular data usage and data saver",
+                onClick = onDataUsage
             )
         }
         if (mobileChrome) {
@@ -241,20 +313,25 @@ private fun OtherToolsList(
     }
     if (layoutOpen) {
         GlassChoiceDialog(
-            title = if (tr) "Cihaz modu" else "Device mode",
+            title = if (tr) "Yerleşim Modu" else "Layout Mode",
             body = if (tr) {
-                "Mobil: dokunmatik vitrin. TV: kumanda ve büyük yazı."
+                "Mobil: dikey telefon. Tablet: yatay geniş ekran ve sol dock. TV: kumanda odaklı büyük ekran."
             } else {
-                "Mobile: touch showcase. TV: remote and large type."
+                "Mobile: portrait phone. Tablet: landscape wide screen with left dock. TV: remote-friendly big screen."
             },
             options = listOf(
-                LayoutMode.MOBILE to if (tr) {
-                    "Mobil  ·  Telefon için dokunma ve kompakt liste"
+                LayoutMode.TABLET to if (tr) {
+                    "Tablet  ·  Yatay geniş ekran, sol menü ve dokunmatik zengin arayüz"
                 } else {
-                    "Mobile  ·  Touch-friendly compact lists"
+                    "Tablet  ·  Landscape widescreen, left sidebar, touch-rich interface"
+                },
+                LayoutMode.MOBILE to if (tr) {
+                    "Mobil  ·  Telefon için dokunma ve dikey liste"
+                } else {
+                    "Mobile  ·  Touch-friendly portrait lists"
                 },
                 LayoutMode.TV to if (tr) {
-                    "TV  ·  Kumanda ve uzak izleme için büyük yazı"
+                    "TV  ·  Kumanda ve uzak izleme için büyük ekran"
                 } else {
                     "TV  ·  Large text and focus for remotes"
                 }

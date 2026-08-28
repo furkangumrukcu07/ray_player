@@ -18,6 +18,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
@@ -28,8 +29,10 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.runtime.setValue
+import kotlinx.coroutines.launch
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -115,18 +118,59 @@ fun LiveScreen(
     onLoadMore: () -> Unit = {},
     stripPrefix: Boolean = false,
     railExpanded: Boolean = false,
+    contentFocusTrigger: Long = 0L,
     onExit: () -> Unit = {}
 ) {
     val g = LocalGlass.current
     val focusManager = LocalFocusManager.current
     val catFocus = remember { FocusRequester() }
+    val selectedCatFocus = remember { FocusRequester() }
     val listFocus = remember { FocusRequester() }
+    val catListState = rememberLazyListState()
+    val scope = rememberCoroutineScope()
     var hovered by remember { mutableStateOf<ChannelEntity?>(null) }
     var catMenu by remember { mutableStateOf<CategoryEntity?>(null) }
+    var channelsFocused by remember { mutableStateOf(false) }
+
+    val favCount = remember(favorites) {
+        favorites.count { it.kind == "LIVE" }
+    }
+    val recentCount = remember(recent) { recent.size }
+    val catCounts = remember(categoryCounts) { categoryCounts }
+
+    val categoryKeys = remember(categories, groups, recentCount) {
+        buildList {
+            add("")
+            add("fav")
+            if (recentCount > 0) add("recent")
+            groups.forEach { add("group:${it.id}") }
+            categories.forEach { add(it.id) }
+        }
+    }
+    val targetCatIndex = remember(categoryKeys, selectedCategory) {
+        val idx = categoryKeys.indexOf(selectedCategory)
+        if (idx >= 0) idx else 0
+    }
+
+    val focusToSelectedCategory: () -> Unit = {
+        channelsFocused = false
+        scope.launch {
+            if (!showCategories) onBackToCategories()
+            delay(30)
+            if (targetCatIndex in 0 until categoryKeys.size) {
+                runCatching { catListState.scrollToItem(targetCatIndex) }
+            }
+            repeat(12) {
+                delay(35)
+                if (selectedCatFocus.tryFocus() || catFocus.tryFocus()) return@launch
+            }
+        }
+    }
 
     BackHandler {
         when {
-            !showCategories -> onBackToCategories()
+            !showCategories -> focusToSelectedCategory()
+            channelsFocused -> focusToSelectedCategory()
             railExpanded -> onExit()
             else -> {
                 onExpandRail()
@@ -144,18 +188,24 @@ fun LiveScreen(
     LaunchedEffect(hovered?.id) {
         onHover(hovered)
     }
-    LaunchedEffect(showCategories) {
-        delay(60)
-        if (showCategories) catFocus.tryFocus() else listFocus.tryFocus()
+    LaunchedEffect(showCategories, railExpanded, contentFocusTrigger, categoryKeys.size, channels.size) {
+        if (showCategories && !railExpanded) {
+            delay(20)
+            if (targetCatIndex in 0 until categoryKeys.size) {
+                runCatching { catListState.scrollToItem(targetCatIndex) }
+            }
+            repeat(30) {
+                delay(35)
+                if (selectedCatFocus.tryFocus() || catFocus.tryFocus()) return@LaunchedEffect
+            }
+        } else if (!showCategories && !railExpanded) {
+            repeat(30) {
+                delay(35)
+                if (listFocus.tryFocus()) return@LaunchedEffect
+            }
+        }
     }
 
-    val favCount = remember(favorites) {
-        favorites.count { it.kind == "LIVE" }
-    }
-    val recentCount = remember(recent) { recent.size }
-    val catCounts = remember(categoryCounts, allChannels) {
-        categoryCounts.ifEmpty { allChannels.groupingBy { it.categoryId }.eachCount() }
-    }
     val ch = hovered ?: channels.firstOrNull()
     val next = upcoming.firstOrNull { it.id != now?.id }
 
@@ -186,11 +236,20 @@ fun LiveScreen(
                     recentCount = recentCount,
                     catCounts = catCounts,
                     catMenu = catMenu,
+                    listState = catListState,
                     onCategory = onCategory,
                     onPick = {
+                        channelsFocused = true
                         onPickCategory()
-                        listFocus.tryFocus()
+                        scope.launch {
+                            repeat(25) {
+                                delay(30)
+                                if (listFocus.tryFocus()) return@launch
+                            }
+                        }
                     },
+
+
                     onMenu = { catMenu = it },
                     onPin = onPin,
                     onHide = { onHide(it); catMenu = null },
@@ -200,6 +259,8 @@ fun LiveScreen(
                         focusManager.moveFocus(FocusDirection.Left)
                     },
                     firstFocus = catFocus,
+                    selectedFocus = selectedCatFocus,
+                    onCatFocused = { channelsFocused = false },
                     modifier = Modifier.fillMaxSize()
                 )
             }
@@ -224,14 +285,14 @@ fun LiveScreen(
                     guideSlots = guideSlots,
                     nowByChannel = nowByChannel,
                     groups = groups,
-                    onHover = { hovered = it },
+                    onHover = {
+                        hovered = it
+                        channelsFocused = true
+                    },
                     onPlay = onPlay,
                     onFav = onFav,
                     onAddGroup = onAddGroup,
-                    onLeftFromChannel = {
-                        if (showCategories) catFocus.tryFocus()
-                        else onBackToCategories()
-                    },
+                    onLeftFromChannel = focusToSelectedCategory,
                     onLoadMore = onLoadMore,
                     listFocus = listFocus,
                     modifier = Modifier.fillMaxSize()
@@ -554,8 +615,10 @@ private fun LiveGuide(
                     onLeft = onLeft,
                     isFirst = index == 0,
                     isLast = index == channels.lastIndex,
-                    focusRequester = if (index == 0) listFocus else null
+                    focusRequester = if (ch.id == hoveredId || (hoveredId == null && index == 0) || (channels.none { it.id == hoveredId } && index == 0)) listFocus else null
+
                 )
+
             }
         }
     }
@@ -712,6 +775,7 @@ private fun CategoryPane(
     recentCount: Int,
     catCounts: Map<String, Int>,
     catMenu: CategoryEntity?,
+    listState: LazyListState = rememberLazyListState(),
     onCategory: (String) -> Unit,
     onPick: () -> Unit,
     onMenu: (CategoryEntity) -> Unit,
@@ -720,6 +784,8 @@ private fun CategoryPane(
     onLock: (CategoryEntity) -> Unit,
     onLeft: () -> Unit = {},
     firstFocus: FocusRequester? = null,
+    selectedFocus: FocusRequester? = null,
+    onCatFocused: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val g = LocalGlass.current
@@ -740,49 +806,56 @@ private fun CategoryPane(
                 modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
             )
             Spacer(Modifier.height(8.dp))
-            LazyColumn(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+            LazyColumn(state = listState, verticalArrangement = Arrangement.spacedBy(2.dp)) {
                 item {
+                    val isSel = selectedCategory.isEmpty()
                     CatRow(
                         copy.allChannels,
                         allCount,
-                        selectedCategory.isEmpty(),
+                        isSel,
                         onClick = { onCategory(""); onPick() },
-                        onFocus = { onCategory("") },
+                        onFocus = { onCatFocused(); onCategory("") },
                         onRight = onPick,
                         isFirst = true,
-                        focusRequester = firstFocus
+                        focusRequester = if (isSel) selectedFocus else firstFocus
                     )
                 }
                 item {
+                    val isSel = selectedCategory == "fav"
                     CatRow(
                         copy.favorites,
                         favCount,
-                        selectedCategory == "fav",
+                        isSel,
                         onClick = { onCategory("fav"); onPick() },
-                        onFocus = { onCategory("fav") },
-                        onRight = onPick
+                        onFocus = { onCatFocused(); onCategory("fav") },
+                        onRight = onPick,
+                        focusRequester = if (isSel) selectedFocus else null
                     )
                 }
                 if (recentCount > 0) {
                     item {
+                        val isSel = selectedCategory == "recent"
                         CatRow(
                             copy.recentlyWatched,
                             recentCount,
-                            selectedCategory == "recent",
+                            isSel,
                             onClick = { onCategory("recent"); onPick() },
-                            onFocus = { onCategory("recent") },
-                            onRight = onPick
+                            onFocus = { onCatFocused(); onCategory("recent") },
+                            onRight = onPick,
+                            focusRequester = if (isSel) selectedFocus else null
                         )
                     }
                 }
                 items(groups, key = { it.id }) { gr ->
+                    val isSel = selectedCategory == "group:${gr.id}"
                     CatRow(
                         "★  ${gr.name}",
                         null,
-                        selectedCategory == "group:${gr.id}",
+                        isSel,
                         onClick = { onCategory("group:${gr.id}"); onPick() },
-                        onFocus = { onCategory("group:${gr.id}") },
-                        onRight = onPick
+                        onFocus = { onCatFocused(); onCategory("group:${gr.id}") },
+                        onRight = onPick,
+                        focusRequester = if (isSel) selectedFocus else null
                     )
                 }
                 catMenu?.let { cat ->
@@ -798,14 +871,16 @@ private fun CategoryPane(
                     }
                 }
                 items(categories, key = { it.id }) { cat ->
+                    val isSel = selectedCategory == cat.id
                     CatRow(
                         (if (cat.pinned) "●  " else "") + cat.name + if (cat.locked) "  🔒" else "",
                         catCounts[cat.id] ?: 0,
-                        selectedCategory == cat.id,
+                        isSel,
                         onClick = { onCategory(cat.id); onPick() },
-                        onFocus = { onCategory(cat.id) },
+                        onFocus = { onCatFocused(); onCategory(cat.id) },
                         onRight = onPick,
-                        onLong = { onMenu(cat) }
+                        onLong = { onMenu(cat) },
+                        focusRequester = if (isSel) selectedFocus else null
                     )
                 }
             }
@@ -846,11 +921,14 @@ private fun CatRow(
             .onPreviewKeyEvent { e ->
                 if (e.type != KeyEventType.KeyDown) return@onPreviewKeyEvent false
                 when (e.key) {
-                    Key.DirectionRight -> {
+                    Key.DirectionRight, Key.DirectionCenter, Key.Enter -> {
                         if (onRight != null) {
                             onRight()
                             true
-                        } else false
+                        } else {
+                            onClick()
+                            true
+                        }
                     }
                     Key.DirectionUp -> {
                         if (isFirst) true else false
@@ -858,6 +936,7 @@ private fun CatRow(
                     else -> false
                 }
             }
+
     ) {
         Row(
             Modifier.fillMaxSize().padding(horizontal = 12.dp),

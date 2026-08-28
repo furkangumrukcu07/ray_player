@@ -110,8 +110,14 @@ class AndroidPlaybackSocHints private constructor(context: Context) {
             listOf("amazon", "fire tv", "aft", "sheldon", "mantis").any {
                 man.contains(it) || brand.contains(it) || modelLc.contains(it) || device.contains(it)
             }
+        val sonyLike = listOf("sony", "bravia").any {
+            man.contains(it) || brand.contains(it) || modelLc.contains(it)
+        }
+        val otherSmartTvLike = listOf("grundig", "arcelik", "beko", "sharp", "skyworth", "changhong", "haier").any {
+            man.contains(it) || brand.contains(it) || modelLc.contains(it)
+        }
         lowEndSmartTvLike = androidTv &&
-            (tclLike || philipsLike || toshibaLike || hisenseLike || vestelLike ||
+            (tclLike || philipsLike || toshibaLike || hisenseLike || vestelLike || sonyLike || otherSmartTvLike ||
                 realtekLike || (mediatekLike && totalRamBytes < FOUR_GIB))
         playbackChallengedTv = androidTv &&
             (amlogicLike || tclLike || philipsLike || toshibaLike || hisenseLike ||

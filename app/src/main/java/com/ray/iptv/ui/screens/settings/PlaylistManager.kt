@@ -8,6 +8,9 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -33,6 +36,7 @@ import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.PlaylistPlay
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -74,7 +78,9 @@ private enum class PlaylistEditorKind { M3U_URL, M3U_FILE, XTREAM, STALKER }
 internal fun PlaylistPage(
     vm: RayViewModel,
     settings: RaySettings,
-    sources: List<SourceEntity>
+    sources: List<SourceEntity>,
+    focusRequester: FocusRequester? = null,
+    onBack: () -> Unit = {}
 ) {
     val tr = settings.lang == AppLang.TR
     val g = LocalGlass.current
@@ -86,9 +92,27 @@ internal fun PlaylistPage(
     var pendingDelete by remember { mutableStateOf<SourceEntity?>(null) }
     var picker by remember { mutableStateOf(false) }
     val mobileChrome = LocalMobileSettingsChrome.current
+    val firstItemFocus = remember { FocusRequester() }
+
+    BackHandler {
+        if (adding || editor != null) {
+            adding = false
+            editor = null
+        } else {
+            onBack()
+        }
+    }
+
+    LaunchedEffect(Unit) {
+        kotlinx.coroutines.delay(60)
+        runCatching {
+            firstItemFocus.requestFocus()
+        }.onFailure {
+            runCatching { focusRequester?.requestFocus() }
+        }
+    }
 
     if (adding || editor != null) {
-        BackHandler { adding = false; editor = null }
         PlaylistEditorPage(
             existing = editor,
             slot = editor?.let { sources.indexOf(it) + 1 }?.coerceAtLeast(1) ?: (sources.size + 1),
@@ -129,31 +153,35 @@ internal fun PlaylistPage(
                         onClick = { picker = true }
                     )
                 } else {
-                GlassPanel(
-                    strong = true,
-                    radius = 16.dp,
-                    onClick = { picker = true },
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Row(
-                        Modifier.padding(horizontal = 16.dp, vertical = 14.dp),
-                        verticalAlignment = Alignment.CenterVertically
+                    var pickerFocused by remember { mutableStateOf(false) }
+                    GlassPanel(
+                        focused = pickerFocused,
+                        strong = true,
+                        radius = 16.dp,
+                        onClick = { picker = true },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .onFocusChanged { pickerFocused = it.isFocused }
                     ) {
-                        Column(Modifier.weight(1f)) {
-                            Text(
-                                if (tr) "Liste Seç" else "Select List",
-                                color = g.muted,
-                                style = MaterialTheme.typography.labelLarge
-                            )
-                            Text(
-                                label,
-                                color = g.text,
-                                style = MaterialTheme.typography.titleMedium
-                            )
+                        Row(
+                            Modifier.padding(horizontal = 16.dp, vertical = 14.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Column(Modifier.weight(1f)) {
+                                Text(
+                                    if (tr) "Liste Seç" else "Select List",
+                                    color = g.muted,
+                                    style = MaterialTheme.typography.labelLarge
+                                )
+                                Text(
+                                    label,
+                                    color = g.text,
+                                    style = MaterialTheme.typography.titleMedium
+                                )
+                            }
+                            Icon(Icons.Filled.ChevronRight, contentDescription = null, tint = g.muted)
                         }
-                        Icon(Icons.Filled.ChevronRight, contentDescription = null, tint = g.muted)
                     }
-                }
                 }
             }
         }
@@ -175,6 +203,7 @@ internal fun PlaylistPage(
                 canMoveDown = index < sources.lastIndex,
                 portrait = portrait,
                 tr = tr,
+                firstFocusRequester = if (index == 0) firstItemFocus else null,
                 onToggle = { vm.toggleSourceEnabled(src.id) },
                 onRefresh = { vm.refreshSource(src.id) },
                 onEdit = { editor = src },
@@ -229,6 +258,7 @@ private fun PlaylistSlotCard(
     canMoveDown: Boolean,
     portrait: Boolean,
     tr: Boolean,
+    firstFocusRequester: FocusRequester? = null,
     onToggle: () -> Unit,
     onRefresh: () -> Unit,
     onEdit: () -> Unit,
@@ -240,79 +270,136 @@ private fun PlaylistSlotCard(
     val g = LocalGlass.current
     val customName = src.name.isNotBlank() && src.name !in listOf("Xtream", "M3U", "Yerel M3U", "Stalker")
     val title = if (customName) src.name else slotTitle(slot, tr)
-    val body: @Composable () -> Unit = {
+    var headerFocused by remember { mutableStateOf(false) }
+
+    GlassPanel(
+        strong = active && src.enabled,
+        radius = 16.dp,
+        modifier = Modifier.fillMaxWidth()
+    ) {
         Column(
             Modifier
-                .alpha(if (src.enabled) 1f else 0.48f)
-                .padding(16.dp),
+                .alpha(if (src.enabled) 1f else 0.55f)
+                .padding(14.dp),
             verticalArrangement = Arrangement.spacedBy(10.dp)
         ) {
-            Row(verticalAlignment = Alignment.Top) {
-                Box(
-                    Modifier
-                        .size(36.dp)
-                        .clip(CircleShape)
-                        .background(if (slot == 1) g.accent.copy(alpha = 0.25f) else g.text.copy(alpha = 0.08f)),
-                    contentAlignment = Alignment.Center
+            // Header Row (Clickable for Activate / Details)
+            GlassPanel(
+                focused = headerFocused,
+                strong = active && src.enabled,
+                radius = 12.dp,
+                onClick = onActivate,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .then(if (firstFocusRequester != null) Modifier.focusRequester(firstFocusRequester) else Modifier)
+                    .onFocusChanged { headerFocused = it.isFocused }
+            ) {
+                Row(
+                    Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text("$slot", color = g.text, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.bodyMedium)
-                }
-                Spacer(Modifier.width(12.dp))
-                Column(Modifier.weight(1f)) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    Box(
+                        Modifier
+                            .size(36.dp)
+                            .clip(CircleShape)
+                            .background(if (active && src.enabled) g.accent.copy(alpha = 0.25f) else g.text.copy(alpha = 0.08f)),
+                        contentAlignment = Alignment.Center
                     ) {
+                        Text("$slot", color = if (active && src.enabled) g.accent else g.text, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.bodyMedium)
+                    }
+                    Spacer(Modifier.width(12.dp))
+                    Column(Modifier.weight(1f)) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Text(
+                                title,
+                                color = if (active && src.enabled) g.accent else g.text,
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Bold,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                                modifier = Modifier.weight(1f, fill = false)
+                            )
+                            KindBadge(src.kind, tr)
+                            if (!src.enabled) DisabledBadge(tr)
+                            if (active && src.enabled) {
+                                Box(
+                                    Modifier
+                                        .clip(RoundedCornerShape(8.dp))
+                                        .background(g.accent.copy(alpha = 0.22f))
+                                        .padding(horizontal = 8.dp, vertical = 2.dp)
+                                ) {
+                                    Text(
+                                        if (tr) "Aktif" else "Active",
+                                        color = g.accent,
+                                        style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold)
+                                    )
+                                }
+                            }
+                        }
+                        if (customName) {
+                            Text(slotTitle(slot, tr), color = g.muted, style = MaterialTheme.typography.labelMedium)
+                        }
+                        Spacer(Modifier.height(2.dp))
                         Text(
-                            title,
-                            color = g.text,
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.Bold,
+                            slotSummary(src, tr),
+                            color = g.muted,
+                            style = MaterialTheme.typography.bodySmall,
                             maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                            modifier = Modifier.weight(1f, fill = false)
+                            overflow = TextOverflow.Ellipsis
                         )
-                        KindBadge(src.kind, tr)
-                        if (!src.enabled) DisabledBadge(tr)
                     }
-                    if (customName) {
-                        Text(slotTitle(slot, tr), color = g.muted, style = MaterialTheme.typography.labelMedium)
-                    }
-                    Spacer(Modifier.height(4.dp))
-                    Text(
-                        slotSummary(src, tr),
-                        color = g.muted,
-                        style = MaterialTheme.typography.bodySmall,
-                        maxLines = 2,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                }
-                if (!portrait) {
                     Spacer(Modifier.width(8.dp))
                     PlaylistSwitch(src.enabled, onToggle)
                 }
             }
-            if (portrait) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Spacer(Modifier.weight(1f))
-                    PlaylistSwitch(src.enabled, onToggle)
+
+            // Action Buttons Row (Navigable by D-Pad)
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                if (src.enabled && !active) {
+                    IconGlass(
+                        Icons.Filled.PlaylistPlay,
+                        label = if (tr) "Seç" else "Select",
+                        onClick = onActivate
+                    )
                 }
-            }
-            Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
-                IconGlass(Icons.Filled.KeyboardArrowUp, enabled = canMoveUp, onClick = onMoveUp)
-                IconGlass(Icons.Filled.KeyboardArrowDown, enabled = canMoveDown, onClick = onMoveDown)
                 if (src.kind != "M3U_FILE") {
-                    IconGlass(Icons.Filled.Refresh, onClick = onRefresh)
+                    IconGlass(
+                        Icons.Filled.Refresh,
+                        label = if (tr) "Yenile" else "Refresh",
+                        onClick = onRefresh
+                    )
                 }
-                IconGlass(Icons.Filled.Edit, onClick = onEdit)
-                IconGlass(Icons.Filled.Delete, tint = g.danger, onClick = onDelete)
+                IconGlass(
+                    Icons.Filled.Edit,
+                    label = if (tr) "Düzenle" else "Edit",
+                    onClick = onEdit
+                )
+                IconGlass(
+                    Icons.Filled.Delete,
+                    label = if (tr) "Sil" else "Delete",
+                    tint = g.danger,
+                    onClick = onDelete
+                )
+                Spacer(Modifier.weight(1f))
+                IconGlass(
+                    Icons.Filled.KeyboardArrowUp,
+                    enabled = canMoveUp,
+                    onClick = onMoveUp
+                )
+                IconGlass(
+                    Icons.Filled.KeyboardArrowDown,
+                    enabled = canMoveDown,
+                    onClick = onMoveDown
+                )
             }
         }
-    }
-    if (LocalMobileSettingsChrome.current) {
-        MobileSettingsFrame(onClick = onActivate) { body() }
-    } else {
-        GlassPanel(strong = active && src.enabled, radius = 16.dp, onClick = onActivate, modifier = Modifier.fillMaxWidth()) { body() }
     }
 }
 
@@ -531,8 +618,13 @@ private fun DisabledBadge(tr: Boolean) {
 
 @Composable
 private fun PlaylistSwitch(on: Boolean, onToggle: () -> Unit) {
+    var focused by remember { mutableStateOf(false) }
     GlassPanel(
-        modifier = Modifier.width(46.dp).height(28.dp),
+        focused = focused,
+        modifier = Modifier
+            .width(46.dp)
+            .height(28.dp)
+            .onFocusChanged { focused = it.isFocused },
         radius = 14.dp,
         strong = on,
         accentFill = on,
@@ -560,20 +652,39 @@ private fun IconGlass(
     icon: ImageVector,
     enabled: Boolean = true,
     tint: Color? = null,
+    label: String? = null,
     onClick: () -> Unit
 ) {
     val g = LocalGlass.current
+    var focused by remember { mutableStateOf(false) }
     GlassPanel(
+        focused = focused,
         radius = 12.dp,
         onClick = if (enabled) onClick else null,
-        modifier = Modifier.alpha(if (enabled) 1f else 0.35f)
+        modifier = Modifier
+            .alpha(if (enabled) 1f else 0.35f)
+            .onFocusChanged { focused = it.isFocused }
     ) {
-        Icon(
-            icon,
-            contentDescription = null,
-            tint = tint ?: g.text,
-            modifier = Modifier.padding(8.dp).size(20.dp)
-        )
+        Row(
+            Modifier.padding(horizontal = if (label != null) 10.dp else 8.dp, vertical = 6.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(4.dp)
+        ) {
+            Icon(
+                icon,
+                contentDescription = label,
+                tint = if (focused) g.accent else (tint ?: g.text),
+                modifier = Modifier.size(18.dp)
+            )
+            if (label != null) {
+                Text(
+                    label,
+                    color = if (focused) g.accent else g.text,
+                    style = MaterialTheme.typography.labelSmall,
+                    fontWeight = FontWeight.SemiBold
+                )
+            }
+        }
     }
 }
 

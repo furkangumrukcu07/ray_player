@@ -294,7 +294,7 @@ class RayPlayer @Inject constructor(
                 StreamHints.Kind.TS, StreamHints.Kind.OTHER -> {
                     val extractors = DefaultExtractorsFactory()
                         .setTsExtractorFlags(1)
-                        .setTsExtractorTimestampSearchBytes(1500 * 188)
+                        .setTsExtractorTimestampSearchBytes(600 * 188)
                     ProgressiveMediaSource.Factory(factory, extractors)
                         .setLoadErrorHandlingPolicy(retry)
                         .createMediaSource(item)
@@ -779,7 +779,7 @@ class RayPlayer @Inject constructor(
         val renderers = DefaultRenderersFactory(context)
             .setEnableDecoderFallback(true)
             .setEnableAudioTrackPlaybackParams(true)
-            .setAllowedVideoJoiningTimeMs(5000)
+            .setAllowedVideoJoiningTimeMs(0)
             .setExtensionRendererMode(DefaultRenderersFactory.EXTENSION_RENDERER_MODE_PREFER)
             .setMediaCodecSelector { mime, secure, tunnel ->
                 val all = runCatching {
@@ -817,6 +817,7 @@ class RayPlayer @Inject constructor(
                     .setBufferDurationsMs(min, max, playback, rebuffer)
                     .setTargetBufferBytes(bytes)
                     .setPrioritizeTimeOverSizeThresholds(buf.prioritizeTime)
+                    .setBackBuffer(if (forLive) 0 else 5_000, false)
                     .build()
             )
             .setSeekBackIncrementMs(15_000)

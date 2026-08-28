@@ -20,6 +20,7 @@ import androidx.core.view.WindowInsetsControllerCompat
 import com.ray.iptv.ui.RayRoot
 import com.ray.iptv.ui.input.isTelevisionDevice
 import com.ray.iptv.ui.input.setPlaybackImmersive
+import com.ray.iptv.ui.input.IosScrollPhysics
 import dagger.hilt.android.AndroidEntryPoint
 
 val LocalPipMode = staticCompositionLocalOf { false }
@@ -29,64 +30,18 @@ class MainActivity : ComponentActivity() {
     val isInPipModeState = mutableStateOf(false)
     var pipEligible: (() -> Boolean)? = null
 
-    private var orientationListener: android.view.OrientationEventListener? = null
-
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        IosScrollPhysics.apply(this)
         enableEdgeToEdge()
         WindowCompat.setDecorFitsSystemWindows(window, false)
         applyDeviceChrome()
-        setupOrientationListener()
         setContent {
             val inPip by isInPipModeState
             CompositionLocalProvider(LocalPipMode provides inPip) {
                 RayRoot()
             }
         }
-    }
-
-    private fun setupOrientationListener() {
-        if (!isTelevisionDevice()) {
-            orientationListener = object : android.view.OrientationEventListener(this, android.hardware.SensorManager.SENSOR_DELAY_NORMAL) {
-                private var lastPhysicalOrientation = Configuration.ORIENTATION_UNDEFINED
-
-                override fun onOrientationChanged(orientation: Int) {
-                    if (orientation == ORIENTATION_UNKNOWN) return
-
-                    val isPortrait = (orientation in 0..35) || (orientation in 325..360) || (orientation in 145..215)
-                    val isLandscape = (orientation in 55..125) || (orientation in 235..305)
-
-                    val currentPhysical = when {
-                        isPortrait -> Configuration.ORIENTATION_PORTRAIT
-                        isLandscape -> Configuration.ORIENTATION_LANDSCAPE
-                        else -> Configuration.ORIENTATION_UNDEFINED
-                    }
-
-                    if (currentPhysical != Configuration.ORIENTATION_UNDEFINED && currentPhysical != lastPhysicalOrientation) {
-                        lastPhysicalOrientation = currentPhysical
-                        val currentScreenOrientation = resources.configuration.orientation
-                        if (currentPhysical != currentScreenOrientation) {
-                            if (currentPhysical == Configuration.ORIENTATION_PORTRAIT) {
-                                requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
-                            } else {
-                                requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
-                            }
-                        } else {
-                            requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_FULL_USER
-                        }
-                    }
-                }
-            }
-            if (orientationListener?.canDetectOrientation() == true) {
-                orientationListener?.enable()
-            }
-        }
-    }
-
-    override fun onDestroy() {
-        super.onDestroy()
-        orientationListener?.disable()
-        orientationListener = null
     }
 
     override fun onPictureInPictureModeChanged(
@@ -136,14 +91,11 @@ class MainActivity : ComponentActivity() {
         super.onResume()
         if (playbackImmersive || isTelevisionDevice()) {
             setPlaybackImmersive(playbackImmersive || isTelevisionDevice())
+        } else {
+            requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_FULL_USER
         }
-        orientationListener?.enable()
     }
 
-    override fun onPause() {
-        super.onPause()
-        orientationListener?.disable()
-    }
 
     var playbackImmersive: Boolean = false
 

@@ -54,8 +54,10 @@ import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.Timer
+import coil.size.Precision
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -158,7 +160,8 @@ fun MobileHomeScreen(
         if (settings.homeMovies) movieRows = vm.showcaseCategoryRows("MOVIE", movieCats)
         if (settings.homeSeries) seriesRows = vm.showcaseCategoryRows("SERIES", seriesCats)
     }
-    LaunchedEffect(settings.homeUpcomingEpg, settings.homeUpcomingMatches, settings.lastEpgRefreshMs, favorites) {
+    val epgStats by vm.epgStats.collectAsState()
+    LaunchedEffect(settings.homeUpcomingEpg, settings.homeUpcomingMatches, settings.lastEpgRefreshMs, favorites, epgStats.programmes, liveSample.size) {
         if (!settings.homeUpcomingMatches) {
             matches = emptyList()
             matchesReady = false
@@ -170,7 +173,7 @@ fun MobileHomeScreen(
                 matches = vm.showcaseEpg(true)
                 matchesReady = true
             }
-            delay(30_000)
+            delay(15_000)
         }
     }
     LaunchedEffect(seeAllKey, seeAllKind) {
@@ -922,7 +925,7 @@ private fun seeAllAzLetter(name: String): String {
 }
 
 @Composable
-private fun UpcomingEpgRow(items: List<ShowcaseEpgChip>, tr: Boolean, onPlay: (ShowcaseEpgChip) -> Unit) {
+fun UpcomingEpgRow(items: List<ShowcaseEpgChip>, tr: Boolean, onPlay: (ShowcaseEpgChip) -> Unit) {
     val listState = rememberLazyListState()
     val userHeld = remember { mutableStateOf(false) }
     val resumeAt = remember { mutableLongStateOf(0L) }
@@ -1058,7 +1061,7 @@ private fun UpcomingEpgCard(
 }
 
 @Composable
-private fun UpcomingMatchesRow(items: List<ShowcaseEpgChip>, tr: Boolean, onPlay: (ShowcaseEpgChip) -> Unit) {
+fun UpcomingMatchesRow(items: List<ShowcaseEpgChip>, tr: Boolean, onPlay: (ShowcaseEpgChip) -> Unit) {
     var nowMs by remember { mutableLongStateOf(System.currentTimeMillis()) }
     LaunchedEffect(Unit) {
         while (true) {
@@ -1110,7 +1113,7 @@ private fun UpcomingMatchesRow(items: List<ShowcaseEpgChip>, tr: Boolean, onPlay
 }
 
 @Composable
-private fun UpcomingMatchesPlaceholderRow() {
+fun UpcomingMatchesPlaceholderRow() {
     LazyRow(
         contentPadding = PaddingValues(horizontal = 14.dp),
         horizontalArrangement = Arrangement.spacedBy(10.dp),
@@ -1199,6 +1202,7 @@ fun MobileStripTitle(title: String, padded: Boolean = false, onSeeAll: (() -> Un
 
 @Composable
 fun MobileHeroCard(
+
     title: String,
     image: String,
     rating: String,
@@ -1211,92 +1215,128 @@ fun MobileHeroCard(
     showSave: Boolean = true,
     onOpen: (() -> Unit)? = null
 ) {
+    val context = LocalContext.current
     Box(
         Modifier
             .fillMaxWidth()
             .aspectRatio(16f / 9.2f)
             .clip(RoundedCornerShape(22.dp))
     ) {
-        AsyncImage(image, null, Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
+        val posterRequest = remember(image) {
+            ImageRequest.Builder(context)
+                .data(image)
+                .precision(Precision.INEXACT)
+                .allowHardware(true)
+                .crossfade(true)
+                .build()
+        }
+        AsyncImage(posterRequest, null, Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
         Box(
             Modifier.fillMaxSize().background(
-                Brush.verticalGradient(listOf(Color.Transparent, Color.Black.copy(alpha = 0.88f)))
+                Brush.verticalGradient(listOf(Color.Transparent, Color.Black.copy(alpha = 0.90f)))
             )
         )
         if (onOpen != null) {
             Box(Modifier.fillMaxSize().rayClickable(onOpen))
         }
-        Column(Modifier.align(Alignment.BottomStart).padding(14.dp)) {
-            Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
-                if (rating.isNotBlank()) {
-                    Row(
-                        Modifier
-                            .clip(RoundedCornerShape(8.dp))
-                            .background(Color.Black.copy(alpha = 0.55f))
-                            .padding(horizontal = 8.dp, vertical = 4.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(4.dp)
-                    ) {
-                        Icon(Icons.Filled.Star, null, tint = Color(0xFFFFC107), modifier = Modifier.size(12.dp))
-                        Text(rating.take(3), color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.ExtraBold)
+        Row(
+            Modifier
+                .align(Alignment.BottomStart)
+                .fillMaxWidth()
+                .padding(14.dp),
+            verticalAlignment = Alignment.Bottom,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Column(
+                Modifier
+                    .weight(1f, fill = false)
+                    .padding(end = 12.dp)
+            ) {
+                Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
+                    if (rating.isNotBlank()) {
+                        Row(
+                            Modifier
+                                .clip(RoundedCornerShape(8.dp))
+                                .background(Color.Black.copy(alpha = 0.55f))
+                                .padding(horizontal = 8.dp, vertical = 4.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(4.dp)
+                        ) {
+                            Icon(Icons.Filled.Star, null, tint = Color(0xFFFFC107), modifier = Modifier.size(12.dp))
+                            Text(rating.take(3), color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.ExtraBold)
+                        }
+                    }
+                    if (year.isNotBlank()) {
+                        Text(year, color = Color.White.copy(alpha = 0.9f), fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
                     }
                 }
-                if (year.isNotBlank()) {
-                    Text(year, color = Color.White.copy(alpha = 0.9f), fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+                Spacer(Modifier.height(4.dp))
+                Text(
+                    title,
+                    color = Color.White,
+                    fontWeight = FontWeight.ExtraBold,
+                    fontSize = 20.sp,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+                Spacer(Modifier.height(8.dp))
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Row(
+                        Modifier
+                            .clip(RoundedCornerShape(12.dp))
+                            .background(Color.White)
+                            .rayClickable(onPlay)
+                            .padding(horizontal = 14.dp, vertical = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(Icons.Filled.PlayArrow, null, tint = Color.Black, modifier = Modifier.size(18.dp))
+                        Spacer(Modifier.width(4.dp))
+                        Text(if (tr) "İzle" else "Watch", color = Color.Black, fontWeight = FontWeight.Bold)
+                    }
+                    if (showSave) {
+                        Box(
+                            Modifier
+                                .size(40.dp)
+                                .clip(RoundedCornerShape(12.dp))
+                                .background(Color.Black.copy(alpha = 0.45f))
+                                .rayClickable(onSave),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(Icons.Filled.BookmarkBorder, null, tint = Color.White, modifier = Modifier.size(20.dp))
+                        }
+                    }
                 }
             }
-            Spacer(Modifier.height(6.dp))
-            Text(title, color = Color.White, fontWeight = FontWeight.ExtraBold, fontSize = 22.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
-            Spacer(Modifier.height(8.dp))
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+            if (nextTitle.isNotBlank()) {
                 Row(
                     Modifier
                         .clip(RoundedCornerShape(12.dp))
-                        .background(Color.White)
-                        .rayClickable(onPlay)
-                        .padding(horizontal = 14.dp, vertical = 8.dp),
+                        .background(Color.Black.copy(alpha = 0.65f))
+                        .padding(6.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Icon(Icons.Filled.PlayArrow, null, tint = Color.Black, modifier = Modifier.size(18.dp))
-                    Spacer(Modifier.width(4.dp))
-                    Text(if (tr) "İzle" else "Watch", color = Color.Black, fontWeight = FontWeight.Bold)
+                    val nextRequest = remember(nextImage) {
+                        ImageRequest.Builder(context)
+                            .data(nextImage)
+                            .precision(Precision.INEXACT)
+                            .allowHardware(true)
+                            .crossfade(true)
+                            .build()
+                    }
+                    AsyncImage(nextRequest, null, Modifier.size(36.dp).clip(RoundedCornerShape(8.dp)), contentScale = ContentScale.Crop)
+                    Spacer(Modifier.width(6.dp))
+                    Column(Modifier.width(84.dp)) {
+                        Text(if (tr) "Sıradaki" else "Next", color = Color.White.copy(alpha = 0.7f), fontSize = 9.sp)
+                        Text(nextTitle, color = Color.White, fontSize = 11.sp, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    }
+                    Spacer(Modifier.width(6.dp))
+                    Box(Modifier.width(3.dp).height(36.dp).clip(RoundedCornerShape(2.dp)).background(LocalGlass.current.accent))
                 }
-                if (showSave) {
-                Box(
-                    Modifier
-                        .size(40.dp)
-                        .clip(RoundedCornerShape(12.dp))
-                        .background(Color.Black.copy(alpha = 0.45f))
-                        .rayClickable(onSave),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(Icons.Filled.BookmarkBorder, null, tint = Color.White, modifier = Modifier.size(20.dp))
-                }
-                }
-            }
-        }
-        if (nextTitle.isNotBlank()) {
-            Row(
-                Modifier
-                    .align(Alignment.BottomEnd)
-                    .padding(10.dp)
-                    .clip(RoundedCornerShape(12.dp))
-                    .background(Color.Black.copy(alpha = 0.58f))
-                    .padding(6.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                AsyncImage(nextImage, null, Modifier.size(36.dp).clip(RoundedCornerShape(8.dp)), contentScale = ContentScale.Crop)
-                Spacer(Modifier.width(6.dp))
-                Column(Modifier.width(88.dp)) {
-                    Text(if (tr) "Sıradaki" else "Next", color = Color.White.copy(alpha = 0.7f), fontSize = 9.sp)
-                    Text(nextTitle, color = Color.White, fontSize = 11.sp, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                }
-                Spacer(Modifier.width(6.dp))
-                Box(Modifier.width(3.dp).height(36.dp).clip(RoundedCornerShape(2.dp)).background(LocalGlass.current.accent))
             }
         }
     }
 }
+
 
 @Composable
 fun MobilePosterCard(
