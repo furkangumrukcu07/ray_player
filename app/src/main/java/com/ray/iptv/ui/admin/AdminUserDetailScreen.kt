@@ -47,6 +47,7 @@ import androidx.tv.material3.Text
 import com.ray.iptv.data.admin.AdminUser
 import com.ray.iptv.ui.RayViewModel
 import com.ray.iptv.ui.components.GlassButton
+import com.ray.iptv.ui.glass.DarkGlassPopupTheme
 import com.ray.iptv.ui.input.rayClickable
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
@@ -239,22 +240,29 @@ private fun ActionBtn(label: String, icon: ImageVector, color: Color, onClick: (
 private fun GrantDialog(tr: Boolean, onDismiss: () -> Unit, onOk: (Int, String) -> Unit) {
     var days by remember { mutableIntStateOf(30) }
     var note by remember { mutableStateOf("") }
-    Dialog(onDismissRequest = onDismiss) {
-        Column(
-            Modifier.fillMaxWidth().clip(RoundedCornerShape(20.dp)).background(Color(0xFF1E293B)).padding(20.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            Text(if (tr) "Premium Ver" else "Grant premium", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 18.sp)
-            Text(if (tr) "Süre Seçin" else "Duration", color = Color.White.copy(alpha = 0.7f), fontSize = 13.sp)
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                listOf(0 to if (tr) "Sınırsız" else "Unlimited", 7 to "7", 30 to "30", 90 to "90", 365 to "365").forEach { (v, label) ->
-                    AdminChip(label, Color(0xFFF59E0B), days == v) { days = v }
+    DarkGlassPopupTheme {
+        Dialog(onDismissRequest = onDismiss) {
+            Column(
+                Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(20.dp))
+                    .background(Color(0xFF10131B).copy(alpha = 0.96f))
+                    .border(1.2.dp, Color(0xFF64D2FF).copy(alpha = 0.35f), RoundedCornerShape(20.dp))
+                    .padding(20.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                Text(if (tr) "Premium Ver" else "Grant premium", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 18.sp)
+                Text(if (tr) "Süre Seçin" else "Duration", color = Color.White.copy(alpha = 0.7f), fontSize = 13.sp)
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    listOf(0 to if (tr) "Sınırsız" else "Unlimited", 7 to "7", 30 to "30", 90 to "90", 365 to "365").forEach { (v, label) ->
+                        AdminChip(label, Color(0xFF64D2FF), days == v) { days = v }
+                    }
                 }
-            }
-            AdminDarkField(note, { note = it }, if (tr) "Not (opsiyonel)" else "Note", if (tr) "Not…" else "Note…")
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                GlassButton(if (tr) "İptal" else "Cancel") { onDismiss() }
-                GlassButton(if (tr) "Onayla" else "Confirm", primary = true) { onOk(days, note) }
+                AdminDarkField(note, { note = it }, if (tr) "Not (opsiyonel)" else "Note", if (tr) "Not…" else "Note…")
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    GlassButton(if (tr) "İptal" else "Cancel") { onDismiss() }
+                    GlassButton(if (tr) "Onayla" else "Confirm", primary = true) { onOk(days, note) }
+                }
             }
         }
     }
@@ -263,17 +271,24 @@ private fun GrantDialog(tr: Boolean, onDismiss: () -> Unit, onOk: (Int, String) 
 @Composable
 private fun LimitDialog(tr: Boolean, current: Int, onDismiss: () -> Unit, onOk: (Int) -> Unit) {
     var value by remember { mutableStateOf(current.toString()) }
-    Dialog(onDismissRequest = onDismiss) {
-        Column(
-            Modifier.fillMaxWidth().clip(RoundedCornerShape(20.dp)).background(Color(0xFF1E293B)).padding(20.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            Text(if (tr) "Cihaz Limitini Düzenle" else "Edit device limit", color = Color.White, fontWeight = FontWeight.Bold)
-            AdminDarkField(value, { value = it.filter { ch -> ch.isDigit() }.take(3) }, if (tr) "Yeni Limit" else "New limit", "3")
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                GlassButton(if (tr) "İptal" else "Cancel") { onDismiss() }
-                GlassButton(if (tr) "Kaydet" else "Save", primary = true) {
-                    value.toIntOrNull()?.let(onOk) ?: onDismiss()
+    DarkGlassPopupTheme {
+        Dialog(onDismissRequest = onDismiss) {
+            Column(
+                Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(20.dp))
+                    .background(Color(0xFF10131B).copy(alpha = 0.96f))
+                    .border(1.2.dp, Color(0xFF64D2FF).copy(alpha = 0.35f), RoundedCornerShape(20.dp))
+                    .padding(20.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                Text(if (tr) "Cihaz Limitini Düzenle" else "Edit device limit", color = Color.White, fontWeight = FontWeight.Bold)
+                AdminDarkField(value, { value = it.filter { ch -> ch.isDigit() }.take(3) }, if (tr) "Yeni Limit" else "New limit", "3")
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    GlassButton(if (tr) "İptal" else "Cancel") { onDismiss() }
+                    GlassButton(if (tr) "Kaydet" else "Save", primary = true) {
+                        value.toIntOrNull()?.let(onOk) ?: onDismiss()
+                    }
                 }
             }
         }

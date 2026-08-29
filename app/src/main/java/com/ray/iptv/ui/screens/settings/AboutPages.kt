@@ -71,6 +71,8 @@ import androidx.tv.material3.MaterialTheme
 import androidx.tv.material3.Text
 import com.ray.iptv.ui.RayViewModel
 import com.ray.iptv.ui.components.GlassButton
+import com.ray.iptv.ui.components.GlassToggle
+import com.ray.iptv.ui.glass.DarkGlassPopupTheme
 import com.ray.iptv.ui.glass.GlassPanel
 import com.ray.iptv.ui.theme.LocalGlass
 import kotlinx.coroutines.Dispatchers
@@ -128,7 +130,7 @@ private fun AboutHomePage(
     val ctx = LocalContext.current
     val version = remember {
         runCatching { ctx.packageManager.getPackageInfo(ctx.packageName, 0).versionName }
-            .getOrNull().orEmpty().ifBlank { "1.3.13" }
+            .getOrNull().orEmpty().ifBlank { "1.3.15" }
     }
     val pkg = remember { ctx.packageName }
     val scope = rememberCoroutineScope()
@@ -237,7 +239,7 @@ private fun ContactUsPage(vm: RayViewModel, tr: Boolean, onBack: () -> Unit, onF
     val ctx = LocalContext.current
     val version = remember {
         runCatching { ctx.packageManager.getPackageInfo(ctx.packageName, 0).versionName }
-            .getOrNull().orEmpty().ifBlank { "1.3.13" }
+            .getOrNull().orEmpty().ifBlank { "1.3.15" }
     }
     LazyColumn(Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(10.dp)) {
         item {
@@ -425,9 +427,10 @@ private fun OtherAppsPage(vm: RayViewModel, tr: Boolean, onBack: () -> Unit) {
 @Composable
 private fun AdminAboutDialog(vm: RayViewModel, tr: Boolean, onDismiss: () -> Unit) {
     val ctx = LocalContext.current
-    val g = LocalGlass.current
-    Dialog(onDismissRequest = onDismiss) {
-        GlassPanel(strong = true, radius = 20.dp, modifier = Modifier.fillMaxWidth().heightIn(max = 560.dp)) {
+    DarkGlassPopupTheme {
+        val g = LocalGlass.current
+        Dialog(onDismissRequest = onDismiss) {
+            GlassPanel(strong = true, radius = 20.dp, modifier = Modifier.fillMaxWidth().heightIn(max = 560.dp)) {
             Column(
                 Modifier.padding(20.dp).verticalScroll(rememberScrollState()),
                 horizontalAlignment = Alignment.CenterHorizontally,
@@ -494,6 +497,7 @@ private fun AdminAboutDialog(vm: RayViewModel, tr: Boolean, onDismiss: () -> Uni
         }
     }
 }
+}
 
 @Composable
 private fun AdminContactRow(
@@ -531,8 +535,9 @@ private fun UpdateResultDialog(
     onDismiss: () -> Unit
 ) {
     val ctx = LocalContext.current
-    val g = LocalGlass.current
-    val title: String
+    DarkGlassPopupTheme {
+        val g = LocalGlass.current
+        val title: String
     val body: String
     when (result) {
         is UpdateResult.Available -> {
@@ -578,6 +583,7 @@ private fun UpdateResultDialog(
         }
     }
 }
+}
 
 @Composable
 private fun ScrollTextDialog(title: String, body: String, close: String, onDismiss: () -> Unit) {
@@ -587,8 +593,8 @@ private fun ScrollTextDialog(title: String, body: String, close: String, onDismi
                 .fillMaxWidth()
                 .heightIn(max = 560.dp)
                 .clip(RoundedCornerShape(22.dp))
-                .background(Color(0xFF111714))
-                .border(1.2.dp, Color.White.copy(alpha = 0.16f), RoundedCornerShape(22.dp))
+                .background(Color(0xFF10131B).copy(alpha = 0.96f))
+                .border(1.2.dp, Color(0xFF64D2FF).copy(alpha = 0.35f), RoundedCornerShape(22.dp))
                 .padding(20.dp)
         ) {
             Column(
@@ -621,8 +627,8 @@ private fun ScrollTextDialog(title: String, body: String, close: String, onDismi
                     Box(
                         Modifier
                             .clip(RoundedCornerShape(12.dp))
-                            .background(Color(0xFF133630))
-                            .border(1.dp, Color(0xFF22D3EE).copy(alpha = 0.6f), RoundedCornerShape(12.dp))
+                            .background(Color(0xFF64D2FF).copy(alpha = 0.18f))
+                            .border(1.dp, Color(0xFF64D2FF).copy(alpha = 0.6f), RoundedCornerShape(12.dp))
                             .rayClickable(onClick = onDismiss)
                             .padding(horizontal = 24.dp, vertical = 10.dp),
                         contentAlignment = Alignment.Center
@@ -770,7 +776,17 @@ private fun isStoreNewer(current: String, store: String): Boolean {
     return false
 }
 
-private const val rayChangelogTr = """v1.3.13
+private const val rayChangelogTr = """v1.3.15
+• Modern Dark Glass Pop-up Standardı: Tüm popup, diyalog, spotlight arama ve onay pencereleri ana temadan bağımsız olarak Mac / Apple TV Koyu Cam (Dark Glass) tasarımına sabitlendi
+• Kapsamlı Çoklu Dil Desteği: Bildirimler, Toast mesajları ve PIN pencereleri 34 dilin tamamına çevrilerek lokalize edildi
+
+v1.3.14
+• Oynatıcı Kararlılığı & Kopma Önleme: ExoPlayer HLS canlı yayın yapılandırması, keyframe video birleştirme toleransı (5000ms) ve canlı geri tampon (10s) güçlendirildi
+• MediaKit (libmpv) İyileştirmesi: VOD akışlarında yavaş internet tamponlama gecikmeleri akıcı hale getirildi
+• TV Tekrar İzle Ekranı: Pop-up yerine modern tam ekran şık arayüz entegrasyonu tamamlandı
+• Tablet Ekranı Temizliği: Eski arayüz kalıntıları temizlendi, performans optimize edildi
+
+v1.3.13
 • TV Kumanda & Navigasyon: İlk açılışta ve sayfa geçişlerinde asenkron kategori yükleme sırasında odağın ana rail'e kaçma sorunu tüm ekranlarda (Canlı TV, Film, Dizi, İzlemeye Devam Et, Listeler, Ayarlar) tamamen çözüldü
 • TV Hiyerarşik Odak Akışı: Kategori seçiminde OK / Sağ tuşla içeriğe geçiş, Sol / Geri tuşuyla sırasıyla kategoriye ve ana rail'e kusursuz geri dönüş sağlandı
 • Modern Glass Spotlight Arama: Mobil ve tablet için eski tam ekran arama yerine kompakt, şık ve yarı saydam Glass Spotlight pop-up arama motoru entegre edildi
@@ -808,7 +824,17 @@ v1.0.0
 • Canlı TV, film, dizi, rehber, izlemeye devam
 • Better / MediaKit oynatıcı motorları, altyazı ve ebeveyn PIN"""
 
-private const val rayChangelogEn = """v1.3.13
+private const val rayChangelogEn = """v1.3.15
+• Modern Dark Glass Pop-up Standards: Standardized all popups, dialogs, spotlight search, and confirmation modals to Apple TV / Mac Dark Glass aesthetic across all themes
+• Complete 34-Language Localization: Injected full native translations across all 34 supported languages for toast alerts, PIN overlays, and cloud restore previews
+
+v1.3.14
+• Playback Stability & Anti-Drop: Enhanced ExoPlayer HLS live configuration, keyframe joining tolerance (5000ms), and live back-buffer (10s)
+• MediaKit (libmpv) Optimization: Smoothed VOD cache-pause buffering on low-bandwidth networks
+• TV Catchup Experience: Transitioned from pop-up to a sleek dedicated full-screen layout
+• Tablet Code Polish: Cleaned legacy overlay remnants and boosted overall responsiveness
+
+v1.3.13
 • TV Remote & Navigation: Fixed initial startup and async category loading focus escaping to main rail across all sections (Live TV, Movies, Series, Continue Watching, Playlists, Settings)
 • TV Hierarchical Focus Flow: Smooth OK / Right navigation into content, and hierarchical Left / Back return to category and then main rail
 • Modern Glass Spotlight Search: Replaced full-screen search on mobile & tablet with a sleek, compact, translucent Glass Spotlight search modal

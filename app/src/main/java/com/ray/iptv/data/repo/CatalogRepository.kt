@@ -57,11 +57,13 @@ import java.io.File
 import java.io.InputStreamReader
 import java.nio.charset.CodingErrorAction
 import java.nio.charset.StandardCharsets
+import androidx.compose.runtime.Immutable
 import java.security.MessageDigest
 import java.util.UUID
 import javax.inject.Inject
 import javax.inject.Singleton
 
+@Immutable
 data class SyncState(
     val running: Boolean = false,
     val message: String = "",
@@ -75,6 +77,8 @@ data class SyncState(
     val seriesReady: Boolean = false,
     val done: Boolean = false
 )
+
+@Immutable
 data class XtreamVodDetail(
     val plot: String = "",
     val rating: String = "",
@@ -91,11 +95,14 @@ data class XtreamVodDetail(
     val imdbId: String = ""
 )
 
+@Immutable
 data class EpgSuggestion(
     val channel: ChannelEntity,
     val epgId: String,
     val score: Int
 )
+
+@Immutable
 data class EpgStats(
     val channels: Int = 0,
     val programmes: Int = 0,
@@ -411,14 +418,14 @@ https://test-streams.mux.dev/dai-discontinuity-deltatre/manifest.m3u8
 """
     }
 
-    fun beginCatalogSync() {
-        _sync.value = SyncState(running = true, catalog = true, message = "Bağlanıyor…")
+    fun beginCatalogSync(showDialog: Boolean = true) {
+        _sync.value = SyncState(running = true, catalog = showDialog, message = "Bağlanıyor…")
     }
 
-    fun failCatalogSync(message: String) {
+    fun failCatalogSync(message: String, showDialog: Boolean = true) {
         _sync.value = SyncState(
             running = false,
-            catalog = true,
+            catalog = showDialog,
             error = message.ifBlank { "Eşitleme başarısız" }
         )
     }
@@ -437,10 +444,11 @@ https://test-streams.mux.dev/dai-discontinuity-deltatre/manifest.m3u8
         moviesReady: Boolean? = null,
         seriesReady: Boolean? = null
     ) {
-        val cur = if (_sync.value.catalog) _sync.value else SyncState(catalog = true)
+        val cur = _sync.value
+        val showDialog = cur.catalog
         _sync.value = cur.copy(
             running = running,
-            catalog = true,
+            catalog = showDialog,
             message = message ?: cur.message,
             error = "",
             done = false,
@@ -453,11 +461,11 @@ https://test-streams.mux.dev/dai-discontinuity-deltatre/manifest.m3u8
         )
     }
 
-    private fun finishCatalogSync() {
+    private fun finishCatalogSync(showDialog: Boolean = _sync.value.catalog) {
         val cur = _sync.value
         _sync.value = cur.copy(
             running = false,
-            catalog = true,
+            catalog = showDialog,
             message = "Hazır",
             error = "",
             done = true,
@@ -467,18 +475,18 @@ https://test-streams.mux.dev/dai-discontinuity-deltatre/manifest.m3u8
         )
     }
 
-    suspend fun syncSource(sourceId: String) = withContext(Dispatchers.IO) {
+    suspend fun syncSource(sourceId: String, showDialog: Boolean = true) = withContext(Dispatchers.IO) {
         val source = db.sources().byId(sourceId) ?: return@withContext
-        if (!_sync.value.catalog || !_sync.value.running) beginCatalogSync()
+        if (!_sync.value.running) beginCatalogSync(showDialog = showDialog)
         runCatching {
             when (source.kind) {
                 "XTREAM" -> syncXtream(source)
                 "STALKER" -> syncStalker(source)
                 else -> syncM3u(source)
             }
-            finishCatalogSync()
+            finishCatalogSync(showDialog = showDialog)
         }.onFailure {
-            failCatalogSync(it.message ?: "Eşitleme başarısız")
+            failCatalogSync(it.message ?: "Eşitleme başarısız", showDialog = showDialog)
         }
     }
 

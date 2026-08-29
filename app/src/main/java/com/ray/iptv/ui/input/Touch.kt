@@ -68,9 +68,10 @@ fun FocusRequester.tryFocus(): Boolean = try {
 
 fun Modifier.rayClickable(
     onClick: () -> Unit,
-    onLongClick: (() -> Unit)? = null
+    onLongClick: (() -> Unit)? = null,
+    interactionSource: MutableInteractionSource? = null
 ): Modifier = composed {
-    val src = remember { MutableInteractionSource() }
+    val src = interactionSource ?: remember { MutableInteractionSource() }
     val hapticsOn = LocalAdaptiveHaptics.current
     val context = LocalContext.current
     val tap = {

@@ -85,5 +85,9 @@ function isAppAdmin() {
 }
 
 function isOwner(userId) {
-  return request.auth != null && (request.auth.uid == userId || isAppAdmin());
+  return request.auth != null && (
+    request.auth.uid == userId ||
+    (request.auth.token.email != null && (resource == null || resource.data.email == request.auth.token.email)) ||
+    isAppAdmin()
+  );
 }

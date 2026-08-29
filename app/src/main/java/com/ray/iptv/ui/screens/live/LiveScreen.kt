@@ -22,6 +22,7 @@ import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -54,6 +55,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.tv.material3.MaterialTheme
 import androidx.tv.material3.Text
 import coil.compose.AsyncImage
@@ -131,6 +133,7 @@ fun LiveScreen(
     var hovered by remember { mutableStateOf<ChannelEntity?>(null) }
     var catMenu by remember { mutableStateOf<CategoryEntity?>(null) }
     var channelsFocused by remember { mutableStateOf(false) }
+    var pendingChannelFocus by remember { mutableStateOf(false) }
 
     val favCount = remember(favorites) {
         favorites.count { it.kind == "LIVE" }
@@ -154,14 +157,16 @@ fun LiveScreen(
 
     val focusToSelectedCategory: () -> Unit = {
         channelsFocused = false
+        pendingChannelFocus = false
+        if (!showCategories) {
+            onBackToCategories()
+        }
         scope.launch {
-            if (!showCategories) onBackToCategories()
-            delay(30)
             if (targetCatIndex in 0 until categoryKeys.size) {
                 runCatching { catListState.scrollToItem(targetCatIndex) }
             }
-            repeat(12) {
-                delay(35)
+            repeat(25) {
+                delay(30)
                 if (selectedCatFocus.tryFocus() || catFocus.tryFocus()) return@launch
             }
         }
@@ -188,8 +193,20 @@ fun LiveScreen(
     LaunchedEffect(hovered?.id) {
         onHover(hovered)
     }
+    LaunchedEffect(pendingChannelFocus, channels.size) {
+        if (pendingChannelFocus && channels.isNotEmpty()) {
+            repeat(30) {
+                if (listFocus.tryFocus()) {
+                    pendingChannelFocus = false
+                    channelsFocused = true
+                    return@LaunchedEffect
+                }
+                delay(35)
+            }
+        }
+    }
     LaunchedEffect(showCategories, railExpanded, contentFocusTrigger, categoryKeys.size, channels.size) {
-        if (showCategories && !railExpanded) {
+        if (showCategories && !railExpanded && !pendingChannelFocus) {
             delay(20)
             if (targetCatIndex in 0 until categoryKeys.size) {
                 runCatching { catListState.scrollToItem(targetCatIndex) }
@@ -240,16 +257,20 @@ fun LiveScreen(
                     onCategory = onCategory,
                     onPick = {
                         channelsFocused = true
+                        pendingChannelFocus = true
                         onPickCategory()
-                        scope.launch {
-                            repeat(25) {
-                                delay(30)
-                                if (listFocus.tryFocus()) return@launch
+                        if (channels.isNotEmpty()) {
+                            scope.launch {
+                                repeat(20) {
+                                    if (listFocus.tryFocus()) {
+                                        pendingChannelFocus = false
+                                        return@launch
+                                    }
+                                    delay(30)
+                                }
                             }
                         }
                     },
-
-
                     onMenu = { catMenu = it },
                     onPin = onPin,
                     onHide = { onHide(it); catMenu = null },
@@ -260,7 +281,10 @@ fun LiveScreen(
                     },
                     firstFocus = catFocus,
                     selectedFocus = selectedCatFocus,
-                    onCatFocused = { channelsFocused = false },
+                    onCatFocused = { 
+                        channelsFocused = false 
+                        pendingChannelFocus = false
+                    },
                     modifier = Modifier.fillMaxSize()
                 )
             }
@@ -327,7 +351,12 @@ private fun LiveMinaPanel(
 ) {
     BoxWithConstraints(modifier) {
         val heroH = ((maxHeight.value * 0.25f).coerceIn(150f, 220f) * 1.22f).dp
-        val chCol = if (maxWidth < 420.dp) 128.dp else 196.dp
+        val chCol = when {
+            maxWidth < 420.dp -> 140.dp
+            maxWidth < 600.dp -> 220.dp
+            maxWidth < 800.dp -> 275.dp
+            else -> 310.dp
+        }
         var slotNow by remember { mutableLongStateOf(System.currentTimeMillis()) }
         LaunchedEffect(Unit) {
             while (true) {
@@ -336,7 +365,18 @@ private fun LiveMinaPanel(
             }
         }
         val slots = slotTimes(slotNow)
-        GlassPanel(strong = true, radius = 18.dp, modifier = Modifier.fillMaxSize()) {
+        GlassPanel(
+            strong = true,
+            radius = 12.dp,
+            modifier = Modifier
+                .fillMaxSize()
+                .onPreviewKeyEvent { e ->
+                    if (e.type == KeyEventType.KeyDown && e.key == Key.DirectionLeft) {
+                        onLeftFromChannel()
+                        true
+                    } else false
+                }
+        ) {
             Column(Modifier.fillMaxSize().padding(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 LiveHero(
                     copy = copy,
@@ -669,10 +709,10 @@ private fun GuideRow(
                 }
             }
             .rayClickable(onClick, onLong)
-            .background(if (focused) g.accent.copy(alpha = 0.22f) else if (selected) Color.White.copy(alpha = 0.06f) else Color.Transparent)
+            .background(if (focused) g.accent.copy(alpha = 0.22f) else if (selected) Color.White.copy(alpha = 0.04f) else Color.Transparent)
             .border(
-                width = if (focused) 1.4.dp else 0.5.dp,
-                color = if (focused) g.accent else Color.White.copy(alpha = 0.06f)
+                width = if (focused) 1.2.dp else 0.4.dp,
+                color = if (focused) g.accent else Color.White.copy(alpha = 0.035f)
             )
     ) {
         Row(
@@ -734,17 +774,17 @@ private fun EpgCell(
                 .clip(RoundedCornerShape(6.dp))
                 .background(
                     when {
-                        rowSelected && nowSlot -> g.accent.copy(alpha = 0.14f)
-                        empty -> Color.White.copy(alpha = 0.02f)
-                        else -> Color.White.copy(alpha = 0.045f)
+                        rowSelected && nowSlot -> g.accent.copy(alpha = 0.18f)
+                        empty -> Color.Transparent
+                        else -> Color.White.copy(alpha = 0.025f)
                     }
                 )
                 .border(
-                    width = if (rowSelected && nowSlot) 1.1.dp else 0.7.dp,
-                    color = if (rowSelected && nowSlot) g.accent.copy(alpha = 0.55f) else Color.White.copy(alpha = 0.08f),
+                    width = if (rowSelected && nowSlot) 1.2.dp else 0.5.dp,
+                    color = if (rowSelected && nowSlot) g.accent.copy(alpha = 0.65f) else Color.White.copy(alpha = 0.045f),
                     shape = RoundedCornerShape(6.dp)
                 )
-                .padding(horizontal = 8.dp, vertical = 4.dp),
+                .padding(horizontal = 6.dp, vertical = 2.dp),
             contentAlignment = Alignment.CenterStart
         ) {
             Text(
@@ -754,7 +794,8 @@ private fun EpgCell(
                     nowSlot -> Color.White.copy(alpha = 0.95f)
                     else -> Color.White.copy(alpha = 0.78f)
                 },
-                style = MaterialTheme.typography.bodyMedium.copy(
+                style = MaterialTheme.typography.bodySmall.copy(
+                    fontSize = 12.sp,
                     fontWeight = if (nowSlot) FontWeight.SemiBold else FontWeight.Medium
                 ),
                 maxLines = 2,
@@ -791,7 +832,7 @@ private fun CategoryPane(
     val g = LocalGlass.current
     GlassPanel(
         strong = true,
-        radius = 22.dp,
+        radius = 12.dp,
         modifier = modifier.onPreviewKeyEvent { e ->
             if (e.type == KeyEventType.KeyDown && e.key == Key.DirectionLeft) {
                 onLeft(); true
@@ -907,7 +948,8 @@ private fun CatRow(
         focused = focused,
         strong = selected,
         accentFill = selected && !focused,
-        radius = 10.dp,
+        fillAlpha = if (active) 1f else 0.12f,
+        radius = 8.dp,
         onClick = onClick,
         onLongClick = onLong,
         modifier = Modifier
@@ -961,13 +1003,44 @@ private fun CatRow(
                 modifier = Modifier.weight(1f)
             )
             if (count != null) {
-                Text(
-                    count.toString(),
-                    color = g.muted,
-                    style = MaterialTheme.typography.labelLarge
-                )
+                Spacer(Modifier.width(8.dp))
+                CategoryCountBadge(count = count, emphasized = active)
             }
         }
+    }
+}
+
+@Composable
+private fun CategoryCountBadge(count: Int, emphasized: Boolean) {
+    val g = LocalGlass.current
+    val label = count.toString()
+    val digits = label.length
+    val diameter = 24.dp
+    val circle = digits <= 3
+    val width = if (circle) diameter else (digits * 7 + 14).dp
+    val fontSize = when {
+        digits <= 2 -> 11.sp
+        digits == 3 -> 10.sp
+        else -> 9.sp
+    }
+    val shape = if (circle) CircleShape else RoundedCornerShape(percent = 50)
+    val fill = if (emphasized) g.accent.copy(alpha = 0.22f) else Color.White.copy(alpha = 0.06f)
+    val stroke = if (emphasized) g.accent.copy(alpha = 0.7f) else Color.White.copy(alpha = 0.12f)
+    Box(
+        modifier = Modifier
+            .size(width = width, height = diameter)
+            .clip(shape)
+            .background(fill)
+            .border(1.dp, stroke, shape),
+        contentAlignment = Alignment.Center
+    ) {
+        Text(
+            text = label,
+            color = if (emphasized) g.text else g.muted,
+            fontSize = fontSize,
+            fontWeight = FontWeight.ExtraBold,
+            maxLines = 1
+        )
     }
 }
 

@@ -62,16 +62,30 @@ fun ActorDetailDialog(
     onSelectVod: (VodEntity) -> Unit,
     onDismiss: () -> Unit
 ) {
-    val cyan = Color(0xFF22D3EE)
-    val emerald = Color(0xFF34D399)
-
     Dialog(onDismissRequest = onDismiss) {
         Box(
             Modifier
                 .widthIn(max = 520.dp)
                 .clip(RoundedCornerShape(24.dp))
-                .background(Color(0xFF0E281F).copy(alpha = 0.94f))
-                .border(1.dp, emerald.copy(alpha = 0.35f), RoundedCornerShape(24.dp))
+                .background(
+                    androidx.compose.ui.graphics.Brush.verticalGradient(
+                        listOf(
+                            Color(0xFF14161A).copy(alpha = 0.96f),
+                            Color(0xFF090A0D).copy(alpha = 0.98f)
+                        )
+                    )
+                )
+                .border(
+                    1.2.dp,
+                    androidx.compose.ui.graphics.Brush.linearGradient(
+                        listOf(
+                            Color.White.copy(alpha = 0.32f),
+                            Color.White.copy(alpha = 0.12f),
+                            Color.White.copy(alpha = 0.06f)
+                        )
+                    ),
+                    RoundedCornerShape(24.dp)
+                )
                 .padding(20.dp)
         ) {
             if (loading || actor == null) {
@@ -83,7 +97,7 @@ fun ActorDetailDialog(
                     val spin = rememberInfiniteTransition(label = "actor-spin")
                     val deg by spin.animateFloat(0f, 360f, infiniteRepeatable(tween(800, easing = LinearEasing), RepeatMode.Restart), label = "actor-rot")
                     Canvas(Modifier.size(44.dp).rotate(deg)) {
-                        drawArc(cyan, 16f, 280f, false, style = Stroke(3.5.dp.toPx(), cap = StrokeCap.Round))
+                        drawArc(Color.White, 16f, 280f, false, style = Stroke(3.5.dp.toPx(), cap = StrokeCap.Round))
                     }
                     Text(
                         if (tr) "Oyuncu Bilgileri Yükleniyor..." else "Loading Actor Info...",
@@ -100,7 +114,7 @@ fun ActorDetailDialog(
                     ) {
                         Text(
                             if (tr) "Oyuncu Profili" else "Actor Profile",
-                            color = cyan,
+                            color = Color.White,
                             fontWeight = FontWeight.Bold,
                             fontSize = 16.sp
                         )
@@ -108,15 +122,16 @@ fun ActorDetailDialog(
                             Modifier
                                 .size(32.dp)
                                 .clip(RoundedCornerShape(8.dp))
-                                .background(Color.White.copy(alpha = 0.10f))
+                                .background(Color.White.copy(alpha = 0.08f))
+                                .border(0.8.dp, Color.White.copy(alpha = 0.12f), RoundedCornerShape(8.dp))
                                 .rayClickable(onClick = onDismiss),
                             contentAlignment = Alignment.Center
                         ) {
-                            Icon(Icons.Filled.Close, contentDescription = null, tint = Color.White.copy(alpha = 0.8f), modifier = Modifier.size(18.dp))
+                            Icon(Icons.Filled.Close, contentDescription = null, tint = Color.White.copy(alpha = 0.85f), modifier = Modifier.size(18.dp))
                         }
                     }
 
-                    Box(Modifier.fillMaxWidth().height(1.dp).background(Color.White.copy(alpha = 0.10f)))
+                    Box(Modifier.fillMaxWidth().height(1.dp).background(Color.White.copy(alpha = 0.08f)))
 
                     LazyColumn(
                         verticalArrangement = Arrangement.spacedBy(14.dp),
@@ -132,7 +147,7 @@ fun ActorDetailDialog(
                                         .size(100.dp)
                                         .clip(CircleShape)
                                         .background(Color.White.copy(alpha = 0.10f))
-                                        .border(2.dp, cyan.copy(alpha = 0.5f), CircleShape),
+                                        .border(1.5.dp, Color.White.copy(alpha = 0.40f), CircleShape),
                                     contentAlignment = Alignment.Center
                                 ) {
                                     if (actor.photo.isNotBlank()) {
@@ -169,7 +184,7 @@ fun ActorDetailDialog(
                                 Column {
                                     Text(
                                         if (tr) "Biyografi" else "Biography",
-                                        color = cyan,
+                                        color = Color.White.copy(alpha = 0.75f),
                                         fontWeight = FontWeight.Bold,
                                         fontSize = 13.sp
                                     )
@@ -190,7 +205,7 @@ fun ActorDetailDialog(
                                     Text(
                                         if (tr) "Bu Oyuncunun Arşivinizdeki İçerikleri (${matchedVods.size})"
                                         else "Actor's Content in Library (${matchedVods.size})",
-                                        color = cyan,
+                                        color = Color.White.copy(alpha = 0.75f),
                                         fontWeight = FontWeight.Bold,
                                         fontSize = 14.sp
                                     )
@@ -214,7 +229,7 @@ fun ActorDetailDialog(
                                                         .aspectRatio(0.68f)
                                                         .clip(RoundedCornerShape(10.dp))
                                                         .background(Color.White.copy(alpha = 0.08f))
-                                                        .border(1.dp, emerald.copy(alpha = 0.25f), RoundedCornerShape(10.dp))
+                                                        .border(1.dp, Color.White.copy(alpha = 0.15f), RoundedCornerShape(10.dp))
                                                 ) {
                                                     if (item.poster.isNotBlank()) {
                                                         AsyncImage(

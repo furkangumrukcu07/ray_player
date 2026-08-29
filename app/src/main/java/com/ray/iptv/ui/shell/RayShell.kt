@@ -1,9 +1,13 @@
 package com.ray.iptv.ui.shell
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.ui.draw.scale
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -95,7 +99,7 @@ private val items = listOf(
     NavItem(Dest.SERIES, Icons.Filled.VideoLibrary, { it.series }),
     NavItem(Dest.CONTINUE, Icons.Filled.History, { it.cont }),
     NavItem(Dest.PLAYLISTS, Icons.Filled.PlaylistPlay, { it.playlists }),
-    NavItem(null, Icons.Filled.Replay, { it.repeat }, repeat = true),
+    NavItem(Dest.CATCHUP, Icons.Filled.Replay, { it.repeat }),
     NavItem(Dest.SETTINGS, Icons.Filled.Settings, { it.settings })
 )
 
@@ -131,6 +135,7 @@ fun RayShell(
     val seriesFocusRequester = remember { FocusRequester() }
     val continueFocusRequester = remember { FocusRequester() }
     val playlistsFocusRequester = remember { FocusRequester() }
+    val catchupFocusRequester = remember { FocusRequester() }
     val settingsFocusRequester = remember { FocusRequester() }
     var initialFocusDone by remember { mutableStateOf(false) }
 
@@ -138,12 +143,13 @@ fun RayShell(
         if (railExpanded && !touch) {
             val target = when {
                 searchSelected -> searchFocusRequester
-                repeatSelected -> repeatFocusRequester
+                repeatSelected -> catchupFocusRequester
                 current == Dest.LIVE -> liveFocusRequester
                 current == Dest.MOVIES -> moviesFocusRequester
                 current == Dest.SERIES -> seriesFocusRequester
                 current == Dest.CONTINUE -> continueFocusRequester
                 current == Dest.PLAYLISTS -> playlistsFocusRequester
+                current == Dest.CATCHUP -> catchupFocusRequester
                 current == Dest.SETTINGS -> settingsFocusRequester
                 else -> liveFocusRequester
             }
@@ -191,7 +197,7 @@ fun RayShell(
                 val railAlpha = if (current == Dest.SETTINGS && !railExpanded) 0.55f else 1f
                 GlassPanel(
                     strong = true,
-                    radius = 22.dp,
+                    radius = 12.dp,
                     fillAlpha = if (current == Dest.SETTINGS && !railExpanded) 0.45f else 1f,
                     modifier = Modifier
                         .width(railW)
@@ -236,6 +242,7 @@ fun RayShell(
                                 item.dest == Dest.SERIES -> seriesFocusRequester
                                 item.dest == Dest.CONTINUE -> continueFocusRequester
                                 item.dest == Dest.PLAYLISTS -> playlistsFocusRequester
+                                item.dest == Dest.CATCHUP -> catchupFocusRequester
                                 item.dest == Dest.SETTINGS -> settingsFocusRequester
                                 else -> null
                             }
@@ -320,10 +327,7 @@ private fun BrandHeader(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            Image(
-                painter = painterResource(R.drawable.ic_launcher_foreground),
-                contentDescription = brand,
-                contentScale = ContentScale.Fit,
+            com.ray.iptv.ui.mobile.RayAnimatedUmbrella(
                 modifier = Modifier.size(logoSize)
             )
             Text(
@@ -346,10 +350,7 @@ private fun BrandHeader(
                 .padding(vertical = 6.dp),
             contentAlignment = Alignment.Center
         ) {
-            Image(
-                painter = painterResource(R.drawable.ic_launcher_foreground),
-                contentDescription = brand,
-                contentScale = ContentScale.Fit,
+            com.ray.iptv.ui.mobile.RayAnimatedUmbrella(
                 modifier = Modifier.size(logoSize)
             )
         }
@@ -380,11 +381,20 @@ private fun RailIcon(
             .padding(vertical = 3.5.dp)
             .size(if (touch) 48.dp else 44.dp)
     }
+    val iconScale by animateFloatAsState(
+        targetValue = if (focused) 1.15f else 1f,
+        animationSpec = spring(
+            dampingRatio = Spring.DampingRatioMediumBouncy,
+            stiffness = Spring.StiffnessLow
+        ),
+        label = "rail-icon-scale"
+    )
+
     GlassPanel(
         focused = active,
         strong = selected,
         accentFill = false,
-        radius = 12.dp,
+        radius = 8.dp,
         scaleOnFocus = false,
         onClick = onClick,
         modifier = tile
@@ -403,7 +413,6 @@ private fun RailIcon(
                     else -> false
                 }
             }
-
     ) {
         if (expanded) {
             Row(
@@ -411,17 +420,28 @@ private fun RailIcon(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
+                if (selected) {
+                    Box(
+                        Modifier
+                            .width(3.dp)
+                            .height(18.dp)
+                            .clip(RoundedCornerShape(2.dp))
+                            .background(g.accent)
+                    )
+                }
                 Icon(
                     icon,
                     contentDescription = label,
-                    tint = if (selected) g.accent else if (active) g.text else if (g.frostDark) g.text.copy(alpha = 0.88f) else g.muted,
-                    modifier = Modifier.size(20.dp)
+                    tint = if (selected) g.accent else if (focused) Color.White else if (g.frostDark) g.text.copy(alpha = 0.88f) else g.muted,
+                    modifier = Modifier
+                        .size(20.dp)
+                        .scale(iconScale)
                 )
                 Text(
                     label,
-                    color = if (selected) g.accent else if (active) g.text else g.text.copy(alpha = if (g.frostDark) 0.92f else 0.82f),
+                    color = if (selected) g.accent else if (focused) Color.White else g.text.copy(alpha = if (g.frostDark) 0.92f else 0.82f),
                     style = MaterialTheme.typography.bodyLarge.copy(
-                        fontWeight = if (selected || focused) FontWeight.SemiBold else FontWeight.Medium,
+                        fontWeight = if (selected || focused) FontWeight.Bold else FontWeight.Medium,
                         fontSize = 13.5.sp
                     ),
                     maxLines = 1,
@@ -431,11 +451,23 @@ private fun RailIcon(
             }
         } else {
             Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                if (selected) {
+                    Box(
+                        Modifier
+                            .align(Alignment.CenterStart)
+                            .width(3.dp)
+                            .height(20.dp)
+                            .clip(RoundedCornerShape(2.dp))
+                            .background(g.accent)
+                    )
+                }
                 Icon(
                     icon,
                     contentDescription = label,
-                    tint = if (selected) g.accent else if (active) g.text else if (g.frostDark) g.text.copy(alpha = 0.88f) else g.muted,
-                    modifier = Modifier.size(if (touch) 24.dp else 22.dp)
+                    tint = if (selected) g.accent else if (focused) Color.White else if (g.frostDark) g.text.copy(alpha = 0.88f) else g.muted,
+                    modifier = Modifier
+                        .size(if (touch) 24.dp else 22.dp)
+                        .scale(iconScale)
                 )
             }
         }

@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -48,6 +49,7 @@ import androidx.tv.material3.MaterialTheme
 import androidx.tv.material3.Text
 import com.ray.iptv.data.repo.SyncState
 import com.ray.iptv.ui.components.GlassButton
+import com.ray.iptv.ui.glass.DarkGlassPopupTheme
 import com.ray.iptv.ui.glass.GlassPanel
 import com.ray.iptv.ui.theme.LocalGlass
 import kotlinx.coroutines.delay
@@ -87,22 +89,30 @@ fun PlaylistLoadDialog(
         else -> if (tr) "Canlı kanallar, filmler ve diziler hazırlanıyor…" else "Preparing live channels, movies and series…"
     }
 
-    Dialog(
-        onDismissRequest = { if (!sync.running) onDismiss() },
-        properties = DialogProperties(
-            dismissOnBackPress = !sync.running,
-            dismissOnClickOutside = false,
-            usePlatformDefaultWidth = false
-        )
-    ) {
-        GlassPanel(
-            strong = true,
-            radius = 24.dp,
-            modifier = Modifier
-                .fillMaxWidth()
-                .widthIn(max = 420.dp)
-                .padding(horizontal = 18.dp)
+    DarkGlassPopupTheme {
+        val g = LocalGlass.current
+        Dialog(
+            onDismissRequest = { if (!sync.running) onDismiss() },
+            properties = DialogProperties(
+                dismissOnBackPress = !sync.running,
+                dismissOnClickOutside = false,
+                usePlatformDefaultWidth = false
+            )
         ) {
+            Box(
+                Modifier
+                    .fillMaxSize()
+                    .background(Color.Black.copy(alpha = 0.70f)),
+                contentAlignment = Alignment.Center
+            ) {
+                GlassPanel(
+                    strong = true,
+                    radius = 14.dp,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .widthIn(max = 420.dp)
+                        .padding(horizontal = 18.dp)
+                ) {
             Column(Modifier.padding(horizontal = 20.dp, vertical = 18.dp)) {
                 Row(verticalAlignment = Alignment.Top) {
                     val accent = if (failed) g.danger else g.accent
@@ -170,6 +180,8 @@ fun PlaylistLoadDialog(
             }
         }
     }
+}
+}
 }
 
 @Composable

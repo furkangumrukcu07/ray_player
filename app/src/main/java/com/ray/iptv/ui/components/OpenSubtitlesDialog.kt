@@ -54,16 +54,30 @@ fun OpenSubtitlesDialog(
     onSelectSubtitle: (OpenSubtitleResult) -> Unit,
     onDismiss: () -> Unit
 ) {
-    val cyan = Color(0xFF22D3EE)
-    val emerald = Color(0xFF34D399)
-
     Dialog(onDismissRequest = onDismiss) {
         Box(
             Modifier
                 .widthIn(max = 500.dp)
                 .clip(RoundedCornerShape(24.dp))
-                .background(Color(0xFF0E281F).copy(alpha = 0.94f))
-                .border(1.dp, emerald.copy(alpha = 0.35f), RoundedCornerShape(24.dp))
+                .background(
+                    androidx.compose.ui.graphics.Brush.verticalGradient(
+                        listOf(
+                            Color(0xFF14161A).copy(alpha = 0.96f),
+                            Color(0xFF090A0D).copy(alpha = 0.98f)
+                        )
+                    )
+                )
+                .border(
+                    1.2.dp,
+                    androidx.compose.ui.graphics.Brush.linearGradient(
+                        listOf(
+                            Color.White.copy(alpha = 0.32f),
+                            Color.White.copy(alpha = 0.12f),
+                            Color.White.copy(alpha = 0.06f)
+                        )
+                    ),
+                    RoundedCornerShape(24.dp)
+                )
                 .padding(20.dp)
         ) {
             Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
@@ -73,10 +87,10 @@ fun OpenSubtitlesDialog(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Icon(Icons.Filled.Subtitles, contentDescription = null, tint = cyan, modifier = Modifier.size(20.dp))
+                        Icon(Icons.Filled.Subtitles, contentDescription = null, tint = Color.White, modifier = Modifier.size(20.dp))
                         Text(
                             if (tr) "OpenSubtitles Çevrimiçi Altyazılar" else "OpenSubtitles Online Subtitles",
-                            color = cyan,
+                            color = Color.White,
                             fontWeight = FontWeight.Bold,
                             fontSize = 16.sp
                         )
@@ -85,15 +99,16 @@ fun OpenSubtitlesDialog(
                         Modifier
                             .size(32.dp)
                             .clip(RoundedCornerShape(8.dp))
-                            .background(Color.White.copy(alpha = 0.10f))
+                            .background(Color.White.copy(alpha = 0.08f))
+                            .border(0.8.dp, Color.White.copy(alpha = 0.12f), RoundedCornerShape(8.dp))
                             .rayClickable(onClick = onDismiss),
                         contentAlignment = Alignment.Center
                     ) {
-                        Icon(Icons.Filled.Close, contentDescription = null, tint = Color.White.copy(alpha = 0.8f), modifier = Modifier.size(18.dp))
+                        Icon(Icons.Filled.Close, contentDescription = null, tint = Color.White.copy(alpha = 0.85f), modifier = Modifier.size(18.dp))
                     }
                 }
 
-                Box(Modifier.fillMaxWidth().height(1.dp).background(Color.White.copy(alpha = 0.10f)))
+                Box(Modifier.fillMaxWidth().height(1.dp).background(Color.White.copy(alpha = 0.08f)))
 
                 if (loading) {
                     Column(
@@ -104,7 +119,7 @@ fun OpenSubtitlesDialog(
                         val spin2 = rememberInfiniteTransition(label = "sub-spin")
                         val deg2 by spin2.animateFloat(0f, 360f, infiniteRepeatable(tween(800, easing = LinearEasing), RepeatMode.Restart), label = "sub-rot")
                         Canvas(Modifier.size(36.dp).rotate(deg2)) {
-                            drawArc(cyan, 16f, 280f, false, style = Stroke(3.5.dp.toPx(), cap = StrokeCap.Round))
+                            drawArc(Color.White, 16f, 280f, false, style = Stroke(3.5.dp.toPx(), cap = StrokeCap.Round))
                         }
                         Text(
                             if (tr) "Altyazılar Aranıyor..." else "Searching Subtitles...",
@@ -133,8 +148,8 @@ fun OpenSubtitlesDialog(
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .clip(RoundedCornerShape(14.dp))
-                                    .background(Color.White.copy(alpha = 0.05f))
-                                    .border(1.dp, Color(0xFF4ADE80).copy(alpha = 0.15f), RoundedCornerShape(14.dp))
+                                    .background(Color.White.copy(alpha = 0.06f))
+                                    .border(1.dp, Color.White.copy(alpha = 0.12f), RoundedCornerShape(14.dp))
                                     .rayClickable(onClick = {
                                         onSelectSubtitle(item)
                                         onDismiss()
@@ -162,10 +177,11 @@ fun OpenSubtitlesDialog(
                                 Box(
                                     Modifier
                                         .clip(RoundedCornerShape(8.dp))
-                                        .background(cyan.copy(alpha = 0.15f))
+                                        .background(Color.White.copy(alpha = 0.12f))
+                                        .border(1.dp, Color.White.copy(alpha = 0.20f), RoundedCornerShape(8.dp))
                                         .padding(horizontal = 10.dp, vertical = 6.dp)
-                                ) {
-                                    Icon(Icons.Filled.Download, contentDescription = null, tint = cyan, modifier = Modifier.size(16.dp))
+                                    ) {
+                                    Icon(Icons.Filled.Download, contentDescription = null, tint = Color.White, modifier = Modifier.size(16.dp))
                                 }
                             }
                         }

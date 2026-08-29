@@ -1,5 +1,6 @@
 package com.ray.iptv.data.local
 
+import androidx.compose.runtime.Immutable
 import androidx.room.Dao
 import androidx.room.Insert
 import androidx.room.OnConflictStrategy
@@ -9,12 +10,14 @@ import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
 import kotlinx.coroutines.flow.Flow
 
+@Immutable
 data class ChannelLayoutSnap(
     val id: String,
     val hidden: Boolean,
     val layoutSort: Int
 )
 
+@Immutable
 data class GroupCount(
     val categoryId: String,
     val total: Int

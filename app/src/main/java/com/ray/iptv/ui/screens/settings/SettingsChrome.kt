@@ -60,6 +60,7 @@ import coil.compose.AsyncImage
 import com.ray.iptv.data.repo.GlassStyle
 import com.ray.iptv.ui.components.GlassButton
 import com.ray.iptv.ui.components.GlassToggle
+import com.ray.iptv.ui.glass.DarkGlassPopupTheme
 import com.ray.iptv.ui.glass.GlassPanel
 import com.ray.iptv.ui.input.rayClickable
 import com.ray.iptv.ui.theme.LocalGlass
@@ -496,13 +497,14 @@ fun <T> GlassChoiceDialog(
     onDismiss: () -> Unit,
     onPick: (T) -> Unit
 ) {
-    val g = LocalGlass.current
-    var pending by remember { mutableStateOf(selected) }
-    val dialogMaxH = LocalConfiguration.current.screenHeightDp.dp * 0.88f
-    Dialog(
-        onDismissRequest = onDismiss,
-        properties = DialogProperties(usePlatformDefaultWidth = true)
-    ) {
+    DarkGlassPopupTheme {
+        val g = LocalGlass.current
+        var pending by remember { mutableStateOf(selected) }
+        val dialogMaxH = LocalConfiguration.current.screenHeightDp.dp * 0.88f
+        Dialog(
+            onDismissRequest = onDismiss,
+            properties = DialogProperties(usePlatformDefaultWidth = true)
+        ) {
         GlassPanel(
             strong = true,
             radius = 20.dp,
@@ -628,6 +630,7 @@ fun <T> GlassChoiceDialog(
         }
     }
 }
+}
 
 @Composable
 fun ThemeChoiceTile(
@@ -690,68 +693,70 @@ fun MobileThemePickerDialog(
     onDismiss: () -> Unit,
     onPick: (GlassStyle) -> Unit
 ) {
-    val g = LocalGlass.current
-    var pending by remember { mutableStateOf(selected) }
-    val dialogMaxH = LocalConfiguration.current.screenHeightDp.dp * 0.88f
-    Dialog(
-        onDismissRequest = onDismiss,
-        properties = DialogProperties(usePlatformDefaultWidth = true)
-    ) {
-        GlassPanel(
-            strong = true,
-            radius = 20.dp,
-            modifier = Modifier
-                .fillMaxWidth()
-                .heightIn(max = dialogMaxH)
-                .navigationBarsPadding()
+    DarkGlassPopupTheme {
+        val g = LocalGlass.current
+        var pending by remember { mutableStateOf(selected) }
+        val dialogMaxH = LocalConfiguration.current.screenHeightDp.dp * 0.88f
+        Dialog(
+            onDismissRequest = onDismiss,
+            properties = DialogProperties(usePlatformDefaultWidth = true)
         ) {
-            Column(
-                Modifier
+            GlassPanel(
+                strong = true,
+                radius = 20.dp,
+                modifier = Modifier
                     .fillMaxWidth()
                     .heightIn(max = dialogMaxH)
-                    .padding(18.dp)
+                    .navigationBarsPadding()
             ) {
-                Text(if (tr) "Tema" else "Theme", color = g.text, style = MaterialTheme.typography.headlineSmall)
-                Spacer(Modifier.height(4.dp))
-                Text(
-                    if (tr) "Duvar kâğıdı ve vurgu rengi seçince hemen uygulanır."
-                    else "Wallpaper and accent apply instantly.",
-                    color = g.muted,
-                    style = MaterialTheme.typography.bodyMedium
-                )
-                Spacer(Modifier.height(12.dp))
                 Column(
                     Modifier
-                        .weight(1f, fill = false)
-                        .verticalScroll(rememberScrollState()),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                        .fillMaxWidth()
+                        .heightIn(max = dialogMaxH)
+                        .padding(18.dp)
                 ) {
-                    styles.forEach { style ->
-                        ThemeChoiceTile(
-                            style = style,
-                            selected = pending == style,
-                            tr = tr,
-                            onClick = {
-                                pending = style
-                                preview(style)
-                            }
-                        )
+                    Text(if (tr) "Tema" else "Theme", color = g.text, style = MaterialTheme.typography.headlineSmall)
+                    Spacer(Modifier.height(4.dp))
+                    Text(
+                        if (tr) "Duvar kâğıdı ve vurgu rengi seçince hemen uygulanır."
+                        else "Wallpaper and accent apply instantly.",
+                        color = g.muted,
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+                    Spacer(Modifier.height(12.dp))
+                    Column(
+                        Modifier
+                            .weight(1f, fill = false)
+                            .verticalScroll(rememberScrollState()),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        styles.forEach { style ->
+                            ThemeChoiceTile(
+                                style = style,
+                                selected = pending == style,
+                                tr = tr,
+                                onClick = {
+                                    pending = style
+                                    preview(style)
+                                }
+                            )
+                        }
                     }
-                }
-                Spacer(Modifier.height(12.dp))
-                Column(
-                    Modifier.fillMaxWidth(),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    GlassButton(
-                        "Kaydet",
-                        primary = true,
-                        modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp)
-                    ) { onPick(pending) }
-                    GlassButton(
-                        "Vazgeç",
-                        modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)
-                    ) { onDismiss() }
+                    Spacer(Modifier.height(12.dp))
+                    Column(
+                        Modifier.fillMaxWidth(),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        GlassButton(
+                            "Kaydet",
+                            primary = true,
+                            modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp)
+                        ) { onPick(pending) }
+                        GlassButton(
+                            "Vazgeç",
+                            modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)
+                        ) { onDismiss() }
+                    }
                 }
             }
         }
@@ -767,62 +772,69 @@ fun GlassConfirmDialog(
     onDismiss: () -> Unit,
     onConfirm: () -> Unit
 ) {
-    Dialog(onDismissRequest = onDismiss) {
-        Box(
-            Modifier
-                .fillMaxWidth()
-                .clip(RoundedCornerShape(22.dp))
-                .background(Color(0xFF111714))
-                .border(1.2.dp, Color.White.copy(alpha = 0.16f), RoundedCornerShape(22.dp))
-                .padding(22.dp)
-        ) {
-            Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(14.dp)) {
-                Text(
-                    title,
-                    color = Color.White,
-                    fontSize = 19.sp,
-                    fontWeight = FontWeight.Bold
-                )
-                Text(
-                    body,
-                    color = Color.White.copy(alpha = 0.82f),
-                    fontSize = 14.sp,
-                    lineHeight = 20.sp
-                )
-                val destructive = confirm == "Sil" || confirm.equals("Delete", true)
-                Row(
-                    Modifier.fillMaxWidth().padding(top = 8.dp),
-                    horizontalArrangement = Arrangement.spacedBy(10.dp, Alignment.End),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Box(
-                        Modifier
-                            .clip(RoundedCornerShape(12.dp))
-                            .background(Color.White.copy(alpha = 0.06f))
-                            .border(1.dp, Color.White.copy(alpha = 0.20f), RoundedCornerShape(12.dp))
-                            .rayClickable(onClick = onDismiss)
-                            .padding(horizontal = 20.dp, vertical = 10.dp),
-                        contentAlignment = Alignment.Center
+    DarkGlassPopupTheme {
+        Dialog(onDismissRequest = onDismiss) {
+            Box(
+                Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(22.dp))
+                    .background(Color(0xFF10131B).copy(alpha = 0.96f))
+                    .border(1.2.dp, Color(0xFF64D2FF).copy(alpha = 0.35f), RoundedCornerShape(22.dp))
+                    .padding(22.dp)
+            ) {
+                Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(14.dp)) {
+                    Text(
+                        title,
+                        color = Color.White,
+                        fontSize = 19.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Text(
+                        body,
+                        color = Color.White.copy(alpha = 0.82f),
+                        fontSize = 14.sp,
+                        lineHeight = 20.sp
+                    )
+                    val destructive = confirm == "Sil" || confirm.equals("Delete", true)
+                    Row(
+                        Modifier.fillMaxWidth().padding(top = 8.dp),
+                        horizontalArrangement = Arrangement.spacedBy(10.dp, Alignment.End),
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Text(cancel, color = Color.White, fontWeight = FontWeight.SemiBold, fontSize = 13.5.sp)
-                    }
-                    Box(
-                        Modifier
-                            .clip(RoundedCornerShape(12.dp))
-                            .background(if (destructive) Color(0xFF8B1D1D) else Color(0xFF133630))
-                            .border(
-                                1.dp,
-                                if (destructive) Color(0xFFEF5350) else Color(0xFF22D3EE).copy(alpha = 0.65f),
-                                RoundedCornerShape(12.dp)
+                        Box(
+                            Modifier
+                                .clip(RoundedCornerShape(12.dp))
+                                .background(Color.White.copy(alpha = 0.06f))
+                                .border(1.dp, Color.White.copy(alpha = 0.20f), RoundedCornerShape(12.dp))
+                                .rayClickable(onClick = onDismiss)
+                                .padding(horizontal = 20.dp, vertical = 10.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(cancel, color = Color.White, fontWeight = FontWeight.SemiBold, fontSize = 13.5.sp)
+                        }
+                        Box(
+                            Modifier
+                                .clip(RoundedCornerShape(12.dp))
+                                .background(if (destructive) Color(0xFFFF453A).copy(alpha = 0.22f) else Color(0xFF64D2FF).copy(alpha = 0.20f))
+                                .border(
+                                    1.dp,
+                                    if (destructive) Color(0xFFFF453A) else Color(0xFF64D2FF),
+                                    RoundedCornerShape(12.dp)
+                                )
+                                .rayClickable(onClick = {
+                                    onConfirm()
+                                    onDismiss()
+                                })
+                                .padding(horizontal = 22.dp, vertical = 10.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                confirm,
+                                color = Color.White,
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 13.5.sp
                             )
-                            .rayClickable(onClick = {
-                                onConfirm()
-                                onDismiss()
-                            })
-                            .padding(horizontal = 22.dp, vertical = 10.dp),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text(confirm, color = Color.White, fontWeight = FontWeight.Bold, fontSize = 13.5.sp)
+                        }
                     }
                 }
             }

@@ -134,8 +134,8 @@ fun CloudRestorePreviewDialog(
             Modifier
                 .width(480.dp)
                 .clip(RoundedCornerShape(24.dp))
-                .background(Color(0xFF0E281F).copy(alpha = 0.96f))
-                .border(1.dp, Color(0xFF34D399).copy(alpha = 0.35f), RoundedCornerShape(24.dp))
+                .background(Color(0xFF10131B).copy(alpha = 0.96f))
+                .border(1.dp, Color(0xFF64D2FF).copy(alpha = 0.35f), RoundedCornerShape(24.dp))
                 .padding(22.dp)
         ) {
             Column {
@@ -144,14 +144,14 @@ fun CloudRestorePreviewDialog(
                         Modifier
                             .size(44.dp)
                             .clip(RoundedCornerShape(12.dp))
-                            .background(Color(0xFF22D3EE).copy(alpha = 0.15f))
-                            .border(1.dp, Color(0xFF22D3EE).copy(alpha = 0.35f), RoundedCornerShape(12.dp)),
+                            .background(Color(0xFF64D2FF).copy(alpha = 0.15f))
+                            .border(1.dp, Color(0xFF64D2FF).copy(alpha = 0.35f), RoundedCornerShape(12.dp)),
                         contentAlignment = Alignment.Center
                     ) {
                         Icon(
                             Icons.Filled.CloudDownload,
                             contentDescription = null,
-                            tint = Color(0xFF22D3EE),
+                            tint = Color(0xFF64D2FF),
                             modifier = Modifier.size(24.dp)
                         )
                     }
@@ -178,7 +178,7 @@ fun CloudRestorePreviewDialog(
                     Modifier
                         .fillMaxWidth()
                         .clip(RoundedCornerShape(16.dp))
-                        .background(Color.White.copy(alpha = 0.05f))
+                        .background(Color(0xFF141822).copy(alpha = 0.85f))
                         .border(1.dp, Color.White.copy(alpha = 0.10f), RoundedCornerShape(16.dp))
                         .padding(12.dp),
                     verticalArrangement = Arrangement.spacedBy(8.dp)
@@ -193,7 +193,7 @@ fun CloudRestorePreviewDialog(
                                 Icon(
                                     item.icon,
                                     contentDescription = null,
-                                    tint = Color(0xFF34D399),
+                                    tint = Color(0xFF64D2FF),
                                     modifier = Modifier.size(17.dp)
                                 )
                                 Spacer(Modifier.width(8.dp))
@@ -207,7 +207,7 @@ fun CloudRestorePreviewDialog(
                             val valueText = item.customValue ?: (if (tr) "Mevcut: ${item.localCount} ➔ Bulut: ${item.cloudCount}" else "Local: ${item.localCount} ➔ Cloud: ${item.cloudCount}")
                             Text(
                                 text = valueText,
-                                color = Color(0xFF22D3EE),
+                                color = Color(0xFF64D2FF),
                                 fontSize = 12.sp,
                                 fontWeight = FontWeight.Bold
                             )
@@ -228,7 +228,7 @@ fun CloudRestorePreviewDialog(
                             .focusable()
                             .clip(RoundedCornerShape(14.dp))
                             .background(
-                                if (mergeFocused) Color(0xFF34D399) else Color.White
+                                if (mergeFocused) Color(0xFF64D2FF) else Color.White
                             )
                             .border(
                                 width = if (mergeFocused) 2.5.dp else 1.dp,
@@ -288,7 +288,7 @@ fun CloudRestorePreviewDialog(
                             )
                             .border(
                                 width = if (cancelFocused) 2.dp else 1.dp,
-                                color = if (cancelFocused) Color(0xFF22D3EE) else Color.White.copy(alpha = 0.15f),
+                                color = if (cancelFocused) Color(0xFF64D2FF) else Color.White.copy(alpha = 0.15f),
                                 shape = RoundedCornerShape(14.dp)
                             )
                             .rayClickable(onClick = onDismiss)
@@ -297,7 +297,7 @@ fun CloudRestorePreviewDialog(
                     ) {
                         Text(
                             text = if (tr) "Vazgeç" else "Cancel",
-                            color = if (cancelFocused) Color(0xFF22D3EE) else Color.White.copy(alpha = 0.70f),
+                            color = if (cancelFocused) Color(0xFF64D2FF) else Color.White.copy(alpha = 0.70f),
                             fontSize = 13.sp,
                             fontWeight = FontWeight.Medium
                         )

@@ -104,8 +104,7 @@ fun MobileDynamicSearchSheet(
     onClearHistory: () -> Unit,
     onDismiss: () -> Unit
 ) {
-    val cyan = Color(0xFF22D3EE)
-    val emerald = Color(0xFF34D399)
+    val glassHighlight = Color.White.copy(alpha = 0.35f)
     val focusRequester = remember { FocusRequester() }
     val focusManager = LocalFocusManager.current
     var selectedFilter by remember { mutableStateOf("ALL") } // ALL, LIVE, MOVIES, SERIES
@@ -120,14 +119,14 @@ fun MobileDynamicSearchSheet(
     Box(
         Modifier
             .fillMaxSize()
-            .background(Color.Black.copy(alpha = 0.60f))
+            .background(Color.Black.copy(alpha = 0.65f))
             .clickable(
                 indication = null,
                 interactionSource = remember { MutableInteractionSource() }
             ) { onDismiss() },
         contentAlignment = Alignment.TopCenter
     ) {
-        // Modern Floating Glass Spotlight Card
+        // Modern Floating Obsidian Glass Spotlight Card
         Box(
             Modifier
                 .statusBarsPadding()
@@ -144,8 +143,8 @@ fun MobileDynamicSearchSheet(
                 .background(
                     Brush.verticalGradient(
                         colors = listOf(
-                            Color(0xFF0F1B18).copy(alpha = 0.94f),
-                            Color(0xFF08120F).copy(alpha = 0.96f)
+                            Color(0xFF14161A).copy(alpha = 0.96f),
+                            Color(0xFF090A0D).copy(alpha = 0.98f)
                         )
                     )
                 )
@@ -153,9 +152,9 @@ fun MobileDynamicSearchSheet(
                     width = 1.2.dp,
                     brush = Brush.linearGradient(
                         listOf(
-                            Color.White.copy(alpha = 0.28f),
-                            cyan.copy(alpha = 0.55f),
-                            Color.White.copy(alpha = 0.12f)
+                            Color.White.copy(alpha = 0.32f),
+                            Color.White.copy(alpha = 0.12f),
+                            Color.White.copy(alpha = 0.06f)
                         )
                     ),
                     shape = RoundedCornerShape(22.dp)
@@ -191,12 +190,10 @@ fun MobileDynamicSearchSheet(
                             .weight(1f)
                             .height(46.dp)
                             .clip(RoundedCornerShape(14.dp))
-                            .background(Color.White.copy(alpha = 0.07f))
+                            .background(Color.White.copy(alpha = 0.08f))
                             .border(
                                 1.dp,
-                                Brush.horizontalGradient(
-                                    listOf(cyan.copy(alpha = 0.65f), emerald.copy(alpha = 0.35f))
-                                ),
+                                Color.White.copy(alpha = 0.18f),
                                 RoundedCornerShape(14.dp)
                             )
                             .padding(horizontal = 12.dp),
@@ -209,7 +206,7 @@ fun MobileDynamicSearchSheet(
                             Icon(
                                 Icons.Filled.Search,
                                 contentDescription = null,
-                                tint = cyan,
+                                tint = Color.White.copy(alpha = 0.85f),
                                 modifier = Modifier.size(19.dp)
                             )
                             Spacer(Modifier.width(10.dp))
@@ -230,7 +227,7 @@ fun MobileDynamicSearchSheet(
                                         fontSize = 14.sp,
                                         fontWeight = FontWeight.SemiBold
                                     ),
-                                    cursorBrush = SolidColor(cyan),
+                                    cursorBrush = SolidColor(Color.White),
                                     keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
                                     keyboardActions = KeyboardActions(onSearch = { focusManager.clearFocus() }),
                                     modifier = Modifier
@@ -327,7 +324,7 @@ fun MobileDynamicSearchSheet(
                                     Icon(
                                         Icons.Filled.History,
                                         contentDescription = null,
-                                        tint = cyan,
+                                        tint = Color.White.copy(alpha = 0.85f),
                                         modifier = Modifier.size(16.dp)
                                     )
                                     Spacer(Modifier.width(6.dp))
@@ -393,7 +390,7 @@ fun MobileDynamicSearchSheet(
                             Icon(
                                 Icons.Filled.Search,
                                 contentDescription = null,
-                                tint = cyan.copy(alpha = 0.40f),
+                                tint = Color.White.copy(alpha = 0.35f),
                                 modifier = Modifier.size(38.dp)
                             )
                             Spacer(Modifier.height(8.dp))
@@ -454,7 +451,7 @@ fun MobileDynamicSearchSheet(
                                         Icon(
                                             Icons.Filled.Tv,
                                             contentDescription = null,
-                                            tint = emerald,
+                                            tint = Color(0xFFEF4444),
                                             modifier = Modifier.size(16.dp)
                                         )
                                         Spacer(Modifier.width(6.dp))
@@ -485,7 +482,7 @@ fun MobileDynamicSearchSheet(
                                         Icon(
                                             Icons.Filled.Movie,
                                             contentDescription = null,
-                                            tint = cyan,
+                                            tint = Color(0xFFF59E0B),
                                             modifier = Modifier.size(16.dp)
                                         )
                                         Spacer(Modifier.width(6.dp))
@@ -558,17 +555,15 @@ private fun SearchFilterPill(
     selected: Boolean,
     onClick: () -> Unit
 ) {
-    val cyan = Color(0xFF22D3EE)
-
     Box(
         Modifier
             .clip(RoundedCornerShape(12.dp))
             .background(
-                if (selected) cyan.copy(alpha = 0.25f) else Color.White.copy(alpha = 0.08f)
+                if (selected) Color.White.copy(alpha = 0.16f) else Color.White.copy(alpha = 0.05f)
             )
             .border(
                 width = 1.dp,
-                color = if (selected) cyan else Color.White.copy(alpha = 0.12f),
+                color = if (selected) Color.White.copy(alpha = 0.40f) else Color.White.copy(alpha = 0.10f),
                 shape = RoundedCornerShape(12.dp)
             )
             .clickable(onClick = onClick)
@@ -577,7 +572,7 @@ private fun SearchFilterPill(
     ) {
         Text(
             text = if (count != null && count > 0) "$label ($count)" else label,
-            color = if (selected) cyan else Color.White.copy(alpha = 0.85f),
+            color = if (selected) Color.White else Color.White.copy(alpha = 0.65f),
             fontSize = 12.sp,
             fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium
         )
@@ -589,13 +584,11 @@ private fun SearchLiveChannelPill(
     channel: ChannelEntity,
     onPlay: () -> Unit
 ) {
-    val emerald = Color(0xFF34D399)
-
     Box(
         Modifier
             .width(160.dp)
             .clip(RoundedCornerShape(12.dp))
-            .background(Color.White.copy(alpha = 0.07f))
+            .background(Color.White.copy(alpha = 0.06f))
             .border(1.dp, Color.White.copy(alpha = 0.12f), RoundedCornerShape(12.dp))
             .clickable(onClick = onPlay)
             .padding(8.dp)
@@ -622,7 +615,7 @@ private fun SearchLiveChannelPill(
                     Icon(
                         Icons.Filled.Tv,
                         contentDescription = null,
-                        tint = emerald,
+                        tint = Color.White.copy(alpha = 0.85f),
                         modifier = Modifier.size(18.dp)
                     )
                 }
@@ -655,6 +648,17 @@ private fun SearchVodPosterCard(
     item: VodEntity,
     onClick: () -> Unit
 ) {
+    val context = LocalContext.current
+    val posterRequest = remember(item.poster) {
+        ImageRequest.Builder(context)
+            .data(item.poster)
+            .size(110, 150)
+            .precision(coil.size.Precision.INEXACT)
+            .allowHardware(true)
+            .crossfade(true)
+            .build()
+    }
+
     Box(
         Modifier
             .width(108.dp)
@@ -671,10 +675,7 @@ private fun SearchVodPosterCard(
                     .height(148.dp)
             ) {
                 AsyncImage(
-                    model = ImageRequest.Builder(LocalContext.current)
-                        .data(item.poster)
-                        .crossfade(true)
-                        .build(),
+                    model = posterRequest,
                     contentDescription = item.name,
                     contentScale = ContentScale.Crop,
                     modifier = Modifier.fillMaxSize()

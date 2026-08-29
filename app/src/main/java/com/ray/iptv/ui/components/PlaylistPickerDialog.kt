@@ -44,16 +44,30 @@ fun PlaylistPickerDialog(
     onSelect: (String) -> Unit,
     onDismiss: () -> Unit
 ) {
-    val cyan = Color(0xFF22D3EE)
-    val emerald = Color(0xFF34D399)
-
     Dialog(onDismissRequest = onDismiss) {
         Box(
             Modifier
                 .widthIn(max = 420.dp)
                 .clip(RoundedCornerShape(24.dp))
-                .background(Color(0xFF0E281F).copy(alpha = 0.94f))
-                .border(1.dp, emerald.copy(alpha = 0.35f), RoundedCornerShape(24.dp))
+                .background(
+                    androidx.compose.ui.graphics.Brush.verticalGradient(
+                        listOf(
+                            Color(0xFF14161A).copy(alpha = 0.96f),
+                            Color(0xFF090A0D).copy(alpha = 0.98f)
+                        )
+                    )
+                )
+                .border(
+                    1.2.dp,
+                    androidx.compose.ui.graphics.Brush.linearGradient(
+                        listOf(
+                            Color.White.copy(alpha = 0.32f),
+                            Color.White.copy(alpha = 0.12f),
+                            Color.White.copy(alpha = 0.06f)
+                        )
+                    ),
+                    RoundedCornerShape(24.dp)
+                )
                 .padding(20.dp)
         ) {
             Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
@@ -67,14 +81,14 @@ fun PlaylistPickerDialog(
                             Modifier
                                 .size(38.dp)
                                 .clip(RoundedCornerShape(10.dp))
-                                .background(cyan.copy(alpha = 0.16f))
-                                .border(1.dp, cyan.copy(alpha = 0.28f), RoundedCornerShape(10.dp)),
+                                .background(Color.White.copy(alpha = 0.10f))
+                                .border(1.dp, Color.White.copy(alpha = 0.20f), RoundedCornerShape(10.dp)),
                             contentAlignment = Alignment.Center
                         ) {
                             Icon(
                                 Icons.AutoMirrored.Filled.PlaylistPlay,
                                 contentDescription = null,
-                                tint = cyan,
+                                tint = Color.White,
                                 modifier = Modifier.size(24.dp)
                             )
                         }
@@ -90,15 +104,16 @@ fun PlaylistPickerDialog(
                         Modifier
                             .size(32.dp)
                             .clip(RoundedCornerShape(8.dp))
-                            .background(Color.White.copy(alpha = 0.10f))
+                            .background(Color.White.copy(alpha = 0.08f))
+                            .border(0.8.dp, Color.White.copy(alpha = 0.12f), RoundedCornerShape(8.dp))
                             .rayClickable(onDismiss),
                         contentAlignment = Alignment.Center
                     ) {
-                        Icon(Icons.Filled.Close, contentDescription = null, tint = Color.White.copy(alpha = 0.8f), modifier = Modifier.size(18.dp))
+                        Icon(Icons.Filled.Close, contentDescription = null, tint = Color.White.copy(alpha = 0.85f), modifier = Modifier.size(18.dp))
                     }
                 }
 
-                Box(Modifier.fillMaxWidth().height(1.dp).background(Color.White.copy(alpha = 0.10f)))
+                Box(Modifier.fillMaxWidth().height(1.dp).background(Color.White.copy(alpha = 0.08f)))
 
                 LazyColumn(
                     verticalArrangement = Arrangement.spacedBy(10.dp),
@@ -111,12 +126,12 @@ fun PlaylistPickerDialog(
                                 .fillMaxWidth()
                                 .clip(RoundedCornerShape(16.dp))
                                 .background(
-                                    if (selected) Color(0xFF16382B).copy(alpha = 0.70f)
-                                    else Color.White.copy(alpha = 0.05f)
+                                    if (selected) Color.White.copy(alpha = 0.14f)
+                                    else Color.White.copy(alpha = 0.04f)
                                 )
                                 .border(
                                     if (selected) 1.5.dp else 1.dp,
-                                    if (selected) cyan else Color(0xFF4ADE80).copy(alpha = 0.15f),
+                                    if (selected) Color.White.copy(alpha = 0.45f) else Color.White.copy(alpha = 0.08f),
                                     RoundedCornerShape(16.dp)
                                 )
                                 .rayClickable(onClick = {
@@ -133,14 +148,14 @@ fun PlaylistPickerDialog(
                                 Column(Modifier.weight(1f)) {
                                     Text(
                                         src.name.ifBlank { if (src.kind == "XTREAM") "Xtream Playlist" else "M3U Playlist" },
-                                        color = if (selected) cyan else Color.White,
-                                        fontWeight = FontWeight.Bold,
+                                        color = Color.White,
+                                        fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
                                         fontSize = 15.sp
                                     )
                                     Spacer(Modifier.height(2.dp))
                                     Text(
                                         if (src.baseUrl.isNotBlank()) src.baseUrl else src.kind,
-                                        color = Color.White.copy(alpha = 0.6f),
+                                        color = Color.White.copy(alpha = if (selected) 0.75f else 0.50f),
                                         fontSize = 12.sp,
                                         maxLines = 1,
                                         overflow = TextOverflow.Ellipsis
@@ -148,7 +163,7 @@ fun PlaylistPickerDialog(
                                 }
                                 if (selected) {
                                     Spacer(Modifier.width(10.dp))
-                                    Icon(Icons.Filled.Check, contentDescription = null, tint = cyan, modifier = Modifier.size(22.dp))
+                                    Icon(Icons.Filled.Check, contentDescription = null, tint = Color.White, modifier = Modifier.size(22.dp))
                                 }
                             }
                         }

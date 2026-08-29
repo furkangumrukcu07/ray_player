@@ -779,7 +779,7 @@ class RayPlayer @Inject constructor(
         val renderers = DefaultRenderersFactory(context)
             .setEnableDecoderFallback(true)
             .setEnableAudioTrackPlaybackParams(true)
-            .setAllowedVideoJoiningTimeMs(0)
+            .setAllowedVideoJoiningTimeMs(5000)
             .setExtensionRendererMode(DefaultRenderersFactory.EXTENSION_RENDERER_MODE_PREFER)
             .setMediaCodecSelector { mime, secure, tunnel ->
                 val all = runCatching {
@@ -817,7 +817,7 @@ class RayPlayer @Inject constructor(
                     .setBufferDurationsMs(min, max, playback, rebuffer)
                     .setTargetBufferBytes(bytes)
                     .setPrioritizeTimeOverSizeThresholds(buf.prioritizeTime)
-                    .setBackBuffer(if (forLive) 0 else 5_000, false)
+                    .setBackBuffer(if (forLive) 10_000 else 5_000, false)
                     .build()
             )
             .setSeekBackIncrementMs(15_000)
@@ -899,7 +899,12 @@ class RayPlayer @Inject constructor(
     private fun mediaItem(url: String, kind: StreamHints.Kind, subtitleUri: String = ""): MediaItem {
         val builder = MediaItem.Builder().setUri(url)
         when (kind) {
-            StreamHints.Kind.HLS -> builder.setMimeType(MimeTypes.APPLICATION_M3U8)
+            StreamHints.Kind.HLS -> {
+                builder.setMimeType(MimeTypes.APPLICATION_M3U8)
+                if (StreamHints.liveIptv(url)) {
+                    builder.setLiveConfiguration(MediaItem.LiveConfiguration.Builder().build())
+                }
+            }
             StreamHints.Kind.DASH -> builder.setMimeType(MimeTypes.APPLICATION_MPD)
             StreamHints.Kind.TS -> {
                 builder.setMimeType(MimeTypes.VIDEO_MP2T)

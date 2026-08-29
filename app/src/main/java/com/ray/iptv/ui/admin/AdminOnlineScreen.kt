@@ -42,6 +42,7 @@ import coil.compose.AsyncImage
 import com.ray.iptv.data.admin.OnlineUser
 import com.ray.iptv.ui.RayViewModel
 import com.ray.iptv.ui.components.GlassButton
+import com.ray.iptv.ui.glass.DarkGlassPopupTheme
 import com.ray.iptv.ui.input.rayClickable
 import kotlinx.coroutines.launch
 
@@ -111,31 +112,38 @@ private fun MessageDialog(tr: Boolean, user: OnlineUser, onDismiss: () -> Unit, 
     var text by remember { mutableStateOf("") }
     var sending by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
-    Dialog(onDismissRequest = onDismiss) {
-        Column(
-            Modifier.fillMaxWidth().clip(RoundedCornerShape(24.dp)).background(Color(0xF21E293B)).border(1.dp, Color.White.copy(alpha = 0.14f), RoundedCornerShape(24.dp)).padding(24.dp)
-        ) {
-            Icon(Icons.Filled.Message, null, tint = Color(0xFF448AFF), modifier = Modifier.size(48.dp).align(Alignment.CenterHorizontally))
-            Spacer(Modifier.height(16.dp))
-            Text("${user.name}${if (tr) "'a Mesaj" else " — message"}", color = Color.White, fontSize = 20.sp, fontWeight = FontWeight.Bold, modifier = Modifier.align(Alignment.CenterHorizontally))
-            Spacer(Modifier.height(16.dp))
-            AdminDarkField(text, { text = it }, "", if (tr) "Mesajınızı yazın..." else "Write a message…", singleLine = false, minLines = 3)
-            Spacer(Modifier.height(24.dp))
-            Row {
-                GlassButton(if (tr) "İptal" else "Cancel") { onDismiss() }
-                Spacer(Modifier.weight(1f))
-                AdminGradientButton(
-                    if (tr) "Gönder" else "Send",
-                    Icons.Filled.Send,
-                    sending,
-                    listOf(Color(0xFF448AFF), Color(0xFF2979FF))
-                ) {
-                    val t = text.trim()
-                    if (t.isEmpty()) return@AdminGradientButton
-                    scope.launch {
-                        sending = true
-                        onSend(t)
-                        sending = false
+    DarkGlassPopupTheme {
+        Dialog(onDismissRequest = onDismiss) {
+            Column(
+                Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(24.dp))
+                    .background(Color(0xFF10131B).copy(alpha = 0.96f))
+                    .border(1.2.dp, Color(0xFF64D2FF).copy(alpha = 0.35f), RoundedCornerShape(24.dp))
+                    .padding(24.dp)
+            ) {
+                Icon(Icons.Filled.Message, null, tint = Color(0xFF64D2FF), modifier = Modifier.size(48.dp).align(Alignment.CenterHorizontally))
+                Spacer(Modifier.height(16.dp))
+                Text("${user.name}${if (tr) "'a Mesaj" else " — message"}", color = Color.White, fontSize = 20.sp, fontWeight = FontWeight.Bold, modifier = Modifier.align(Alignment.CenterHorizontally))
+                Spacer(Modifier.height(16.dp))
+                AdminDarkField(text, { text = it }, "", if (tr) "Mesajınızı yazın..." else "Write a message…", singleLine = false, minLines = 3)
+                Spacer(Modifier.height(24.dp))
+                Row {
+                    GlassButton(if (tr) "İptal" else "Cancel") { onDismiss() }
+                    Spacer(Modifier.weight(1f))
+                    AdminGradientButton(
+                        if (tr) "Gönder" else "Send",
+                        Icons.Filled.Send,
+                        sending,
+                        listOf(Color(0xFF64D2FF), Color(0xFF0A84FF))
+                    ) {
+                        val t = text.trim()
+                        if (t.isEmpty()) return@AdminGradientButton
+                        scope.launch {
+                            sending = true
+                            onSend(t)
+                            sending = false
+                        }
                     }
                 }
             }

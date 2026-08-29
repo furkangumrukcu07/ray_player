@@ -166,8 +166,8 @@ data class RaySettings(
     val externalPlayerPackage: String = "",
     val externalPlayerLabel: String = "",
     val subtitleFont: String = "sans",
-    val backgroundPlayback: Boolean = true,
-    val pipMode: Boolean = true,
+    val backgroundPlayback: Boolean = false,
+    val pipMode: Boolean = false,
     val stripChannelPrefix: Boolean = false,
     val silentSync: Boolean = true,
     val autoRefreshHours: Int = 24,
@@ -281,8 +281,8 @@ class SettingsRepository @Inject constructor(
             externalPlayerPackage = p[Keys.extPkg].orEmpty(),
             externalPlayerLabel = p[Keys.extLabel].orEmpty(),
             subtitleFont = p[Keys.subFont] ?: "sans",
-            backgroundPlayback = p[Keys.bgPlay] ?: true,
-            pipMode = p[Keys.pipMode] ?: true,
+            backgroundPlayback = p[Keys.bgPlay] ?: false,
+            pipMode = p[Keys.pipMode] ?: false,
             stripChannelPrefix = p[Keys.stripPrefix] ?: false,
             silentSync = p[Keys.silent] ?: true,
             autoRefreshHours = p[Keys.refreshH] ?: 24,
@@ -449,6 +449,8 @@ class SettingsRepository @Inject constructor(
         val detected = detectDefaultLayoutMode(context)
         if (it[Keys.layout] == null) {
             it[Keys.layout] = detected.name
+        } else if (detected == LayoutMode.TV && it[Keys.layout] != LayoutMode.TV.name) {
+            it[Keys.layout] = LayoutMode.TV.name
         } else if (detected == LayoutMode.TABLET && it[Keys.layout] == LayoutMode.MOBILE.name && it[Keys.layoutExplicit] != true) {
             it[Keys.layout] = LayoutMode.TABLET.name
         }
@@ -526,7 +528,16 @@ class SettingsRepository @Inject constructor(
         it[Keys.aspect] = s.aspect
         it[Keys.speed] = s.speed.toFloatOrNull() ?: 1f
         it[Keys.combine] = s.combineM3u
-        it[Keys.layout] = s.layoutMode
+
+        // Device Form Factor Protection: Never overwrite TV with phone layout or vice versa
+        val detected = detectDefaultLayoutMode(context)
+        val targetLayout = when (detected) {
+            LayoutMode.TV -> LayoutMode.TV
+            LayoutMode.TABLET -> if (s.layoutMode == LayoutMode.TV.name) LayoutMode.TV else LayoutMode.TABLET
+            LayoutMode.MOBILE -> LayoutMode.MOBILE
+        }
+        it[Keys.layout] = targetLayout.name
+
         it[Keys.appFont] = s.appFontKey
         it[Keys.liveEngine] = s.liveEngine
         it[Keys.pbVodEngine] = s.vodPlaybackEngine

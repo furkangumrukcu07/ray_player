@@ -114,7 +114,7 @@ internal object MediaKitMpvOptions {
             setProp(mpv, "untimed", "no")
             setProp(mpv, "hr-seek", "no")
             setProp(mpv, "force-seekable", "no")
-            setProp(mpv, "cache-pause", "no")
+            setProp(mpv, "cache-pause", "yes")
             setProp(mpv, "cache-pause-initial", "yes")
             setProp(mpv, "cache-pause-wait", "1")
             setProp(mpv, "video-latency-hacks", "no")

@@ -62,12 +62,12 @@ class GoogleAuthClient @Inject constructor(
         val email = account.email.orEmpty().ifBlank { "user@google.com" }
         val displayName = account.displayName.orEmpty().ifBlank { email.substringBefore("@") }
         val photoUrl = account.photoUrl?.toString().orEmpty()
-        val uid = account.id.orEmpty().ifBlank { "google-${email.hashCode()}" }
+        val defaultUid = account.id.orEmpty().ifBlank { "google-${email.hashCode()}" }
 
         // Attempt Firebase Auth sign in if idToken is available
         val idToken = account.idToken
         if (!idToken.isNullOrBlank()) {
-            runCatching {
+            val fbResult = runCatching {
                 val cred = GoogleAuthProvider.getCredential(idToken, null)
                 val userCred = auth.signInWithCredential(cred).await()
                 userCred.user?.let { u ->
@@ -77,9 +77,14 @@ class GoogleAuthClient @Inject constructor(
                         photoUrl = u.photoUrl?.toString() ?: photoUrl,
                         uid = u.uid
                     )
-                    Log.d("GoogleAuthClient", "Firebase Auth successful for ${u.email}")
-                    return@withContext true
-                }
+                    Log.d("GoogleAuthClient", "Firebase Auth successful for ${u.email}, uid=${u.uid}")
+                    true
+                } ?: false
+            }
+            if (fbResult.getOrDefault(false)) {
+                return@withContext true
+            } else {
+                Log.w("GoogleAuthClient", "Firebase Auth signInWithCredential warning: ${fbResult.exceptionOrNull()?.message}")
             }
         }
 
@@ -88,9 +93,9 @@ class GoogleAuthClient @Inject constructor(
             email = email,
             displayName = displayName,
             photoUrl = photoUrl,
-            uid = uid
+            uid = defaultUid
         )
-        Log.d("GoogleAuthClient", "Google Account profile sign-in successful for $email")
+        Log.d("GoogleAuthClient", "Google Account profile sign-in fallback successful for $email, uid=$defaultUid")
         return@withContext true
     }
 

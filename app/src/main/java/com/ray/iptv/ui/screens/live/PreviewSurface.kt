@@ -18,6 +18,7 @@ import androidx.media3.common.C
 import androidx.media3.common.MediaItem
 import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
+import androidx.media3.exoplayer.DefaultLoadControl
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.ui.AspectRatioFrameLayout
 import androidx.media3.ui.PlayerView
@@ -44,7 +45,14 @@ fun LivePreviewSurface(url: String, logo: String, title: String, enabled: Boolea
 private fun LivePreviewPlayer(url: String) {
     val ctx = LocalContext.current
     val player = remember {
-        ExoPlayer.Builder(ctx).build().apply {
+        ExoPlayer.Builder(ctx)
+            .setLoadControl(
+                DefaultLoadControl.Builder()
+                    .setBufferDurationsMs(4_000, 15_000, 500, 1_000)
+                    .setTargetBufferBytes(8 * 1024 * 1024)
+                    .build()
+            )
+            .build().apply {
             volume = 1f
             playWhenReady = true
             repeatMode = Player.REPEAT_MODE_OFF

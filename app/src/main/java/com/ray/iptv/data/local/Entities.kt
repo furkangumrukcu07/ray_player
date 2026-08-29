@@ -168,6 +168,7 @@ data class EpgEntity(
     val hasCatchup: Boolean
 )
 
+@Immutable
 @Entity(tableName = "downloads")
 data class DownloadEntity(
     @PrimaryKey val id: String,
@@ -183,6 +184,7 @@ data class DownloadEntity(
     val createdAt: Long
 )
 
+@Immutable
 @Entity(tableName = "groups")
 data class GroupEntity(
     @PrimaryKey val id: String,
@@ -190,12 +192,14 @@ data class GroupEntity(
     val name: String
 )
 
+@Immutable
 @Entity(tableName = "group_members", primaryKeys = ["groupId", "channelId"])
 data class GroupMemberEntity(
     val groupId: String,
     val channelId: String
 )
 
+@Immutable
 @Entity(tableName = "epg_sources")
 data class EpgSourceEntity(
     @PrimaryKey val id: String,
@@ -204,6 +208,7 @@ data class EpgSourceEntity(
     val enabled: Boolean = true
 )
 
+@Immutable
 @Entity(tableName = "epg_match", primaryKeys = ["channelId"])
 data class EpgMatchEntity(
     val channelId: String,
@@ -211,6 +216,7 @@ data class EpgMatchEntity(
 )
 
 /** Mina `global_epg_channel` — EPGShare01 yedek, birincil `epg` tablosuna yazılmaz. */
+@Immutable
 @Entity(
     tableName = "global_epg_channel",
     primaryKeys = ["countryCode", "xmlChannelId"],
@@ -224,6 +230,7 @@ data class GlobalEpgChannelEntity(
     val sourceFile: String
 )
 
+@Immutable
 @Entity(
     tableName = "global_epg_programme",
     primaryKeys = ["countryCode", "xmlChannelId", "startMs"],

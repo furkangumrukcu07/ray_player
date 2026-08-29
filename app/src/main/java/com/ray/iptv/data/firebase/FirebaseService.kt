@@ -164,11 +164,13 @@ class FirebaseService @Inject constructor(
             }
         }
     }
-    suspend fun backupToCloud(uid: String, jsonString: String): Result<Long> {
+    suspend fun backupToCloud(uid: String, jsonString: String, email: String = ""): Result<Long> {
+        if (!isFirebaseReady) initFirebaseGuarded()
         if (!isFirebaseReady) return Result.failure(IllegalStateException("Firebase is not initialized"))
         return try {
             val now = System.currentTimeMillis()
             val authUser = com.google.firebase.auth.FirebaseAuth.getInstance().currentUser
+            val cleanEmail = email.ifBlank { authUser?.email.orEmpty() }.trim().lowercase()
             val docData = mutableMapOf<String, Any>(
                 "data" to jsonString,
                 "updatedAt" to now,
@@ -176,11 +178,11 @@ class FirebaseService @Inject constructor(
                 "schema" to 1,
                 "platform" to "android"
             )
+            if (cleanEmail.isNotBlank()) {
+                docData["email"] = cleanEmail
+                docData["isAnonymous"] = false
+            }
             if (authUser != null) {
-                if (!authUser.email.isNullOrBlank()) {
-                    docData["email"] = authUser.email!!
-                    docData["isAnonymous"] = false
-                }
                 if (!authUser.displayName.isNullOrBlank()) {
                     docData["displayName"] = authUser.displayName!!
                 }
@@ -188,7 +190,11 @@ class FirebaseService @Inject constructor(
                     docData["photoUrl"] = authUser.photoUrl.toString()
                 }
             }
-            val docRef = FirebaseFirestore.getInstance().collection("users").document(uid)
+            val targetDocId = uid.ifBlank { authUser?.uid.orEmpty() }
+            if (targetDocId.isBlank()) {
+                return Result.failure(IllegalStateException("Kullanıcı kimliği (UID) bulunamadı"))
+            }
+            val docRef = FirebaseFirestore.getInstance().collection("users").document(targetDocId)
             val setTask = docRef.set(docData, com.google.firebase.firestore.SetOptions.merge())
 
             val taskOk = try {
@@ -237,40 +243,59 @@ class FirebaseService @Inject constructor(
         }
     }
 
-    suspend fun restoreFromCloud(uid: String): Result<String> {
+    suspend fun restoreFromCloud(uid: String, email: String = ""): Result<String> {
         if (!isFirebaseReady) initFirebaseGuarded()
         if (!isFirebaseReady) return Result.failure(IllegalStateException("Firebase is not initialized"))
         
         val firestore = FirebaseFirestore.getInstance()
         runCatching { firestore.enableNetwork() }
-        val docRef = firestore.collection("users").document(uid)
 
-        for (attempt in 0 until 3) {
-            try {
-                val snapshot = try {
-                    com.google.android.gms.tasks.Tasks.await(docRef.get(), 10, java.util.concurrent.TimeUnit.SECONDS)
-                } catch (e: Exception) {
-                    getDocSnapshotWithListener(docRef, timeoutMs = 6_000L)
-                }
-                if (snapshot != null && snapshot.exists()) {
-                    val jsonString = snapshot.getString("data")
-                    if (!jsonString.isNullOrEmpty()) {
-                        return Result.success(jsonString)
+        // 1. Try direct Document ID query by UID
+        if (uid.isNotBlank()) {
+            val docRef = firestore.collection("users").document(uid)
+            for (attempt in 0 until 2) {
+                try {
+                    val snapshot = try {
+                        com.google.android.gms.tasks.Tasks.await(docRef.get(), 8, java.util.concurrent.TimeUnit.SECONDS)
+                    } catch (e: Exception) {
+                        getDocSnapshotWithListener(docRef, timeoutMs = 5_000L)
                     }
-                    return Result.failure(NoSuchElementException("NO_BACKUP"))
-                }
-                if (attempt < 2) {
-                    kotlinx.coroutines.delay(400)
-                }
-            } catch (e: Exception) {
-                Log.w("RayFirebase", "Cloud restore attempt $attempt failed: ${e.message}")
-                if (attempt < 2) {
-                    kotlinx.coroutines.delay(400)
-                } else {
-                    return Result.failure(e)
+                    if (snapshot != null && snapshot.exists()) {
+                        val jsonString = snapshot.getString("data")
+                        if (!jsonString.isNullOrEmpty()) {
+                            Log.d("RayFirebase", "Cloud backup found by UID ($uid)")
+                            return Result.success(jsonString)
+                        }
+                    }
+                } catch (e: Exception) {
+                    Log.w("RayFirebase", "Cloud restore attempt $attempt by UID failed: ${e.message}")
                 }
             }
         }
+
+        // 2. Fallback: Query by Google verified email
+        val cleanEmail = email.trim().lowercase()
+        if (cleanEmail.isNotBlank()) {
+            try {
+                val queryTask = firestore.collection("users")
+                    .whereEqualTo("email", cleanEmail)
+                    .get()
+                val querySnap = com.google.android.gms.tasks.Tasks.await(queryTask, 8, java.util.concurrent.TimeUnit.SECONDS)
+                if (querySnap != null && !querySnap.isEmpty) {
+                    val bestDoc = querySnap.documents
+                        .filter { !it.getString("data").isNullOrEmpty() }
+                        .maxByOrNull { it.getLong("updatedAt") ?: 0L }
+                    val jsonString = bestDoc?.getString("data")
+                    if (!jsonString.isNullOrEmpty()) {
+                        Log.d("RayFirebase", "Cloud backup found by Email ($cleanEmail), docId=${bestDoc.id}")
+                        return Result.success(jsonString)
+                    }
+                }
+            } catch (e: Exception) {
+                Log.w("RayFirebase", "Cloud restore by email query failed: ${e.message}")
+            }
+        }
+
         return Result.failure(NoSuchElementException("NO_BACKUP"))
     }
 
@@ -328,7 +353,7 @@ class FirebaseService @Inject constructor(
                     "isAnonymous" to isAnon,
                     "lastDeviceName" to devName,
                     "lastDeviceOs" to devOs,
-                    "appVersion" to "1.3.13",
+                    "appVersion" to "1.3.15",
                     "lastActive" to System.currentTimeMillis()
                 )
                 if (licenseCode.isNotBlank()) {

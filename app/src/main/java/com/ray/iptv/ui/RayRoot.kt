@@ -43,6 +43,7 @@ import com.ray.iptv.data.repo.AppLang
 import com.ray.iptv.data.repo.LayoutMode
 import com.ray.iptv.ui.components.GlassButton
 import com.ray.iptv.ui.components.RayToastHost
+import com.ray.iptv.ui.glass.DarkGlassPopupTheme
 import com.ray.iptv.ui.glass.GlassPanel
 import com.ray.iptv.ui.glass.RayWallpaper
 import com.ray.iptv.ui.i18n.copy
@@ -226,10 +227,10 @@ fun RayRoot(vm: RayViewModel = hiltViewModel()) {
                 railHidden = (dest == Dest.MOVIES && (moviePhase == LiveBrowsePhase.CONTENT || movie != null)) ||
                     (dest == Dest.SERIES && (seriesPhase == LiveBrowsePhase.CONTENT || show != null)),
                 searchSelected = overlay == Overlay.SEARCH,
-                repeatSelected = overlay == Overlay.GUIDE,
+                repeatSelected = dest == Dest.CATCHUP,
                 onGo = vm::go,
                 onSearch = { vm.showOverlay(Overlay.SEARCH) },
-                onRepeat = { vm.showOverlay(Overlay.GUIDE) },
+                onRepeat = { vm.go(Dest.CATCHUP) },
                 onRailFocused = vm::expandRail,
                 onToggleRail = vm::toggleRail
             ) {
@@ -374,6 +375,21 @@ fun RayRoot(vm: RayViewModel = hiltViewModel()) {
                             onExit = requestExit
                         )
 
+                        Dest.CATCHUP -> com.ray.iptv.ui.screens.catchup.TvCatchupScreen(
+                            copy = strings,
+                            channels = channels,
+                            loadProgrammes = { ch, startMs, endMs ->
+                                vm.guideFor(ch.id, startMs, endMs)
+                            },
+                            onPlayCatchup = { ch, p -> vm.playCatchup(ch, p) },
+                            onPlayLive = vm::playChannel,
+                            onBackToRail = vm::expandRail,
+                            railExpanded = railExpanded,
+                            contentFocusTrigger = contentFocusTrigger,
+                            time24h = settings.epg24h,
+                            tr = settings.lang == AppLang.TR
+                        )
+
                         Dest.PLAYER -> Unit
                         Dest.WRAPPED -> MobileWrappedScreen(vm, settings.lang == AppLang.TR) { vm.go(Dest.CONTINUE) }
                         Dest.EPG_MIX -> MobileEpgMixScreen(
@@ -389,30 +405,6 @@ fun RayRoot(vm: RayViewModel = hiltViewModel()) {
                 }
             }
         }
-                    RayOverlay(
-                        visible = overlay == Overlay.GUIDE && settings.onboardingDone && !mobileLayout && !tabletLayout,
-                        modifier = Modifier.fillMaxSize()
-                    ) {
-                        BackHandler { vm.closeOverlay() }
-                        Box(Modifier.fillMaxSize().padding(8.dp)) {
-                            GlassPanel(strong = true, radius = 20.dp, modifier = Modifier.fillMaxSize()) {
-                                Box(Modifier.padding(16.dp)) {
-                                    GuideScreen(
-                                        copy = strings,
-                                        channels = channels,
-                                        load = { ch ->
-                                            val now = System.currentTimeMillis()
-                                            vm.guideFor(ch.id, now - 6L * 3600_000, now + 18L * 3600_000)
-                                        },
-                                        onPlay = vm::playChannel,
-                                        onCatchup = { ch, p -> vm.playCatchup(ch, p) },
-                                        onImport = vm::refreshGuide,
-                                        time24h = settings.epg24h
-                                    )
-                                }
-                            }
-                        }
-                    }
                     RayOverlay(
                         visible = overlay == Overlay.SEARCH && settings.onboardingDone && !mobileLayout && !tabletLayout,
                         modifier = Modifier.fillMaxSize()
@@ -430,7 +422,7 @@ fun RayRoot(vm: RayViewModel = hiltViewModel()) {
                             )
                             GlassPanel(
                                 strong = true,
-                                radius = 20.dp,
+                                radius = 14.dp,
                                 modifier = Modifier
                                     .align(Alignment.Center)
                                     .fillMaxWidth(0.72f)
@@ -463,38 +455,40 @@ fun RayRoot(vm: RayViewModel = hiltViewModel()) {
                     }
 
                     RayToastHost(toast, Modifier.align(Alignment.Center))
-                    if (pin != null) PinOverlay(onSubmit = { vm.confirmPin(it) }, onCancel = { vm.pinChallenge.value = null })
-                    resume?.let { (item, prog) ->
-                        GlassPanel(strong = true, modifier = Modifier.align(Alignment.Center).padding(24.dp)) {
-                            Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                                Text(item.name, color = LocalGlass.current.text, style = MaterialTheme.typography.headlineMedium)
-                                Text(
-                                    if (settings.lang.name == "TR") "Kaldığı yerden devam?" else "Resume from last position?",
-                                    color = LocalGlass.current.muted
-                                )
-                                Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                                    GlassButton(if (settings.lang.name == "TR") "Devam" else "Resume") { vm.confirmResume(false) }
-                                    GlassButton(if (settings.lang.name == "TR") "Baştan" else "Start over") { vm.confirmResume(true) }
+                    DarkGlassPopupTheme {
+                        if (pin != null) PinOverlay(cancel = strings.cancel, onSubmit = { vm.confirmPin(it) }, onCancel = { vm.pinChallenge.value = null })
+                        resume?.let { (item, prog) ->
+                            GlassPanel(strong = true, modifier = Modifier.align(Alignment.Center).padding(24.dp)) {
+                                Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                                    Text(item.name, color = LocalGlass.current.text, style = MaterialTheme.typography.headlineMedium)
+                                    Text(
+                                        strings.resumePrompt,
+                                        color = LocalGlass.current.muted
+                                    )
+                                    Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                                        GlassButton(strings.resumeButton) { vm.confirmResume(false) }
+                                        GlassButton(strings.startOver) { vm.confirmResume(true) }
+                                    }
                                 }
                             }
                         }
+                        PlaylistLoadDialog(
+                            sync = sync,
+                            tr = settings.lang == AppLang.TR,
+                            onDismiss = { vm.catalog.acknowledgeSync() }
+                        )
                     }
-        PlaylistLoadDialog(
-            sync = sync,
-            tr = settings.lang == AppLang.TR,
-            onDismiss = { vm.catalog.acknowledgeSync() }
-        )
+                }
+            }
         }
-    }
-    }
 }
 
 @Composable
-private fun PinOverlay(onSubmit: (String) -> Boolean, onCancel: () -> Unit) {
+private fun PinOverlay(cancel: String, onSubmit: (String) -> Boolean, onCancel: () -> Unit) {
     val g = LocalGlass.current
     var value by remember { mutableStateOf("") }
     Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-        GlassPanel(strong = true, radius = 24.dp) {
+        GlassPanel(strong = true, radius = 14.dp) {
             Column(Modifier.padding(28.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 Text("PIN", style = MaterialTheme.typography.headlineMedium, color = g.text)
                 BasicTextField(
@@ -505,7 +499,7 @@ private fun PinOverlay(onSubmit: (String) -> Boolean, onCancel: () -> Unit) {
                 )
                 Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                     GlassButton("OK") { onSubmit(value) }
-                    GlassButton("İptal") { onCancel() }
+                    GlassButton(cancel) { onCancel() }
                 }
             }
         }

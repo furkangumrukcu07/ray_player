@@ -182,20 +182,22 @@ fun OnboardingFlow(vm: RayViewModel, copy: Copy) {
     }
 
     Box(
-        Modifier
-            .fillMaxSize()
-            .then(if (touch) Modifier.systemBarsPadding() else Modifier)
+        Modifier.fillMaxSize()
     ) {
         RayWallpaper()
         Column(
             Modifier
                 .fillMaxSize()
+                .then(if (touch) Modifier.systemBarsPadding() else Modifier)
                 .padding(if (touch) 12.dp else 16.dp)
-                .widthIn(max = if (touch) 720.dp else 960.dp)
+                .widthIn(max = if (touch) 740.dp else 960.dp)
                 .align(Alignment.Center)
         ) {
+            // macOS Window Header
             Row(
-                Modifier.fillMaxWidth().padding(horizontal = 4.dp),
+                Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 6.dp, vertical = 2.dp),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
@@ -203,16 +205,46 @@ fun OnboardingFlow(vm: RayViewModel, copy: Copy) {
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
-                    Text("Ray", style = MaterialTheme.typography.headlineMedium.copy(fontWeight = FontWeight.Black), color = g.accent)
-                    Text(s.welcome, style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold), color = g.text)
+                    if (touch) {
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(6.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Box(Modifier.size(10.dp).clip(CircleShape).background(Color(0xFFFF5F56)))
+                            Box(Modifier.size(10.dp).clip(CircleShape).background(Color(0xFFFFBD2E)))
+                            Box(Modifier.size(10.dp).clip(CircleShape).background(Color(0xFF27C93F)))
+                        }
+                        Spacer(Modifier.width(2.dp))
+                    }
+                    Text("Ray IPTV", style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.ExtraBold), color = g.accent)
+                    Box(
+                        Modifier
+                            .clip(RoundedCornerShape(6.dp))
+                            .background(Color.White.copy(alpha = 0.08f))
+                            .padding(horizontal = 8.dp, vertical = 2.5.dp)
+                    ) {
+                        Text(s.welcome, style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.SemiBold), color = g.text.copy(alpha = 0.85f))
+                    }
                 }
-                Text(stepTitle(step, s), style = MaterialTheme.typography.bodyMedium, color = g.muted)
+                Box(
+                    Modifier
+                        .clip(RoundedCornerShape(6.dp))
+                        .background(Color.White.copy(alpha = 0.08f))
+                        .padding(horizontal = 8.dp, vertical = 2.5.dp)
+                ) {
+                    Text(
+                        "${stepTitle(step, s)}  (${index + 1}/${pages.size})",
+                        style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Medium),
+                        color = g.muted
+                    )
+                }
             }
-            Spacer(Modifier.height(6.dp))
-            SetupProgress((index + 1f) / pages.size)
+            Spacer(Modifier.height(8.dp))
+            SetupProgressSegments(total = pages.size, current = index)
             Spacer(Modifier.height(10.dp))
             GlassPanel(
                 strong = true,
+                radius = 14.dp,
                 modifier = Modifier
                     .fillMaxWidth()
                     .weight(1f)
@@ -290,21 +322,24 @@ fun OnboardingFlow(vm: RayViewModel, copy: Copy) {
 
 
 @Composable
-private fun SetupProgress(fraction: Float) {
+private fun SetupProgressSegments(total: Int, current: Int) {
     val g = LocalGlass.current
-    Box(
-        Modifier
-            .fillMaxWidth()
-            .height(5.dp)
-            .clip(RoundedCornerShape(6.dp))
-            .background(g.text.copy(alpha = 0.12f))
+    Row(
+        Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(6.dp)
     ) {
-        Box(
-            Modifier
-                .fillMaxWidth(fraction.coerceIn(0.08f, 1f))
-                .fillMaxHeight()
-                .background(g.accent)
-        )
+        for (i in 0 until total) {
+            val isCompleted = i <= current
+            Box(
+                Modifier
+                    .weight(1f)
+                    .height(4.dp)
+                    .clip(RoundedCornerShape(2.dp))
+                    .background(
+                        if (isCompleted) g.accent else g.text.copy(alpha = 0.12f)
+                    )
+            )
+        }
     }
 }
 
@@ -501,64 +536,17 @@ private fun SourceStep(
     ) {
         Text(s.sourceHint, color = LocalGlass.current.muted, style = MaterialTheme.typography.bodyLarge)
 
-        val scope = rememberCoroutineScope()
         val tr = vm.settings.collectAsState().value.lang == AppLang.TR
 
-        var onboardingBackupData by remember { mutableStateOf<Pair<com.ray.iptv.data.repo.BackupFile, String>?>(null) }
-        var isCheckingBackup by remember { mutableStateOf(false) }
-        var restoreProgressStage by remember { mutableStateOf<String?>(null) }
+        val isOnboardingRestoring by vm.isOnboardingRestoring.collectAsState()
+        val restoreProgressStage by vm.onboardingRestoreProgress.collectAsState()
 
         val googleSignInLauncher = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
-            scope.launch {
-                isCheckingBackup = true
-                val ok = vm.handleGoogleSignInIntent(result.data)
-                if (ok) {
-                    val data = vm.fetchCloudBackupData()
-                    isCheckingBackup = false
-                    if (data != null) {
-                        onboardingBackupData = data
-                    } else {
-                        vm.syncToCloudOnComplete = true
-                        vm.toast.value = if (tr) "Google ile oturum açıldı. Bulutta kayıtlı yedek bulunamadı." else "Signed in with Google. No backup found in cloud."
-                    }
-                } else {
-                    isCheckingBackup = false
-                }
-            }
-        }
-
-        // Onboarding Cloud Restore Confirmation Dialog
-        if (onboardingBackupData != null && restoreProgressStage == null) {
-            val backup = onboardingBackupData!!.first
-            val jsonStr = onboardingBackupData!!.second
-            OnboardingCloudRestoreDialog(
-                tr = tr,
-                backup = backup,
-                onRestore = {
-                    scope.launch {
-                        restoreProgressStage = if (tr) "Yedek yükleme başlatılıyor..." else "Starting restore..."
-                        val ok = vm.restoreOnboardingCloud(jsonStr) { stage ->
-                            restoreProgressStage = stage
-                        }
-                        if (ok) {
-                            delay(600)
-                            onboardingBackupData = null
-                            restoreProgressStage = null
-                            vm.completeSetup()
-                        } else {
-                            restoreProgressStage = null
-                        }
-                    }
-                },
-                onDismiss = {
-                    onboardingBackupData = null
-                    vm.syncToCloudOnComplete = true
-                }
-            )
+            vm.handleGoogleSignInAndAutoRestore(result.data)
         }
 
         // Realtime Progress Indicator Dialog during Check or Restore
-        if (isCheckingBackup || restoreProgressStage != null) {
+        if (isOnboardingRestoring || restoreProgressStage != null) {
             OnboardingRestoreProgressDialog(
                 tr = tr,
                 statusText = restoreProgressStage ?: if (tr) "Google hesabı kontrol ediliyor ve bulut taranıyor..." else "Checking Google account and cloud backup..."
@@ -570,14 +558,22 @@ private fun SourceStep(
         Box(
             Modifier
                 .fillMaxWidth()
-                .clip(RoundedCornerShape(16.dp))
-                .background(androidx.compose.ui.graphics.Color.White.copy(alpha = 0.08f))
-                .padding(12.dp)
+                .clip(RoundedCornerShape(12.dp))
+                .background(
+                    androidx.compose.ui.graphics.Brush.horizontalGradient(
+                        listOf(
+                            androidx.compose.ui.graphics.Color.White.copy(alpha = 0.10f),
+                            androidx.compose.ui.graphics.Color.White.copy(alpha = 0.05f)
+                        )
+                    )
+                )
+                .border(1.dp, androidx.compose.ui.graphics.Color.White.copy(alpha = 0.18f), RoundedCornerShape(12.dp))
+                .padding(14.dp)
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Box(
                     Modifier
-                        .size(36.dp)
+                        .size(38.dp)
                         .clip(androidx.compose.foundation.shape.CircleShape)
                         .background(androidx.compose.ui.graphics.Color.White),
                     contentAlignment = Alignment.Center
@@ -586,7 +582,7 @@ private fun SourceStep(
                         "G",
                         color = androidx.compose.ui.graphics.Color(0xFF4285F4),
                         fontWeight = FontWeight.Black,
-                        style = MaterialTheme.typography.titleMedium
+                        style = MaterialTheme.typography.titleLarge.copy(fontSize = 20.sp)
                     )
                 }
                 Spacer(Modifier.width(12.dp))
@@ -595,14 +591,14 @@ private fun SourceStep(
                         if (tr) "Google ile Oturum Aç & Buluttan Yükle" else "Sign in with Google & Restore from Cloud",
                         color = androidx.compose.ui.graphics.Color.White,
                         fontWeight = FontWeight.Bold,
-                        style = MaterialTheme.typography.bodyMedium
+                        style = MaterialTheme.typography.titleSmall.copy(fontSize = 14.sp)
                     )
                     Spacer(Modifier.height(2.dp))
                     Text(
                         if (tr) "Kayıtlı listelerinizi ve ayarlarınızı buluttan otomatik geri yükleyin."
                         else "Automatically restore your saved playlists & settings from cloud.",
-                        color = androidx.compose.ui.graphics.Color.White.copy(alpha = 0.7f),
-                        style = MaterialTheme.typography.bodySmall
+                        color = androidx.compose.ui.graphics.Color.White.copy(alpha = 0.72f),
+                        style = MaterialTheme.typography.bodySmall.copy(fontSize = 11.5.sp)
                     )
                 }
                 Spacer(Modifier.width(8.dp))
@@ -673,29 +669,49 @@ private fun ChoiceCard(
         strong = selected,
         focused = focused,
         accentFill = selected,
-        radius = 16.dp,
+        radius = 12.dp,
         onClick = onClick,
         modifier = modifier
             .fillMaxWidth()
             .onFocusChanged { focused = it.isFocused }
     ) {
         Row(
-            Modifier.padding(horizontal = 14.dp, vertical = 12.dp),
+            Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Column(Modifier.weight(1f)) {
-                Text(title, color = g.text, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleMedium)
+                Text(
+                    title,
+                    color = if (selected) Color.White else g.text,
+                    fontWeight = if (selected) FontWeight.Bold else FontWeight.SemiBold,
+                    style = MaterialTheme.typography.titleMedium.copy(fontSize = 15.sp)
+                )
                 if (subtitle.isNotBlank()) {
-                    Spacer(Modifier.height(4.dp))
-                    Text(subtitle, color = g.muted, style = MaterialTheme.typography.bodySmall)
+                    Spacer(Modifier.height(3.dp))
+                    Text(
+                        subtitle,
+                        color = if (selected) Color.White.copy(alpha = 0.78f) else g.muted,
+                        style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp)
+                    )
                 }
             }
-            Icon(
-                imageVector = if (selected) Icons.Filled.CheckCircle else Icons.Outlined.Circle,
-                contentDescription = null,
-                tint = if (selected) g.accent else g.muted,
-                modifier = Modifier.size(22.dp)
-            )
+            Box(
+                Modifier
+                    .size(22.dp)
+                    .clip(CircleShape)
+                    .background(if (selected) g.accent else Color.White.copy(alpha = 0.12f))
+                    .border(1.dp, if (selected) g.accent else Color.White.copy(alpha = 0.25f), CircleShape),
+                contentAlignment = Alignment.Center
+            ) {
+                if (selected) {
+                    Icon(
+                        imageVector = Icons.Filled.Check,
+                        contentDescription = null,
+                        tint = Color.White,
+                        modifier = Modifier.size(14.dp)
+                    )
+                }
+            }
         }
     }
 }
@@ -715,7 +731,7 @@ private fun EngineCard(
         strong = selected,
         focused = focused,
         accentFill = selected,
-        radius = 16.dp,
+        radius = 12.dp,
         onClick = onClick,
         modifier = modifier
             .fillMaxWidth()
@@ -723,18 +739,52 @@ private fun EngineCard(
     ) {
         Column(Modifier.padding(14.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(icon, contentDescription = null, tint = if (selected) g.accent else g.muted, modifier = Modifier.size(22.dp))
+                Box(
+                    Modifier
+                        .size(32.dp)
+                        .clip(RoundedCornerShape(8.dp))
+                        .background(if (selected) g.accent.copy(alpha = 0.35f) else Color.White.copy(alpha = 0.08f)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        icon,
+                        contentDescription = null,
+                        tint = if (selected) Color.White else g.muted,
+                        modifier = Modifier.size(18.dp)
+                    )
+                }
                 Spacer(Modifier.width(10.dp))
-                Text(title, color = g.text, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
-                Icon(
-                    imageVector = if (selected) Icons.Filled.CheckCircle else Icons.Outlined.Circle,
-                    contentDescription = null,
-                    tint = if (selected) g.accent else g.muted,
-                    modifier = Modifier.size(20.dp)
+                Text(
+                    title,
+                    color = if (selected) Color.White else g.text,
+                    fontWeight = FontWeight.Bold,
+                    style = MaterialTheme.typography.titleMedium.copy(fontSize = 15.sp),
+                    modifier = Modifier.weight(1f)
                 )
+                Box(
+                    Modifier
+                        .size(20.dp)
+                        .clip(CircleShape)
+                        .background(if (selected) g.accent else Color.White.copy(alpha = 0.12f))
+                        .border(1.dp, if (selected) g.accent else Color.White.copy(alpha = 0.25f), CircleShape),
+                    contentAlignment = Alignment.Center
+                ) {
+                    if (selected) {
+                        Icon(
+                            imageVector = Icons.Filled.Check,
+                            contentDescription = null,
+                            tint = Color.White,
+                            modifier = Modifier.size(13.dp)
+                        )
+                    }
+                }
             }
-            Spacer(Modifier.height(6.dp))
-            Text(subtitle, color = g.muted, style = MaterialTheme.typography.bodySmall)
+            Spacer(Modifier.height(8.dp))
+            Text(
+                subtitle,
+                color = if (selected) Color.White.copy(alpha = 0.80f) else g.muted,
+                style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp)
+            )
         }
     }
 }
@@ -742,19 +792,31 @@ private fun EngineCard(
 @Composable
 fun GlassField(label: String, value: String, onValue: (String) -> Unit) {
     val g = LocalGlass.current
+    var focused by remember { mutableStateOf(false) }
     Column(Modifier.fillMaxWidth()) {
-        Text(label, color = g.muted, style = MaterialTheme.typography.labelLarge)
-        Spacer(Modifier.height(6.dp))
-        GlassPanel(radius = 12.dp, modifier = Modifier.fillMaxWidth()) {
+        Text(
+            label,
+            color = if (focused) g.accent else g.muted,
+            style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.SemiBold, fontSize = 12.sp)
+        )
+        Spacer(Modifier.height(5.dp))
+        GlassPanel(
+            radius = 10.dp,
+            focused = focused,
+            scaleOnFocus = false,
+            fillAlpha = 0.85f,
+            modifier = Modifier.fillMaxWidth()
+        ) {
             BasicTextField(
                 value = value,
                 onValueChange = onValue,
-                textStyle = MaterialTheme.typography.bodyLarge.copy(color = g.text),
+                textStyle = MaterialTheme.typography.bodyMedium.copy(color = Color.White, fontSize = 14.sp),
                 cursorBrush = SolidColor(g.accent),
                 singleLine = true,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 14.dp, vertical = 12.dp)
+                    .onFocusChanged { focused = it.isFocused }
+                    .padding(horizontal = 14.dp, vertical = 11.dp)
             )
         }
     }

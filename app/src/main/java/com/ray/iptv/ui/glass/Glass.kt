@@ -1,14 +1,20 @@
 package com.ray.iptv.ui.glass
 
+import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
@@ -24,8 +30,10 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
+import com.ray.iptv.data.repo.GlassStyle
 import com.ray.iptv.ui.input.rayClickable
 import com.ray.iptv.ui.motion.rayFocusTween
+import com.ray.iptv.ui.theme.DarkGlassPopup
 import com.ray.iptv.ui.theme.LocalGlass
 import com.ray.iptv.ui.theme.wallpaperScrim
 
@@ -38,14 +46,15 @@ fun RayWallpaper(
     val g = LocalGlass.current
     val hasArt = g.wallpaperRes != 0
     val (scrimTop, scrimBottom) = g.wallpaperScrim()
-    val top = if (hasArt) minOf(overlayTop, scrimTop) else overlayTop
-    val bottom = if (hasArt) minOf(overlayBottom, scrimBottom) else overlayBottom
+    val top = if (hasArt) overlayTop else scrimTop
+    val bottom = if (hasArt) overlayBottom else scrimBottom
+
     Box(
         modifier
             .fillMaxSize()
             .background(g.wallpaperDark)
     ) {
-        if (g.wallpaperRes != 0) {
+        if (hasArt) {
             AsyncImage(
                 model = g.wallpaperRes,
                 contentDescription = null,
@@ -56,7 +65,6 @@ fun RayWallpaper(
             )
         }
         if (g.reduceEffects) {
-            // Düşük güç modunda: Tema duvar kağıdı korunur, GPU yükü için tek katmanlı hafif mat karartma uygulanır
             Box(
                 Modifier
                     .fillMaxSize()
@@ -83,7 +91,7 @@ fun RayWallpaper(
 @Composable
 fun GlassPanel(
     modifier: Modifier = Modifier,
-    radius: Dp = 18.dp,
+    radius: Dp = 12.dp,
     strong: Boolean = false,
     focused: Boolean = false,
     accentFill: Boolean = false,
@@ -95,16 +103,30 @@ fun GlassPanel(
 ) {
     val g = LocalGlass.current
     val a = fillAlpha.coerceIn(0.12f, 1f)
-    val scale = if (focused && scaleOnFocus && !g.reduceEffects) {
+    val interactionSource = remember { MutableInteractionSource() }
+    val isPressed by interactionSource.collectIsPressedAsState()
+
+    val targetScale = when {
+        isPressed && scaleOnFocus -> 0.965f
+        focused && scaleOnFocus && !g.reduceEffects -> 1.025f
+        else -> 1f
+    }
+    val scale = if (scaleOnFocus && !g.reduceEffects) {
         val s by animateFloatAsState(
-            targetValue = 1.018f,
-            animationSpec = rayFocusTween(),
-            label = "glass-scale"
+            targetValue = targetScale,
+            animationSpec = spring(
+                dampingRatio = Spring.DampingRatioMediumBouncy,
+                stiffness = Spring.StiffnessLow
+            ),
+            label = "glass-tactile-scale"
         )
         s
     } else 1f
 
-    val click = if (onClick != null) Modifier.rayClickable(onClick, onLongClick) else Modifier
+    val click = if (onClick != null) {
+        Modifier.rayClickable(onClick, onLongClick, interactionSource = interactionSource)
+    } else Modifier
+
     val shape = RoundedCornerShape(radius)
     val basePanel = if (strong) g.panelStrong else g.panel
     val baseColor = basePanel.copy(alpha = basePanel.alpha * a)
@@ -117,13 +139,13 @@ fun GlassPanel(
         g.frostDark -> Brush.verticalGradient(
             listOf(
                 Color.White.copy(alpha = (if (strong) 0.08f else 0.04f) * a),
-                Color.Black.copy(alpha = (if (strong) 0.16f else 0.08f) * a)
+                Color.White.copy(alpha = (if (strong) 0.015f else 0.005f) * a)
             )
         )
         else -> Brush.verticalGradient(
             listOf(
-                Color.White.copy(alpha = (if (g.isLight) 0.72f else if (strong) 0.14f else 0.08f) * a),
-                Color.White.copy(alpha = (if (g.isLight) 0.38f else if (strong) 0.04f else 0.02f) * a)
+                Color.White.copy(alpha = (if (g.isLight) 0.72f else if (strong) 0.12f else 0.06f) * a),
+                Color.White.copy(alpha = (if (g.isLight) 0.38f else if (strong) 0.02f else 0.01f) * a)
             )
         )
     }
@@ -135,8 +157,8 @@ fun GlassPanel(
     } else {
         Brush.verticalGradient(
             listOf(
-                Color.White.copy(alpha = if (g.isLight) 0.50f else if (g.frostDark) 0.32f else 0.22f),
-                Color.White.copy(alpha = if (g.isLight) 0.15f else if (g.frostDark) 0.08f else 0.05f)
+                Color.White.copy(alpha = if (g.isLight) 0.50f else 0.22f),
+                Color.White.copy(alpha = if (g.isLight) 0.15f else 0.05f)
             )
         )
     }
@@ -144,27 +166,25 @@ fun GlassPanel(
     val boxModifier = modifier
         .then(click)
         .then(if (scale != 1f) Modifier.scale(scale) else Modifier)
-        .then(
-            if (focused && !g.reduceEffects) {
-                Modifier.drawBehind {
-                    val r = CornerRadius(radius.toPx(), radius.toPx())
-                    drawRoundRect(
-                        color = g.accent.copy(alpha = 0.22f),
-                        topLeft = Offset(-2.dp.toPx(), -1.dp.toPx()),
-                        size = size.copy(width = size.width + 4.dp.toPx(), height = size.height + 6.dp.toPx()),
-                        cornerRadius = r,
-                        style = Stroke(width = 6.dp.toPx())
-                    )
-                }
-            } else Modifier
-        )
         .clip(shape)
         .background(baseColor)
         .then(if (fill !is SolidColor) Modifier.background(fill) else Modifier)
+        .then(if (isPressed) Modifier.background(Color.White.copy(alpha = 0.08f)) else Modifier)
         .border(width = if (focused) 1.5.dp else 1.dp, brush = edge, shape = shape)
 
     Box(
         modifier = boxModifier,
         content = content
     )
+}
+
+/**
+ * Wraps popup and dialog windows in the Apple TV / Mac Dark Glass theme:
+ * Semi-transparent dark anthracite (#10131B 40%), cyan neon (#64D2FF) accent, and crisp white text.
+ */
+@Composable
+fun DarkGlassPopupTheme(content: @Composable () -> Unit) {
+    CompositionLocalProvider(LocalGlass provides DarkGlassPopup) {
+        content()
+    }
 }

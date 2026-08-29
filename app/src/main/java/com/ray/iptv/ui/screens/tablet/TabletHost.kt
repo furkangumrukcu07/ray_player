@@ -402,33 +402,6 @@ fun TabletHost(
                 onDismiss = vm::closeOverlay
             )
         }
-
-
-        AnimatedVisibility(
-            visible = overlay == Overlay.GUIDE,
-            enter = fadeIn(),
-            exit = fadeOut()
-        ) {
-            BackHandler { vm.closeOverlay() }
-            Box(Modifier.fillMaxSize().padding(16.dp)) {
-                GlassPanel(strong = true, radius = 20.dp, modifier = Modifier.fillMaxSize()) {
-                    Box(Modifier.padding(16.dp)) {
-                        GuideScreen(
-                            copy = strings,
-                            channels = channels,
-                            load = { ch ->
-                                val now = System.currentTimeMillis()
-                                vm.guideFor(ch.id, now - 6L * 3600_000, now + 18L * 3600_000)
-                            },
-                            onPlay = vm::playChannel,
-                            onCatchup = { ch, p -> vm.playCatchup(ch, p) },
-                            onImport = vm::refreshGuide,
-                            time24h = settings.epg24h
-                        )
-                    }
-                }
-            }
-        }
     }
 }
 

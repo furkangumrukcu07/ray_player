@@ -422,7 +422,7 @@ private fun VodCatPane(
     val g = LocalGlass.current
     GlassPanel(
         strong = true,
-        radius = 22.dp,
+        radius = 12.dp,
         modifier = modifier.onPreviewKeyEvent { e ->
             if (e.type == KeyEventType.KeyDown && e.key == Key.DirectionLeft) {
                 onLeft(); true
@@ -519,7 +519,7 @@ private fun VodCatRow(
         focused = focused,
         strong = selected,
         accentFill = selected && !focused,
-        radius = 10.dp,
+        radius = 6.dp,
         onClick = onClick,
         modifier = Modifier
             .fillMaxWidth()
@@ -583,8 +583,8 @@ private fun CategoryCountBadge(count: Int, emphasized: Boolean) {
         else -> 9.sp
     }
     val shape = if (circle) CircleShape else RoundedCornerShape(percent = 50)
-    val fill = if (emphasized) g.accent.copy(alpha = 0.22f) else g.panelStrong.copy(alpha = 0.72f)
-    val stroke = if (emphasized) g.accent.copy(alpha = 0.7f) else g.muted.copy(alpha = 0.4f)
+    val fill = if (emphasized) g.accent.copy(alpha = 0.22f) else Color.White.copy(alpha = 0.06f)
+    val stroke = if (emphasized) g.accent.copy(alpha = 0.7f) else Color.White.copy(alpha = 0.12f)
     Box(
         modifier = Modifier
             .size(width = width, height = diameter)
@@ -628,7 +628,7 @@ private fun VodBrowsePane(
         // 1. Üst Detay & Poster Çerçevesi (Top Hero Details Glass Frame)
         GlassPanel(
             strong = true,
-            radius = 20.dp,
+            radius = 12.dp,
             modifier = Modifier
                 .weight(1f)
                 .fillMaxWidth()
@@ -689,7 +689,7 @@ private fun VodBrowsePane(
         // 2. Alt "Sıradaki İçerikler" Çerçevesi (Bottom Up Next Strip Glass Frame)
         GlassPanel(
             strong = true,
-            radius = 20.dp,
+            radius = 12.dp,
             modifier = Modifier.fillMaxWidth()
         ) {
             Column(
@@ -978,7 +978,7 @@ private fun CinemaAction(
         focused = focused,
         strong = true,
         accentFill = primary,
-        radius = 12.dp,
+        radius = 6.dp,
         scaleOnFocus = true,
         onClick = onClick,
         modifier = modifier
@@ -1031,7 +1031,7 @@ private fun CinemaIconChip(icon: ImageVector, label: String, active: Boolean, on
         focused = focused,
         strong = true,
         accentFill = active,
-        radius = 12.dp,
+        radius = 6.dp,
         onClick = onClick,
         modifier = Modifier.size(44.dp).onFocusChanged { focused = it.isFocused }
     ) {
@@ -1451,17 +1451,48 @@ private fun CastStrip(people: List<CastPerson>) {
 
 @Composable
 private fun MetaChip(label: String) {
+    val isRating = label.contains("★") || label.contains("IMDb", ignoreCase = true) || label.contains("/10")
+    val isHighQuality = label.contains("4K", ignoreCase = true) || label.contains("HDR", ignoreCase = true) || label.contains("UHD", ignoreCase = true) || label.contains("DOLBY", ignoreCase = true)
+
+    val backgroundBrush = when {
+        isRating -> Brush.horizontalGradient(
+            listOf(Color(0xFFF5C518).copy(alpha = 0.22f), Color(0xFFE5A00D).copy(alpha = 0.10f))
+        )
+        isHighQuality -> Brush.horizontalGradient(
+            listOf(Color.White.copy(alpha = 0.16f), Color.White.copy(alpha = 0.08f))
+        )
+        else -> Brush.horizontalGradient(
+            listOf(Color.White.copy(alpha = 0.08f), Color.White.copy(alpha = 0.04f))
+        )
+    }
+
+    val borderColor = when {
+        isRating -> Color(0xFFF5C518).copy(alpha = 0.60f)
+        isHighQuality -> Color.White.copy(alpha = 0.38f)
+        else -> Color.White.copy(alpha = 0.16f)
+    }
+
+    val textColor = when {
+        isRating -> Color(0xFFF5C518)
+        isHighQuality -> Color.White
+        else -> Color.White.copy(alpha = 0.90f)
+    }
+
     Box(
         Modifier
-            .clip(RoundedCornerShape(8.dp))
-            .background(Color.White.copy(alpha = 0.08f))
-            .border(0.75.dp, Color.White.copy(alpha = 0.18f), RoundedCornerShape(8.dp))
-            .padding(horizontal = 10.dp, vertical = 4.5.dp)
+            .clip(RoundedCornerShape(6.dp))
+            .background(backgroundBrush)
+            .border(0.75.dp, borderColor, RoundedCornerShape(6.dp))
+            .padding(horizontal = 9.dp, vertical = 4.dp)
     ) {
         Text(
             label,
-            color = Color.White.copy(alpha = 0.94f),
-            style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.SemiBold, fontSize = 11.5.sp, letterSpacing = 0.2.sp)
+            color = textColor,
+            style = MaterialTheme.typography.labelLarge.copy(
+                fontWeight = if (isRating || isHighQuality) FontWeight.Bold else FontWeight.SemiBold,
+                fontSize = 11.5.sp,
+                letterSpacing = 0.2.sp
+            )
         )
     }
 }
@@ -1597,9 +1628,6 @@ private fun PosterTile(
             Modifier
                 .fillMaxWidth()
                 .aspectRatio(2f / 3f)
-                .border(if (focused) 2.6.dp else 0.dp, if (focused) g.accent else Color.Transparent, RoundedCornerShape(10.dp))
-                .padding(if (focused) 2.dp else 0.dp)
-                .clip(RoundedCornerShape(8.dp))
         ) {
             GlassPanel(
                 focused = focused,

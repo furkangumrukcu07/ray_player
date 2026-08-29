@@ -11,6 +11,15 @@ import android.view.ViewGroup
 import android.widget.FrameLayout
 import androidx.activity.compose.BackHandler
 import androidx.annotation.OptIn
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -44,7 +53,11 @@ import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.draw.scale
+import androidx.compose.ui.platform.LocalContext
+import coil.request.ImageRequest
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Audiotrack
 import androidx.compose.material.icons.filled.Bolt
@@ -661,6 +674,12 @@ fun PlayerScreen(
                     }
                 }
             }
+            // 📺 Network Dalgalanması & Tamponlama Kanal Logosu Efekti (Buffering Pulse Logo Overlay)
+            BufferingLogoIndicator(
+                playback = playback,
+                channel = channels.find { it.id == playback.mediaId },
+                buffering = tick.buffering && !guide && !peek
+            )
             if ((overlay || st.error.isNotBlank() || zap.isNotBlank()) && !guide && !peek) {
                 Box(
                     Modifier
@@ -1418,3 +1437,93 @@ private fun OsdTrackSheet(
         }
     }
 }
+
+@Composable
+private fun BufferingLogoIndicator(
+    playback: Playback,
+    channel: ChannelEntity?,
+    buffering: Boolean
+) {
+    AnimatedVisibility(
+        visible = buffering,
+        enter = fadeIn(animationSpec = tween(220)),
+        exit = fadeOut(animationSpec = tween(260))
+    ) {
+        val infiniteTransition = rememberInfiniteTransition(label = "bufferingPulse")
+        val pulseAlpha by infiniteTransition.animateFloat(
+            initialValue = 0.35f,
+            targetValue = 1f,
+            animationSpec = infiniteRepeatable(
+                animation = tween(850, easing = FastOutSlowInEasing),
+                repeatMode = RepeatMode.Reverse
+            ),
+            label = "pulseAlpha"
+        )
+        val pulseScale by infiniteTransition.animateFloat(
+            initialValue = 0.94f,
+            targetValue = 1.06f,
+            animationSpec = infiniteRepeatable(
+                animation = tween(850, easing = FastOutSlowInEasing),
+                repeatMode = RepeatMode.Reverse
+            ),
+            label = "pulseScale"
+        )
+        val g = LocalGlass.current
+        val logoUrl = playback.poster.ifBlank { channel?.logo.orEmpty() }
+        val name = playback.title.ifBlank { channel?.name.orEmpty() }
+
+        Box(
+            Modifier.fillMaxSize(),
+            contentAlignment = Alignment.Center
+        ) {
+            // Dış Işıma Halkası (Pulsating Halo Ring)
+            Box(
+                Modifier
+                    .size(92.dp)
+                    .scale(pulseScale)
+                    .clip(CircleShape)
+                    .background(g.accent.copy(alpha = 0.12f * pulseAlpha))
+                    .border(
+                        width = 1.5.dp,
+                        color = g.accent.copy(alpha = 0.65f * pulseAlpha),
+                        shape = CircleShape
+                    )
+            )
+            // İç Buzlu Cam Logo Dairesi (Inner Frosted Glass Circle)
+            Box(
+                Modifier
+                    .size(76.dp)
+                    .clip(CircleShape)
+                    .background(Color.Black.copy(alpha = 0.68f))
+                    .border(
+                        width = 1.dp,
+                        color = Color.White.copy(alpha = 0.25f + 0.35f * pulseAlpha),
+                        shape = CircleShape
+                    ),
+                contentAlignment = Alignment.Center
+            ) {
+                if (logoUrl.isNotBlank()) {
+                    AsyncImage(
+                        model = ImageRequest.Builder(LocalContext.current)
+                            .data(logoUrl)
+                            .crossfade(true)
+                            .build(),
+                        contentDescription = name,
+                        contentScale = ContentScale.Fit,
+                        modifier = Modifier
+                            .size(48.dp)
+                            .padding(4.dp)
+                            .graphicsLayer { alpha = 0.65f + 0.35f * pulseAlpha }
+                    )
+                } else {
+                    Text(
+                        text = name.take(2).uppercase(),
+                        color = Color.White.copy(alpha = 0.65f + 0.35f * pulseAlpha),
+                        style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold)
+                    )
+                }
+            }
+        }
+    }
+}
+

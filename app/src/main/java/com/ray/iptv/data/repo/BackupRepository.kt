@@ -71,8 +71,8 @@ data class BackupSettings(
     val subtitleAuto: Boolean = false,
     val subtitleColor: String = "white",
     val preferredSubtitleToken: String = "",
-    val backgroundPlayback: Boolean = true,
-    val pipMode: Boolean = true,
+    val backgroundPlayback: Boolean = false,
+    val pipMode: Boolean = false,
     val silentSync: Boolean = true,
     val autoRefreshHours: Int = 24,
     val epg24h: Boolean = true,
@@ -332,7 +332,6 @@ class BackupRepository @Inject constructor(
         settings.applyBackup(file.settings)
         if (file.profiles.isNotEmpty()) settings.setProfile(file.profiles.first().id)
         if (file.sources.isNotEmpty()) settings.setSource(file.sources.first().id)
-        settings.setOnboarded()
         settings.acceptDisclaimer()
     }
 }

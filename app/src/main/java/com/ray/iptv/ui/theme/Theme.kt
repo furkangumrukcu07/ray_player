@@ -53,9 +53,9 @@ private fun readableFrost(
     wallpaperDark: Color,
     strokeFocus: Color = accent
 ) = RayGlass(
-    panel = Color(0xB314161C),
-    panelStrong = Color(0xD9181A22),
-    stroke = Color(0x38FFFFFF),
+    panel = Color(0x6610131B),
+    panelStrong = Color(0x8C141822),
+    stroke = Color(0x2EFFFFFF),
     strokeFocus = strokeFocus,
     text = Color.White,
     muted = Color(0xFFC7CBD6),
@@ -75,7 +75,16 @@ val DarkGlass = readableFrost(
     blobA = Color(0x2E4A607A),
     blobB = Color(0x1F6B528A),
     wallpaperDark = Color(0xFF090A0E),
-    strokeFocus = Color(0xCC64D2FF)
+    strokeFocus = Color(0xFFFFFFFF)
+)
+
+val DarkGlassPopup = readableFrost(
+    accent = MacCyan,
+    wallpaperRes = 0,
+    blobA = Color.Transparent,
+    blobB = Color.Transparent,
+    wallpaperDark = Color(0xFF090A0E),
+    strokeFocus = MacCyan
 )
 
 val LightGlass = RayGlass(
@@ -138,9 +147,9 @@ fun GlassStyle.toPalette(): RayGlass = when (this) {
         wallpaperRes = R.drawable.wallpaper_tv_lite
     )
     GlassStyle.MACOS_TV -> RayGlass(
-        panel = Color(0xCC14161C),
-        panelStrong = Color(0xF0181A22),
-        stroke = Color(0x38FFFFFF),
+        panel = Color(0x6610131B),
+        panelStrong = Color(0x8C141822),
+        stroke = Color(0x2EFFFFFF),
         strokeFocus = Color(0xFF007AFF),
         text = Color.White,
         muted = Color(0xFFA1A1A6),
