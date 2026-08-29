@@ -1,8 +1,10 @@
 package com.ray.iptv.ui.glass
 
+import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -13,9 +15,13 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
@@ -181,10 +187,47 @@ fun GlassPanel(
 /**
  * Wraps popup and dialog windows in the Apple TV / Mac Dark Glass theme:
  * Semi-transparent dark anthracite (#10131B 40%), cyan neon (#64D2FF) accent, and crisp white text.
+ * Applies a signature Apple TV / iOS tactile fluid spring entrance animation (scale + subtle float-up + fade).
  */
 @Composable
 fun DarkGlassPopupTheme(content: @Composable () -> Unit) {
     CompositionLocalProvider(LocalGlass provides DarkGlassPopup) {
-        content()
+        var entered by remember { mutableStateOf(false) }
+        LaunchedEffect(Unit) {
+            entered = true
+        }
+
+        val scale by animateFloatAsState(
+            targetValue = if (entered) 1f else 0.88f,
+            animationSpec = spring(
+                dampingRatio = 0.72f,
+                stiffness = Spring.StiffnessMediumLow
+            ),
+            label = "glass-popup-scale"
+        )
+        val alpha by animateFloatAsState(
+            targetValue = if (entered) 1f else 0f,
+            animationSpec = tween(durationMillis = 220, easing = FastOutSlowInEasing),
+            label = "glass-popup-alpha"
+        )
+        val translationY by animateFloatAsState(
+            targetValue = if (entered) 0f else 32f,
+            animationSpec = spring(
+                dampingRatio = 0.74f,
+                stiffness = Spring.StiffnessMediumLow
+            ),
+            label = "glass-popup-y"
+        )
+
+        Box(
+            modifier = Modifier.graphicsLayer {
+                this.scaleX = scale
+                this.scaleY = scale
+                this.alpha = alpha
+                this.translationY = translationY
+            }
+        ) {
+            content()
+        }
     }
 }

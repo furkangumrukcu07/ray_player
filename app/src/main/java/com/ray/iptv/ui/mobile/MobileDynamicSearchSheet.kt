@@ -82,6 +82,7 @@ import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import com.ray.iptv.data.local.ChannelEntity
 import com.ray.iptv.data.local.VodEntity
+import com.ray.iptv.ui.glass.DarkGlassPopupTheme
 import com.ray.iptv.ui.i18n.Copy
 import com.ray.iptv.ui.input.rayClickable
 import kotlinx.coroutines.delay
@@ -126,7 +127,7 @@ fun MobileDynamicSearchSheet(
             ) { onDismiss() },
         contentAlignment = Alignment.TopCenter
     ) {
-        // Modern Floating Obsidian Glass Spotlight Card
+    DarkGlassPopupTheme {
         Box(
             Modifier
                 .statusBarsPadding()
@@ -546,6 +547,7 @@ fun MobileDynamicSearchSheet(
             }
         }
     }
+}
 }
 
 @Composable
