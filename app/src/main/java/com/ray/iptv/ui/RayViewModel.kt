@@ -128,7 +128,7 @@ class RayViewModel @Inject constructor(
     val sources = catalog.sources()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
-    val dest = MutableStateFlow(Dest.LIVE)
+    val dest = MutableStateFlow(Dest.CONTINUE)
     val overlay = MutableStateFlow(Overlay.NONE)
     val playback = MutableStateFlow<Playback?>(null)
     val pendingNext = MutableStateFlow<NextUpPrompt?>(null)
@@ -417,7 +417,12 @@ class RayViewModel @Inject constructor(
         viewModelScope.launch { refreshEpgStats() }
         viewModelScope.launch {
             val s = settingsRepo.settings.first()
-            dest.value = s.startup.toDest()
+            val initial = if (s.layoutMode == LayoutMode.MOBILE || s.layoutMode == LayoutMode.TABLET) {
+                if (s.startup == StartupScreen.LIVE) Dest.CONTINUE else s.startup.toDest()
+            } else {
+                s.startup.toDest()
+            }
+            dest.value = initial
             when (dest.value) {
                 Dest.LIVE -> {
                     railExpanded.value = false
@@ -673,7 +678,12 @@ class RayViewModel @Inject constructor(
         }
         settingsRepo.acceptDisclaimer()
         settingsRepo.setOnboarded(true)
-        dest.value = Dest.LIVE
+        val s = settings.value
+        dest.value = if (s.layoutMode == LayoutMode.MOBILE || s.layoutMode == LayoutMode.TABLET) {
+            if (s.startup == StartupScreen.LIVE) Dest.CONTINUE else s.startup.toDest()
+        } else {
+            s.startup.toDest()
+        }
 
         if (syncToCloudOnComplete && account.value.signedIn) {
             syncToCloudOnComplete = false
