@@ -39,9 +39,11 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.tv.material3.MaterialTheme
 import androidx.tv.material3.Text
+import androidx.compose.runtime.saveable.rememberSaveable
 import com.ray.iptv.data.repo.AppLang
 import com.ray.iptv.data.repo.LayoutMode
 import com.ray.iptv.ui.components.GlassButton
+import com.ray.iptv.ui.components.RaySplashScreen
 import com.ray.iptv.ui.components.RayToastHost
 import com.ray.iptv.ui.glass.DarkGlassPopupTheme
 import com.ray.iptv.ui.glass.GlassPanel
@@ -188,6 +190,7 @@ fun RayRoot(vm: RayViewModel = hiltViewModel()) {
         }
         val mobileLayout = settings.layoutMode == LayoutMode.MOBILE
         val tabletLayout = settings.layoutMode == LayoutMode.TABLET
+        var showSplash by rememberSaveable { mutableStateOf(true) }
 
         ImmersivePlayback(dest == Dest.PLAYER && playback != null && !mobileLayout)
 
@@ -207,6 +210,7 @@ fun RayRoot(vm: RayViewModel = hiltViewModel()) {
         ) {
         when {
             !settingsReady -> RayWallpaper()
+            showSplash -> RaySplashScreen(tr = settings.lang == AppLang.TR) { showSplash = false }
             !settings.onboardingDone -> OnboardingFlow(vm, strings)
             dest == Dest.PLAYER && playback != null && !mobileLayout && !tabletLayout -> RayPlayerRoute(vm, strings)
             mobileLayout -> MobileHost(vm, strings, requestExit)
