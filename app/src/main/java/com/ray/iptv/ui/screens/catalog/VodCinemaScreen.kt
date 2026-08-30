@@ -185,13 +185,16 @@ fun VodCinemaScreen(
     val focusToSelectedCategory: () -> Unit = {
         scope.launch {
             if (!showCategories) onBackToCategories()
-            delay(30)
+            delay(50)
             if (targetCatIndex in 0 until categoryKeys.size) {
                 runCatching { catListState.scrollToItem(targetCatIndex) }
             }
-            repeat(20) {
-                delay(35)
-                if (selectedCatFocus.tryFocus() || catFocus.tryFocus()) return@launch
+            repeat(35) {
+                delay(30)
+                if (selectedCatFocus.tryFocus()) return@launch
+            }
+            if (targetCatIndex == 0) {
+                catFocus.tryFocus()
             }
         }
     }
@@ -236,15 +239,18 @@ fun VodCinemaScreen(
             playFocus.tryFocus()
         }
     }
-    LaunchedEffect(showCategories, pinned?.id, railExpanded, contentFocusTrigger) {
+    LaunchedEffect(showCategories, pinned?.id, railExpanded, contentFocusTrigger, selectedCategory) {
         if (showCategories && pinned == null && !railExpanded) {
-            delay(20)
+            delay(50)
             if (targetCatIndex in 0 until categoryKeys.size) {
                 runCatching { catListState.scrollToItem(targetCatIndex) }
             }
-            repeat(30) {
-                delay(35)
-                if (selectedCatFocus.tryFocus() || catFocus.tryFocus()) return@LaunchedEffect
+            repeat(35) {
+                delay(30)
+                if (selectedCatFocus.tryFocus()) return@LaunchedEffect
+            }
+            if (targetCatIndex == 0) {
+                catFocus.tryFocus()
             }
         }
     }
@@ -304,6 +310,7 @@ fun VodCinemaScreen(
                     onPick = {
                         onPickCategory()
                         scope.launch {
+                            delay(100)
                             repeat(25) {
                                 delay(30)
                                 if (stripFocus.tryFocus() || playFocus.tryFocus()) return@launch
@@ -443,8 +450,8 @@ private fun VodCatPane(
                         if (isSeries) copy.last50Series else copy.last50Films,
                         minOf(50, allCount),
                         selected == "last50",
-                        { onCategory("last50"); onPick() },
-                        { onCategory("last50") },
+                        onClick = { onCategory("last50"); onPick() },
+                        onFocus = { if (selected != "last50") onCategory("last50") },
                         focusRequester = if (selected == "last50") selectedFocus else firstFocus
                     )
                 }
@@ -453,8 +460,8 @@ private fun VodCatPane(
                         if (isSeries) copy.favShows else copy.favFilms,
                         favCount,
                         selected == "fav",
-                        { onCategory("fav"); onPick() },
-                        { onCategory("fav") },
+                        onClick = { onCategory("fav"); onPick() },
+                        onFocus = { if (selected != "fav") onCategory("fav") },
                         focusRequester = if (selected == "fav") selectedFocus else null
                     )
                 }
@@ -463,8 +470,8 @@ private fun VodCatPane(
                         if (isSeries) copy.popular50Series else copy.popular50Films,
                         minOf(50, allCount),
                         selected == "popular",
-                        { onCategory("popular"); onPick() },
-                        { onCategory("popular") },
+                        onClick = { onCategory("popular"); onPick() },
+                        onFocus = { if (selected != "popular") onCategory("popular") },
                         focusRequester = if (selected == "popular") selectedFocus else null
                     )
                 }
@@ -473,8 +480,8 @@ private fun VodCatPane(
                         if (isSeries) copy.trendSeries else copy.trendFilms,
                         minOf(50, allCount),
                         selected == "trend",
-                        { onCategory("trend"); onPick() },
-                        { onCategory("trend") },
+                        onClick = { onCategory("trend"); onPick() },
+                        onFocus = { if (selected != "trend") onCategory("trend") },
                         focusRequester = if (selected == "trend") selectedFocus else null
                     )
                 }
@@ -483,8 +490,8 @@ private fun VodCatPane(
                         if (isSeries) copy.allSeries else copy.allFilms,
                         allCount,
                         selected.isEmpty(),
-                        { onCategory(""); onPick() },
-                        { onCategory("") },
+                        onClick = { onCategory(""); onPick() },
+                        onFocus = { if (selected.isNotEmpty()) onCategory("") },
                         focusRequester = if (selected.isEmpty()) selectedFocus else null
                     )
                 }
@@ -493,8 +500,8 @@ private fun VodCatPane(
                         cat.name,
                         counts[cat.id] ?: 0,
                         selected == cat.id,
-                        { onCategory(cat.id); onPick() },
-                        { onCategory(cat.id) },
+                        onClick = { onCategory(cat.id); onPick() },
+                        onFocus = { if (selected != cat.id) onCategory(cat.id) },
                         focusRequester = if (selected == cat.id) selectedFocus else null
                     )
                 }
@@ -530,14 +537,13 @@ private fun VodCatRow(
                 if (it.isFocused) onFocus()
             }
             .onPreviewKeyEvent { e ->
-                if (e.type != KeyEventType.KeyDown) return@onPreviewKeyEvent false
-                when (e.key) {
-                    Key.DirectionRight, Key.DirectionCenter, Key.Enter -> {
+                if (e.key == Key.DirectionRight || e.key == Key.DirectionCenter || e.key == Key.Enter || e.key == Key.NumPadEnter) {
+                    if (e.type == KeyEventType.KeyDown) {
                         onClick()
-                        true
                     }
-                    else -> false
+                    return@onPreviewKeyEvent true
                 }
+                false
             }
     ) {
 
