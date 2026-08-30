@@ -116,11 +116,13 @@ internal object MediaKitMpvOptions {
             setProp(mpv, "force-seekable", "no")
             setProp(mpv, "cache-pause", "yes")
             setProp(mpv, "cache-pause-initial", "yes")
-            setProp(mpv, "cache-pause-wait", "1")
+            setProp(mpv, "cache-pause-wait", "3")
+            setProp(mpv, "network-timeout", "30")
             setProp(mpv, "video-latency-hacks", "no")
-            val fwd = hints.vodDemuxerForwardMiB()
+            val fwd = maxOf(hints.vodDemuxerForwardMiB(), 64)
             setProp(mpv, "demuxer-max-bytes", "${fwd}M")
             setProp(mpv, "demuxer-max-back-bytes", "${fwd / 2}M")
+            setProp(mpv, "demuxer-readahead-secs", "60")
             if (hints.amlogicLike) setProp(mpv, "sws-fast", "yes")
             setProp(mpv, "video-sync", "audio")
         }
@@ -206,10 +208,13 @@ internal object MediaKitMpvOptions {
         userBufferSec: Int
     ): MpvLiveCacheProfile {
         if (!live) {
+            val streamBuf = if (high) "65536KiB" else if (low) "24576KiB" else "49152KiB"
+            val readahead = if (high) "60" else if (low) "35" else "50"
+            val cacheSec = if (high) "45" else if (low) "25" else "35"
             return MpvLiveCacheProfile(
-                cacheSecs = if (high) "20" else "15",
-                readaheadSecs = if (high) "30" else "20",
-                streamBufferSize = if (high) "32768KiB" else "16384KiB",
+                cacheSecs = cacheSec,
+                readaheadSecs = readahead,
+                streamBufferSize = streamBuf,
                 audioBuffer = if (low) "0.6" else if (high) "0.2" else "0.4"
             )
         }

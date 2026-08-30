@@ -112,8 +112,50 @@ class RayViewModel @Inject constructor(
     val openSubtitles: com.ray.iptv.data.meta.OpenSubtitlesService,
     val speedTestService: com.ray.iptv.net.SpeedTestService,
     val dataUsageService: com.ray.iptv.net.DataUsageService,
-    val licensingRepo: com.ray.iptv.data.repo.LicensingRepository
+    val licensingRepo: com.ray.iptv.data.repo.LicensingRepository,
+    val chatRepo: com.ray.iptv.data.chat.CommunityChatRepository
 ) : ViewModel() {
+
+    val communityMessages: StateFlow<List<com.ray.iptv.data.chat.CommunityChatMessage>> = chatRepo.listenMessages()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+
+    fun sendCommunityMessage(text: String, onComplete: ((Boolean, String?) -> Unit)? = null) {
+        val sess = account.value
+        val authUser = com.google.firebase.auth.FirebaseAuth.getInstance().currentUser
+        val uid = sess.uid.ifBlank { authUser?.uid.orEmpty() }
+        val email = sess.email.ifBlank { authUser?.email.orEmpty() }
+        val name = sess.displayName.ifBlank { authUser?.displayName.orEmpty() }
+        val photo = sess.photoUrl.ifBlank { authUser?.photoUrl?.toString().orEmpty() }
+
+        if (uid.isBlank() || (!sess.signedIn && email.isBlank() && (authUser == null || authUser.isAnonymous))) {
+            onComplete?.invoke(false, "Lütfen önce Google ile oturum açın.")
+            return
+        }
+
+        viewModelScope.launch {
+            val res = chatRepo.sendMessage(
+                text = text,
+                senderUid = uid,
+                senderName = name,
+                senderEmail = email,
+                senderPhotoUrl = photo,
+                isPremium = sess.isPremium || licensingState.value.isPremium,
+                isAdmin = sess.isAdmin
+            )
+            if (res.isSuccess) {
+                onComplete?.invoke(true, null)
+            } else {
+                onComplete?.invoke(false, res.exceptionOrNull()?.message)
+            }
+        }
+    }
+
+    fun deleteCommunityMessage(messageId: String, onComplete: ((Boolean) -> Unit)? = null) {
+        viewModelScope.launch {
+            val res = chatRepo.deleteMessage(messageId)
+            onComplete?.invoke(res.isSuccess)
+        }
+    }
 
     val licensingState: StateFlow<com.ray.iptv.data.repo.LicensingState> = licensingRepo.state
 

@@ -172,7 +172,7 @@ fun MobileHost(
             dest == Dest.LIVE && livePhase == LiveBrowsePhase.CONTENT -> vm.backFromLiveContent()
             dest == Dest.WRAPPED || dest == Dest.EPG_MIX || dest == Dest.LIVE || dest == Dest.MOVIES || dest == Dest.SERIES || dest == Dest.PLAYLISTS ->
                 vm.go(Dest.CONTINUE)
-            dest == Dest.SETTINGS || dest == Dest.ADMIN -> vm.go(Dest.CONTINUE)
+            dest == Dest.CHAT || dest == Dest.SETTINGS || dest == Dest.ADMIN -> vm.go(Dest.CONTINUE)
             dest == Dest.CONTINUE -> requestExit()
             else -> vm.go(Dest.CONTINUE)
         }
@@ -249,6 +249,7 @@ fun MobileHost(
                     onSearch = if (dest == Dest.LIVE || dest == Dest.MOVIES || dest == Dest.SERIES) ({ vm.showOverlay(Overlay.SEARCH) }) else null,
                     onList = null,
                     onPlaylist = if (sources.size > 1) ({ showPlaylistPicker = true }) else null,
+                    onChat = { vm.go(Dest.CHAT) },
                     avatarUrl = account.photoUrl.takeIf { it.isNotBlank() && account.signedIn }
                 )
             }
@@ -356,6 +357,7 @@ fun MobileHost(
                             onExit = { vm.go(Dest.CONTINUE) }
                         )
                         Dest.ADMIN -> AdminHost(vm, tr) { vm.go(Dest.CONTINUE) }
+                        Dest.CHAT -> ChatRoomsScreen(vm, tr) { vm.go(Dest.CONTINUE) }
                         Dest.WRAPPED -> MobileWrappedScreen(vm, tr) { vm.go(Dest.CONTINUE) }
                         Dest.EPG_MIX -> MobileEpgMixScreen(
                             vm = vm,

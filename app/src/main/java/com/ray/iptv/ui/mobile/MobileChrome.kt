@@ -225,6 +225,7 @@ fun MobileClockSettingsChip(
     onSearch: (() -> Unit)? = null,
     onList: (() -> Unit)? = null,
     onPlaylist: (() -> Unit)? = null,
+    onChat: (() -> Unit)? = null,
     avatarUrl: String? = null
 ) {
     val time = tickingClock()
@@ -244,6 +245,15 @@ fun MobileClockSettingsChip(
     }
 
     MobileGlassCapsule {
+        if (onChat != null) {
+            Icon(
+                Icons.Filled.Forum,
+                contentDescription = if (tr) "Topluluk Sohbeti" else "Community Chat",
+                tint = Color(0xFF38BDF8),
+                modifier = Modifier.size(22.dp).rayClickable(onChat)
+            )
+            Spacer(Modifier.width(8.dp))
+        }
         if (onPlaylist != null) {
             Icon(
                 Icons.AutoMirrored.Filled.PlaylistPlay,
@@ -282,6 +292,8 @@ fun MobileClockSettingsChip(
         Box(
             Modifier
                 .size(36.dp)
+                .clip(CircleShape)
+                .background(fg.copy(alpha = 0.12f))
                 .rayClickable(onSettings),
             contentAlignment = Alignment.Center
         ) {
@@ -368,6 +380,7 @@ fun MobileTopBar(
     onSearch: (() -> Unit)? = null,
     onList: (() -> Unit)? = null,
     onPlaylist: (() -> Unit)? = null,
+    onChat: (() -> Unit)? = null,
     avatarUrl: String? = null
 ) {
     Row(
@@ -390,7 +403,7 @@ fun MobileTopBar(
             MobileBrandChip(onBrand)
         }
         Spacer(Modifier.width(8.dp))
-        MobileClockSettingsChip(tr, onSettings, onSearch, onList, onPlaylist, avatarUrl)
+        MobileClockSettingsChip(tr, onSettings, onSearch, onList, onPlaylist, onChat, avatarUrl)
     }
 }
 

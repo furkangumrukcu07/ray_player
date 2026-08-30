@@ -817,7 +817,7 @@ class RayPlayer @Inject constructor(
                     .setBufferDurationsMs(min, max, playback, rebuffer)
                     .setTargetBufferBytes(bytes)
                     .setPrioritizeTimeOverSizeThresholds(buf.prioritizeTime)
-                    .setBackBuffer(if (forLive) 10_000 else 5_000, false)
+                    .setBackBuffer(if (forLive) 10_000 else 20_000, false)
                     .build()
             )
             .setSeekBackIncrementMs(15_000)

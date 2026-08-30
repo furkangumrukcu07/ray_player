@@ -71,6 +71,15 @@ service cloud.firestore {
       allow create, update, delete: if isAppAdmin();
     }
 
+    // 🌐 TOPLULUK SOHBETİ (COMMUNITY PUBLIC CHAT)
+    // Herkes mesajları okuyabilir; giriş yapmış kullanıcılar mesaj yazabilir ve kendi mesajını silebilir.
+    match /community_chat/{messageId} {
+      allow read: if true;
+      allow create: if request.auth != null && request.resource.data.senderUid == request.auth.uid;
+      allow delete: if isAppAdmin() || (request.auth != null && resource.data.senderUid == request.auth.uid);
+      allow update: if isAppAdmin();
+    }
+
     // 📊 YÖNETİCİ İSTATİSTİKLERİ & TELEMETRİ
     match /admin_stats/{statId} {
       allow read, write: if true;
