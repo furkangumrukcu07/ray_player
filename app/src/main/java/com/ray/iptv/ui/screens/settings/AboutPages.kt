@@ -130,7 +130,7 @@ private fun AboutHomePage(
     val ctx = LocalContext.current
     val version = remember {
         runCatching { ctx.packageManager.getPackageInfo(ctx.packageName, 0).versionName }
-            .getOrNull().orEmpty().ifBlank { "1.3.17" }
+            .getOrNull().orEmpty().ifBlank { "1.3.18" }
     }
     val pkg = remember { ctx.packageName }
     val scope = rememberCoroutineScope()
@@ -239,7 +239,7 @@ private fun ContactUsPage(vm: RayViewModel, tr: Boolean, onBack: () -> Unit, onF
     val ctx = LocalContext.current
     val version = remember {
         runCatching { ctx.packageManager.getPackageInfo(ctx.packageName, 0).versionName }
-            .getOrNull().orEmpty().ifBlank { "1.3.17" }
+            .getOrNull().orEmpty().ifBlank { "1.3.18" }
     }
     LazyColumn(Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(10.dp)) {
         item {
@@ -776,11 +776,13 @@ private fun isStoreNewer(current: String, store: String): Boolean {
     return false
 }
 
-private const val rayChangelogTr = """v1.3.17
-• Tam Cihaz & Yatay Mod (Landscape) Uyumluluğu: Açılış ekranları (Splash) ve seçim pencereleri Mobil (Dikey/Yatay), Tablet ve TV ekran çözünürlüklerine göre dinamik boyutlandırma ve akıcı yerleşim kazandı
-• Açılış Ekranı (Splash Screen) Temaları: Ayarlar > Diğer Araçlar altına Doğal Yeşil Cam, Siber Sinema ve Obsidyen Aurora açılış ekranı seçim menüsü eklendi
-• Görsel Önizlemeli Splash Seçici: Kullanıcılar açılış ekranlarını canlı küçük resim önizlemeleri ve açıklamalarıyla seçebilir
-• Sıfır Gecikmeli & Siyah Ekransız Akıcı Açılış: Splash ekranı doğrudan katman olarak işlenerek açılış ve kapanışta oluşan siyah ekran geçişleri tamamen ortadan kaldırıldı; ana ekrana ipeksi yumuşak geçiş sağlandı
+private const val rayChangelogTr = """v1.3.18
+• 3 Farklı Açılış Ekranı (Splash Screen) Konsepti: Doğal bulanıklaştırılmış yaprak arka planı üzerinde Koyu Cam Kartı, Minimalist Neon ve Cam Kapsül & İlerleme Çubuğu arayüzleri tamamlandı
+• Canlı Mikro Önizleme: Ayarlar > Diğer Araçlar > Açılış Ekranı menüsünden konseptler görsel küçük resimleriyle seçilebilir
+• Tam Cihaz Uyumluluğu: Mobil (Dikey/Yatay), Tablet ve TV ekranları için dinamik boyutlandırma ve siyah ekransız akıcı geçiş
+
+v1.3.17
+• Tam Cihaz & Yatay Mod (Landscape) Uyumluluğu ve görsel önizlemeli splash seçici desteği
 
 v1.3.16
 • Modern Açılış Ekranı (Splash Screen) entegrasyonu ve önizlemeli tema seçici desteği
@@ -833,11 +835,13 @@ v1.0.0
 • Canlı TV, film, dizi, rehber, izlemeye devam
 • Better / MediaKit oynatıcı motorları, altyazı ve ebeveyn PIN"""
 
-private const val rayChangelogEn = """v1.3.17
-• Full Device & Landscape Orientation Support: Splash screens and theme picker modal dynamically adapt to Mobile (Portrait/Landscape), Tablet, and TV screens with responsive scaling
-• Splash Screen Theme Customizer: Added choice between Natural Green Glass, Cyber Cinema, and Obsidian Aurora splash themes under Settings > Other Tools
-• Visual Preview Picker: Users can easily select startup themes with live thumbnail previews and design descriptions
-• Zero-Flash Seamless Transition: Splash screen is now rendered as a non-destructive layer overlay, completely eliminating black screen flashes during startup and fading smoothly into the main screen
+private const val rayChangelogEn = """v1.3.18
+• 3 Distinct Splash Screen Concepts: Dark Glass Card, Minimalist Neon, and Glass Capsule & Progress Bar layouts crafted on blurred natural leaf backdrop
+• Visual Micro Previews: Interactive thumbnail cards under Settings > Other Tools > Splash Screen
+• Multi-Device & Landscape Support: Responsive dynamic scaling across Mobile (Portrait/Landscape), Tablet, and TV with zero black-screen transitions
+
+v1.3.17
+• Full Device & Landscape Orientation Support and splash theme customizer
 
 v1.3.16
 • Modern Splash Screen integration and visual preview theme customizer
