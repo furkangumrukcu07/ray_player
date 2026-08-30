@@ -264,7 +264,7 @@ fun VodCinemaScreen(
         if (!showCategories && pinned == null) {
             repeat(25) {
                 delay(30)
-                if (stripFocus.tryFocus() || playFocus.tryFocus()) return@LaunchedEffect
+                if (stripFocus.tryFocus()) return@LaunchedEffect
             }
         }
     }
@@ -310,10 +310,10 @@ fun VodCinemaScreen(
                     onPick = {
                         onPickCategory()
                         scope.launch {
-                            delay(100)
-                            repeat(25) {
-                                delay(30)
-                                if (stripFocus.tryFocus() || playFocus.tryFocus()) return@launch
+                            delay(120)
+                            repeat(30) {
+                                if (stripFocus.tryFocus()) return@launch
+                                delay(25)
                             }
                         }
                     },
@@ -1657,17 +1657,24 @@ private fun PosterTile(
                         if (it.isFocused) onFocused()
                     }
                     .onPreviewKeyEvent { e ->
-                        if (e.type != KeyEventType.KeyDown) return@onPreviewKeyEvent false
-                        when {
-                            onLeft != null && e.key == Key.DirectionLeft -> { onLeft(); true }
-                            onDown != null && e.key == Key.DirectionDown -> { onDown(); true }
-                            onUp != null && e.key == Key.DirectionUp -> { onUp(); true }
-                            e.key == Key.DirectionRight -> {
-                                onRightAtEnd?.invoke()
-                                false
+                        if (e.type == KeyEventType.KeyDown) {
+                            when {
+                                onLeft != null && e.key == Key.DirectionLeft -> { onLeft(); true }
+                                onDown != null && e.key == Key.DirectionDown -> { onDown(); true }
+                                onUp != null && e.key == Key.DirectionUp -> { onUp(); true }
+                                e.key == Key.DirectionRight -> {
+                                    onRightAtEnd?.invoke()
+                                    false
+                                }
+                                e.key == Key.DirectionCenter || e.key == Key.Enter || e.key == Key.NumPadEnter -> {
+                                    onClick()
+                                    true
+                                }
+                                else -> false
                             }
-                            else -> false
-                        }
+                        } else if (e.type == KeyEventType.KeyUp && (e.key == Key.DirectionCenter || e.key == Key.Enter || e.key == Key.NumPadEnter)) {
+                            true
+                        } else false
                     }
             ) {
                 if (item.poster.isNotBlank()) {
