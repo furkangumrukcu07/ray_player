@@ -3,6 +3,7 @@ package com.ray.iptv.ui.screens.catalog
 import androidx.compose.animation.AnimatedVisibility
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -66,6 +67,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.clipToBounds
+import androidx.compose.ui.draw.scale
 import androidx.compose.ui.focus.FocusDirection
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.onFocusChanged
@@ -838,7 +840,7 @@ private fun VodCinemaPane(
                     modifier = Modifier.padding(bottom = 6.dp)
                 )
                 if (expandedRows) {
-                    PosterStrip3Rows(
+                    PosterStrip2Rows(
                         items = items,
                         empty = if (isSeries) copy.noSeries else copy.noMovies,
                         onHover = onHover,
@@ -859,7 +861,7 @@ private fun VodCinemaPane(
                         onHover = onHover,
                         onOpen = onOpen,
                         onLeftFromFirst = onLeftFromFirst,
-                        onExpandTo3Rows = { expandedRows = true },
+                        onExpandTo2Rows = { expandedRows = true },
                         onLoadMore = onLoadMore
                     )
                 }
@@ -1511,16 +1513,16 @@ private fun PosterStrip(
     onHover: (VodEntity) -> Unit,
     onOpen: (VodEntity) -> Unit,
     onLeftFromFirst: () -> Unit,
-    onExpandTo3Rows: (() -> Unit)? = null,
+    onExpandTo2Rows: (() -> Unit)? = null,
     onLoadMore: () -> Unit = {},
     firstFocus: FocusRequester? = null,
     focusId: String? = null
 ) {
     val g = LocalGlass.current
-    val w = if (compact) 82.dp else 62.dp
+    val w = if (compact) 95.dp else 115.dp
     val state = rememberLazyListState()
     if (items.isEmpty()) {
-        Box(Modifier.height(if (compact) 128.dp else 120.dp).fillMaxWidth(), contentAlignment = Alignment.Center) {
+        Box(Modifier.height(if (compact) 140.dp else 180.dp).fillMaxWidth(), contentAlignment = Alignment.Center) {
             Text(empty, color = g.muted)
         }
         return
@@ -1538,8 +1540,8 @@ private fun PosterStrip(
     }
     LazyRow(
         state = state,
-        horizontalArrangement = Arrangement.spacedBy(if (compact) 8.dp else 7.dp),
-        contentPadding = PaddingValues(start = if (compact) 0.dp else 0.dp, bottom = 10.dp, end = 18.dp)
+        horizontalArrangement = Arrangement.spacedBy(14.dp),
+        contentPadding = PaddingValues(start = 6.dp, top = 6.dp, bottom = 10.dp, end = 24.dp)
     ) {
         itemsIndexed(items, key = { _, v -> v.id }) { index, item ->
             val takeFocus = firstFocus != null && index == focusIndex
@@ -1554,7 +1556,7 @@ private fun PosterStrip(
                 },
                 onClick = { onOpen(item) },
                 onLeft = if (index == 0) onLeftFromFirst else null,
-                onDown = onExpandTo3Rows,
+                onDown = onExpandTo2Rows,
                 onRightAtEnd = onLoadMore,
                 focusRequester = if (takeFocus) firstFocus else null
             )
@@ -1563,7 +1565,7 @@ private fun PosterStrip(
 }
 
 @Composable
-private fun PosterStrip3Rows(
+private fun PosterStrip2Rows(
     items: List<VodEntity>,
     empty: String,
     onHover: (VodEntity) -> Unit,
@@ -1576,9 +1578,9 @@ private fun PosterStrip3Rows(
 ) {
     val g = LocalGlass.current
     val gridState = rememberLazyGridState()
-    val w = 62.dp
+    val w = 110.dp
     if (items.isEmpty()) {
-        Box(Modifier.height(260.dp).fillMaxWidth(), contentAlignment = Alignment.Center) {
+        Box(Modifier.height(300.dp).fillMaxWidth(), contentAlignment = Alignment.Center) {
             Text(empty, color = g.muted)
         }
         return
@@ -1595,17 +1597,17 @@ private fun PosterStrip3Rows(
         }
     }
     LazyHorizontalGrid(
-        rows = GridCells.Fixed(3),
+        rows = GridCells.Fixed(2),
         state = gridState,
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
-        verticalArrangement = Arrangement.spacedBy(8.dp),
-        contentPadding = PaddingValues(bottom = 8.dp, end = 18.dp),
-        modifier = Modifier.fillMaxWidth().fillMaxHeight()
+        horizontalArrangement = Arrangement.spacedBy(14.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp),
+        contentPadding = PaddingValues(start = 6.dp, top = 6.dp, bottom = 10.dp, end = 24.dp),
+        modifier = Modifier.fillMaxWidth().height(360.dp)
     ) {
         gridItemsIndexed(items, key = { _, v -> v.id }) { index, item ->
             val takeFocus = firstFocus != null && index == focusIndex
-            val isFirstCol = index < 3
-            val isTopRow = index % 3 == 0
+            val isFirstCol = index < 2
+            val isTopRow = index % 2 == 0
             PosterTile(
                 item = item,
                 width = w,
@@ -1639,15 +1641,45 @@ private fun PosterTile(
 ) {
     var focused by remember { mutableStateOf(false) }
     val g = LocalGlass.current
-    Column(Modifier.width(width)) {
+    val scale by animateFloatAsState(
+        targetValue = if (focused) 1.15f else 1.0f,
+        animationSpec = tween(140),
+        label = "poster-scale"
+    )
+
+    val borderModifier = if (focused) {
+        Modifier.border(
+            width = 2.5.dp,
+            brush = Brush.horizontalGradient(
+                listOf(Color(0xFF00F0FF), Color(0xFF38BDF8), Color(0xFF67E8F9))
+            ),
+            shape = RoundedCornerShape(12.dp)
+        )
+    } else {
+        Modifier.border(
+            width = 0.8.dp,
+            color = Color.White.copy(alpha = 0.12f),
+            shape = RoundedCornerShape(12.dp)
+        )
+    }
+
+    Column(
+        modifier = Modifier
+            .width(width)
+            .scale(scale)
+            .padding(vertical = 4.dp)
+    ) {
         Box(
             Modifier
                 .fillMaxWidth()
                 .aspectRatio(2f / 3f)
+                .clip(RoundedCornerShape(12.dp))
+                .then(borderModifier)
+                .background(g.panelStrong)
         ) {
             GlassPanel(
                 focused = focused,
-                radius = 8.dp,
+                radius = 12.dp,
                 onClick = onClick,
                 modifier = Modifier
                     .fillMaxSize()
@@ -1678,21 +1710,37 @@ private fun PosterTile(
                     }
             ) {
                 if (item.poster.isNotBlank()) {
-                    AsyncImage(item.poster, item.name, modifier = Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
+                    AsyncImage(
+                        item.poster,
+                        item.name,
+                        modifier = Modifier.fillMaxSize(),
+                        contentScale = ContentScale.Crop
+                    )
                 } else {
                     Box(Modifier.fillMaxSize().background(g.panelStrong), contentAlignment = Alignment.Center) {
-                        Text(item.name.take(1), color = g.muted)
+                        Text(
+                            item.name.take(1),
+                            color = g.muted,
+                            fontSize = 22.sp,
+                            fontWeight = FontWeight.Bold
+                        )
                     }
                 }
             }
         }
-        Spacer(Modifier.height(4.dp))
+        Spacer(Modifier.height(5.dp))
         Text(
-            item.name,
-            color = if (focused) g.text else g.muted,
-            style = MaterialTheme.typography.labelMedium.copy(fontSize = 11.sp),
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis
+            text = item.name,
+            color = if (focused) Color(0xFF00F0FF) else Color.White.copy(alpha = 0.85f),
+            style = MaterialTheme.typography.bodySmall.copy(
+                fontSize = 12.sp,
+                fontWeight = if (focused) FontWeight.Bold else FontWeight.Medium
+            ),
+            maxLines = 2,
+            minLines = 2,
+            lineHeight = 15.sp,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 2.dp)
         )
     }
 }
