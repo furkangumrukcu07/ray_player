@@ -194,14 +194,14 @@ fun LiveScreen(
         onHover(hovered)
     }
     LaunchedEffect(pendingChannelFocus, channels.size) {
-        if (pendingChannelFocus && channels.isNotEmpty()) {
-            repeat(30) {
+        if (pendingChannelFocus) {
+            repeat(40) {
                 if (listFocus.tryFocus()) {
                     pendingChannelFocus = false
                     channelsFocused = true
                     return@LaunchedEffect
                 }
-                delay(35)
+                delay(30)
             }
         }
     }
@@ -217,7 +217,7 @@ fun LiveScreen(
             }
         } else if (!showCategories && !railExpanded) {
             repeat(30) {
-                delay(35)
+                delay(30)
                 if (listFocus.tryFocus()) return@LaunchedEffect
             }
         }
@@ -259,14 +259,12 @@ fun LiveScreen(
                         channelsFocused = true
                         pendingChannelFocus = true
                         onPickCategory()
-                        if (channels.isNotEmpty()) {
-                            scope.launch {
-                                repeat(20) {
-                                    if (listFocus.tryFocus()) {
-                                        pendingChannelFocus = false
-                                        return@launch
-                                    }
-                                    delay(30)
+                        scope.launch {
+                            repeat(30) {
+                                delay(25)
+                                if (listFocus.tryFocus()) {
+                                    pendingChannelFocus = false
+                                    return@launch
                                 }
                             }
                         }
@@ -634,6 +632,43 @@ private fun LiveGuide(
                         style = MaterialTheme.typography.headlineMedium,
                         modifier = Modifier.padding(10.dp)
                     )
+                }
+            }
+            if (channels.isEmpty()) {
+                item {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(56.dp)
+                            .padding(horizontal = 8.dp, vertical = 4.dp)
+                            .clip(RoundedCornerShape(8.dp))
+                            .background(Color.White.copy(alpha = 0.04f))
+                            .rayFocusRequester(listFocus)
+                            .onPreviewKeyEvent { e ->
+                                if (e.type == KeyEventType.KeyDown && e.key == Key.DirectionLeft) {
+                                    onLeft(); true
+                                } else false
+                            },
+                        contentAlignment = Alignment.CenterStart
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.padding(horizontal = 14.dp)
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(8.dp)
+                                    .clip(CircleShape)
+                                    .background(g.accent)
+                            )
+                            Spacer(Modifier.width(10.dp))
+                            Text(
+                                text = copy.channelsTab,
+                                color = g.muted,
+                                style = MaterialTheme.typography.bodyMedium
+                            )
+                        }
+                    }
                 }
             }
             itemsIndexed(channels, key = { _, ch -> ch.id }) { index, ch ->

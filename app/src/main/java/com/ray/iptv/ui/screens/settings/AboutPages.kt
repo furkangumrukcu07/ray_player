@@ -130,7 +130,7 @@ private fun AboutHomePage(
     val ctx = LocalContext.current
     val version = remember {
         runCatching { ctx.packageManager.getPackageInfo(ctx.packageName, 0).versionName }
-            .getOrNull().orEmpty().ifBlank { "1.3.18" }
+            .getOrNull().orEmpty().ifBlank { "1.3.19" }
     }
     val pkg = remember { ctx.packageName }
     val scope = rememberCoroutineScope()
@@ -239,7 +239,7 @@ private fun ContactUsPage(vm: RayViewModel, tr: Boolean, onBack: () -> Unit, onF
     val ctx = LocalContext.current
     val version = remember {
         runCatching { ctx.packageManager.getPackageInfo(ctx.packageName, 0).versionName }
-            .getOrNull().orEmpty().ifBlank { "1.3.18" }
+            .getOrNull().orEmpty().ifBlank { "1.3.19" }
     }
     LazyColumn(Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(10.dp)) {
         item {
@@ -776,10 +776,12 @@ private fun isStoreNewer(current: String, store: String): Boolean {
     return false
 }
 
-private const val rayChangelogTr = """v1.3.18
+private const val rayChangelogTr = """v1.3.19
+• TV Odak İzolasyonu & Arama Butonuna Odak Kaçışı Çözümü: Canlı TV ve VOD kategorileri seçildiğinde veya kanal listesi asenkron yüklenirken odağın ana raildeki arama butonuna kaçma sorunu rail odak izolasyonu (`canFocus`) ve kanal listesi odak çıpası ile tamamen giderildi
+• Kumanda ile Akıcı Kategori-Kanal Geçişi: TV kumandasıyla kategoriden kanal listesine geçişte odak güvenli şekilde ilk kanala kilitlendi
+
+v1.3.18
 • 3 Farklı Açılış Ekranı (Splash Screen) Konsepti: Doğal bulanıklaştırılmış yaprak arka planı üzerinde Koyu Cam Kartı, Minimalist Neon ve Cam Kapsül & İlerleme Çubuğu arayüzleri tamamlandı
-• Canlı Mikro Önizleme: Ayarlar > Diğer Araçlar > Açılış Ekranı menüsünden konseptler görsel küçük resimleriyle seçilebilir
-• Tam Cihaz Uyumluluğu: Mobil (Dikey/Yatay), Tablet ve TV ekranları için dinamik boyutlandırma ve siyah ekransız akıcı geçiş
 
 v1.3.17
 • Tam Cihaz & Yatay Mod (Landscape) Uyumluluğu ve görsel önizlemeli splash seçici desteği
@@ -835,10 +837,12 @@ v1.0.0
 • Canlı TV, film, dizi, rehber, izlemeye devam
 • Better / MediaKit oynatıcı motorları, altyazı ve ebeveyn PIN"""
 
-private const val rayChangelogEn = """v1.3.18
+private const val rayChangelogEn = """v1.3.19
+• TV Remote Focus Isolation & Anti-Search Escape: Completely eliminated focus jumping to the main rail's search button when selecting categories or loading live channels on Android TV boxes via rail focus isolation (`canFocus`) and list anchor fallbacks
+• Smooth D-Pad Navigation: Seamless category-to-channel focus flow on all TV remotes
+
+v1.3.18
 • 3 Distinct Splash Screen Concepts: Dark Glass Card, Minimalist Neon, and Glass Capsule & Progress Bar layouts crafted on blurred natural leaf backdrop
-• Visual Micro Previews: Interactive thumbnail cards under Settings > Other Tools > Splash Screen
-• Multi-Device & Landscape Support: Responsive dynamic scaling across Mobile (Portrait/Landscape), Tablet, and TV with zero black-screen transitions
 
 v1.3.17
 • Full Device & Landscape Orientation Support and splash theme customizer
