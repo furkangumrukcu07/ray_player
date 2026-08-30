@@ -2,6 +2,7 @@ package com.ray.iptv.ui.screens.settings
 
 import android.content.Intent
 import android.content.pm.PackageManager
+import com.ray.iptv.data.repo.LayoutMode
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
@@ -294,17 +295,19 @@ private fun PlaybackSettingsList(
                 onClick = { vm.setBackgroundPlayback(!settings.backgroundPlayback) }
             )
         }
-        item {
-            PlaybackTile(
-                icon = Icons.Filled.PictureInPicture,
-                title = if (tr) "Resim İçinde Resim (PiP)" else "Picture-in-Picture (PiP)",
-                subtitle = if (settings.pipMode) {
-                    if (tr) "Aktif — ana ekrana dönüldüğünde küçük pencerede oynat" else "On — floating window on home screen"
-                } else if (tr) "Kapalı" else "Off",
-                showSwitch = true,
-                checked = settings.pipMode,
-                onClick = { vm.setPipMode(!settings.pipMode) }
-            )
+        if (settings.layoutMode != LayoutMode.TV) {
+            item {
+                PlaybackTile(
+                    icon = Icons.Filled.PictureInPicture,
+                    title = if (tr) "Resim İçinde Resim (PiP)" else "Picture-in-Picture (PiP)",
+                    subtitle = if (settings.pipMode) {
+                        if (tr) "Aktif — ana ekrana dönüldüğünde küçük pencerede oynat" else "On — floating window on home screen"
+                    } else if (tr) "Kapalı" else "Off",
+                    showSwitch = true,
+                    checked = settings.pipMode,
+                    onClick = { vm.setPipMode(!settings.pipMode) }
+                )
+            }
         }
         item {
             PlaybackTile(

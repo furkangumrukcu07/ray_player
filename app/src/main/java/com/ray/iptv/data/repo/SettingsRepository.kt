@@ -324,7 +324,7 @@ class SettingsRepository @Inject constructor(
             externalPlayerLabel = p[Keys.extLabel].orEmpty(),
             subtitleFont = p[Keys.subFont] ?: "sans",
             backgroundPlayback = p[Keys.bgPlay] ?: false,
-            pipMode = p[Keys.pipMode] ?: false,
+            pipMode = if (parseEnum(p[Keys.layout], LayoutMode.TV) == LayoutMode.TV) false else (p[Keys.pipMode] ?: false),
             stripChannelPrefix = p[Keys.stripPrefix] ?: false,
             silentSync = p[Keys.silent] ?: true,
             autoRefreshHours = p[Keys.refreshH] ?: 24,

@@ -58,13 +58,14 @@ class MainActivity : ComponentActivity() {
     override fun onUserLeaveHint() {
         super.onUserLeaveHint()
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            if (pipEligible?.invoke() == true) {
+            if (!isTelevisionDevice() && pipEligible?.invoke() == true) {
                 enterPipMode()
             }
         }
     }
 
     fun enterPipMode(aspectRatio: Float = 16f / 9f): Boolean {
+        if (isTelevisionDevice()) return false
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             return runCatching {
                 val rational = try {

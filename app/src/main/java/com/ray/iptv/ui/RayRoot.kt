@@ -100,9 +100,9 @@ fun RayRoot(vm: RayViewModel = hiltViewModel()) {
         val dest by vm.dest.collectAsState()
         val overlay by vm.overlay.collectAsState()
         val activity = context as? com.ray.iptv.MainActivity
-        DisposableEffect(activity, dest, settings.pipMode) {
+        DisposableEffect(activity, dest, settings.pipMode, settings.layoutMode) {
             activity?.pipEligible = {
-                dest == Dest.PLAYER && settings.pipMode
+                dest == Dest.PLAYER && settings.pipMode && settings.layoutMode != LayoutMode.TV
             }
             onDispose {
                 activity?.pipEligible = null
