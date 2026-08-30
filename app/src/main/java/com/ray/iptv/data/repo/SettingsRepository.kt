@@ -12,12 +12,42 @@ import com.ray.iptv.player.AndroidPlaybackSocHints
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
+import com.ray.iptv.R
 import javax.inject.Inject
 import javax.inject.Singleton
 
 private val Context.rayStore by preferencesDataStore("ray_settings")
 
 enum class StartupScreen { HOME, LIVE, MOVIES, SERIES, GUIDE }
+enum class SplashStyle(
+    val titleTr: String,
+    val titleEn: String,
+    val subtitleTr: String,
+    val subtitleEn: String,
+    val drawableRes: Int
+) {
+    NATURE_GLASS(
+        "Doğal Yeşil Cam",
+        "Natural Green Glass",
+        "Bulanıklaştırılmış yeşil yaprak ve Dark Glass kartı (Varsayılan)",
+        "Blurred green leaf nature with Dark Glass card (Default)",
+        R.drawable.splash_nature_bg
+    ),
+    CYBER_CINEMA(
+        "Siber Sinema",
+        "Cyber Cinema",
+        "Obsidyen zemin ve dikey camgöbeği lazer ışıması",
+        "Obsidian black with vertical cyan laser light beam",
+        R.drawable.splash_cyber_bg
+    ),
+    OBSIDIAN_AURORA(
+        "Obsidyen Aurora",
+        "Obsidian Aurora",
+        "Karanlık kadife zemin üzerinde turkuaz dalga aurora",
+        "Dark velvet backdrop with turquoise wave aurora",
+        R.drawable.splash_aurora_bg
+    )
+}
 enum class GlassStyle {
     TV_LITE,
     MACOS_TV,
@@ -137,6 +167,7 @@ data class RaySettings(
     val onboardingDone: Boolean = false,
     val disclaimerAccepted: Boolean = false,
     val startup: StartupScreen = StartupScreen.HOME,
+    val splashStyle: SplashStyle = SplashStyle.NATURE_GLASS,
     val glass: GlassStyle = GlassStyle.DARK,
     val parentalPinHash: String = "",
     val hideAdult: Boolean = true,
@@ -252,6 +283,7 @@ class SettingsRepository @Inject constructor(
             onboardingDone = p[Keys.onboard] ?: false,
             disclaimerAccepted = p[Keys.disclaimer] ?: false,
             startup = parseEnum(p[Keys.startup], StartupScreen.HOME),
+            splashStyle = parseEnum(p[Keys.splashStyle], SplashStyle.NATURE_GLASS),
             glass = parseEnum(p[Keys.glass], GlassStyle.DARK),
             parentalPinHash = p[Keys.pin].orEmpty(),
             hideAdult = p[Keys.hideAdult] ?: true,
@@ -366,6 +398,7 @@ class SettingsRepository @Inject constructor(
     suspend fun setOnboarded(done: Boolean = true) = ds.edit { it[Keys.onboard] = done }
     suspend fun acceptDisclaimer() = ds.edit { it[Keys.disclaimer] = true }
     suspend fun setStartup(v: StartupScreen) = ds.edit { it[Keys.startup] = v.name }
+    suspend fun setSplashStyle(v: SplashStyle) = ds.edit { it[Keys.splashStyle] = v.name }
     suspend fun setGlass(v: GlassStyle) = ds.edit { it[Keys.glass] = v.name }
     suspend fun setPin(hash: String) = ds.edit { it[Keys.pin] = hash }
     suspend fun setHideAdult(v: Boolean) = ds.edit { it[Keys.hideAdult] = v }
@@ -741,6 +774,7 @@ class SettingsRepository @Inject constructor(
         val autoBackupInt = stringPreferencesKey("auto_backup_interval")
         val lastAutoBackup = longPreferencesKey("last_auto_backup_time")
         val layoutExplicit = booleanPreferencesKey("layout_explicit")
+        val splashStyle = stringPreferencesKey("splash_style")
     }
 
 

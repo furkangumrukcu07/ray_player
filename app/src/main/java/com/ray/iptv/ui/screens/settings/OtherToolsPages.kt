@@ -28,6 +28,7 @@ import androidx.compose.material.icons.filled.CloudDownload
 import androidx.compose.material.icons.filled.Devices
 import androidx.compose.material.icons.filled.Dns
 import androidx.compose.material.icons.filled.FontDownload
+import androidx.compose.material.icons.filled.FlashOn
 import androidx.compose.material.icons.filled.LiveTv
 import androidx.compose.material.icons.filled.Memory
 import androidx.compose.material.icons.filled.NetworkCheck
@@ -71,6 +72,7 @@ import com.ray.iptv.data.repo.LayoutMode
 import com.ray.iptv.data.repo.RaySettings
 import com.ray.iptv.ui.RayViewModel
 import com.ray.iptv.ui.components.GlassButton
+import com.ray.iptv.ui.components.SplashStylePickerDialog
 import com.ray.iptv.ui.glass.GlassPanel
 import com.ray.iptv.ui.input.AdaptiveHaptics
 import com.ray.iptv.ui.screens.onboarding.GlassField
@@ -185,6 +187,7 @@ private fun OtherToolsList(
     var sleepOpen by remember { mutableStateOf(false) }
     var fontOpen by remember { mutableStateOf(false) }
     var layoutOpen by remember { mutableStateOf(false) }
+    var splashOpen by remember { mutableStateOf(false) }
     var now by remember { mutableLongStateOf(System.currentTimeMillis()) }
     LaunchedEffect(settings.sleepUntilMs) {
         while (settings.sleepUntilMs > System.currentTimeMillis()) {
@@ -303,6 +306,14 @@ private fun OtherToolsList(
         }
         item {
             ToolsTile(
+                icon = Icons.Filled.FlashOn,
+                title = if (tr) "Açılış Ekranı (Splash)" else "Splash Screen",
+                subtitle = if (tr) settings.splashStyle.titleTr else settings.splashStyle.titleEn,
+                onClick = { splashOpen = true }
+            )
+        }
+        item {
+            ToolsTile(
                 icon = Icons.Filled.FontDownload,
                 title = if (tr) "Uygulama Fontu" else "App font",
                 subtitle = font.label,
@@ -310,6 +321,14 @@ private fun OtherToolsList(
             )
         }
         item { Spacer(Modifier.height(12.dp)) }
+    }
+    if (splashOpen) {
+        SplashStylePickerDialog(
+            tr = tr,
+            currentStyle = settings.splashStyle,
+            onDismiss = { splashOpen = false },
+            onSelect = { vm.setSplashStyle(it); splashOpen = false }
+        )
     }
     if (layoutOpen) {
         GlassChoiceDialog(

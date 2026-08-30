@@ -52,6 +52,7 @@ import com.ray.iptv.data.repo.ProfileRepository
 import com.ray.iptv.data.repo.RaySettings
 import com.ray.iptv.data.repo.SettingsRepository
 import com.ray.iptv.data.repo.StartupScreen
+import com.ray.iptv.data.repo.SplashStyle
 import com.ray.iptv.data.repo.StreamFormat
 import com.ray.iptv.data.repo.UserAgentPreset
 import com.ray.iptv.data.repo.VodInfoEngine
@@ -1346,6 +1347,7 @@ class RayViewModel @Inject constructor(
 
     fun setGlass(v: GlassStyle) = viewModelScope.launch { settingsRepo.setGlass(v) }
     fun setStartup(v: StartupScreen) = viewModelScope.launch { settingsRepo.setStartup(v) }
+    fun setSplashStyle(v: SplashStyle) = viewModelScope.launch { settingsRepo.setSplashStyle(v) }
     fun setPin(pin: String) = viewModelScope.launch {
         settingsRepo.setPin(if (pin.isBlank()) "" else ProfileRepository.hashPin(pin))
     }

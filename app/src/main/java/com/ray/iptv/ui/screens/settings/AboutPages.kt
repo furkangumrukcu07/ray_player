@@ -130,7 +130,7 @@ private fun AboutHomePage(
     val ctx = LocalContext.current
     val version = remember {
         runCatching { ctx.packageManager.getPackageInfo(ctx.packageName, 0).versionName }
-            .getOrNull().orEmpty().ifBlank { "1.3.15" }
+            .getOrNull().orEmpty().ifBlank { "1.3.17" }
     }
     val pkg = remember { ctx.packageName }
     val scope = rememberCoroutineScope()
@@ -239,7 +239,7 @@ private fun ContactUsPage(vm: RayViewModel, tr: Boolean, onBack: () -> Unit, onF
     val ctx = LocalContext.current
     val version = remember {
         runCatching { ctx.packageManager.getPackageInfo(ctx.packageName, 0).versionName }
-            .getOrNull().orEmpty().ifBlank { "1.3.15" }
+            .getOrNull().orEmpty().ifBlank { "1.3.17" }
     }
     LazyColumn(Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(10.dp)) {
         item {
@@ -776,7 +776,16 @@ private fun isStoreNewer(current: String, store: String): Boolean {
     return false
 }
 
-private const val rayChangelogTr = """v1.3.15
+private const val rayChangelogTr = """v1.3.17
+• Tam Cihaz & Yatay Mod (Landscape) Uyumluluğu: Açılış ekranları (Splash) ve seçim pencereleri Mobil (Dikey/Yatay), Tablet ve TV ekran çözünürlüklerine göre dinamik boyutlandırma ve akıcı yerleşim kazandı
+• Açılış Ekranı (Splash Screen) Temaları: Ayarlar > Diğer Araçlar altına Doğal Yeşil Cam, Siber Sinema ve Obsidyen Aurora açılış ekranı seçim menüsü eklendi
+• Görsel Önizlemeli Splash Seçici: Kullanıcılar açılış ekranlarını canlı küçük resim önizlemeleri ve açıklamalarıyla seçebilir
+• Sıfır Gecikmeli & Siyah Ekransız Akıcı Açılış: Splash ekranı doğrudan katman olarak işlenerek açılış ve kapanışta oluşan siyah ekran geçişleri tamamen ortadan kaldırıldı; ana ekrana ipeksi yumuşak geçiş sağlandı
+
+v1.3.16
+• Modern Açılış Ekranı (Splash Screen) entegrasyonu ve önizlemeli tema seçici desteği
+
+v1.3.15
 • Modern Dark Glass Pop-up Standardı: Tüm popup, diyalog, spotlight arama ve onay pencereleri ana temadan bağımsız olarak Mac / Apple TV Koyu Cam (Dark Glass) tasarımına sabitlendi
 • Kapsamlı Çoklu Dil Desteği: Bildirimler, Toast mesajları ve PIN pencereleri 34 dilin tamamına çevrilerek lokalize edildi
 
@@ -824,7 +833,16 @@ v1.0.0
 • Canlı TV, film, dizi, rehber, izlemeye devam
 • Better / MediaKit oynatıcı motorları, altyazı ve ebeveyn PIN"""
 
-private const val rayChangelogEn = """v1.3.15
+private const val rayChangelogEn = """v1.3.17
+• Full Device & Landscape Orientation Support: Splash screens and theme picker modal dynamically adapt to Mobile (Portrait/Landscape), Tablet, and TV screens with responsive scaling
+• Splash Screen Theme Customizer: Added choice between Natural Green Glass, Cyber Cinema, and Obsidian Aurora splash themes under Settings > Other Tools
+• Visual Preview Picker: Users can easily select startup themes with live thumbnail previews and design descriptions
+• Zero-Flash Seamless Transition: Splash screen is now rendered as a non-destructive layer overlay, completely eliminating black screen flashes during startup and fading smoothly into the main screen
+
+v1.3.16
+• Modern Splash Screen integration and visual preview theme customizer
+
+v1.3.15
 • Modern Dark Glass Pop-up Standards: Standardized all popups, dialogs, spotlight search, and confirmation modals to Apple TV / Mac Dark Glass aesthetic across all themes
 • Complete 34-Language Localization: Injected full native translations across all 34 supported languages for toast alerts, PIN overlays, and cloud restore previews
 

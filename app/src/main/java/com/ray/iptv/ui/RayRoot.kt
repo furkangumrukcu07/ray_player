@@ -75,6 +75,7 @@ import com.ray.iptv.ui.theme.RayTheme
 
 @Composable
 fun RayRoot(vm: RayViewModel = hiltViewModel()) {
+    var showSplash by rememberSaveable { mutableStateOf(true) }
     val settings by vm.settings.collectAsState()
     val settingsReady by vm.settingsReady.collectAsState()
     val strings = copy(settings.lang)
@@ -190,7 +191,6 @@ fun RayRoot(vm: RayViewModel = hiltViewModel()) {
         }
         val mobileLayout = settings.layoutMode == LayoutMode.MOBILE
         val tabletLayout = settings.layoutMode == LayoutMode.TABLET
-        var showSplash by rememberSaveable { mutableStateOf(true) }
 
         ImmersivePlayback(dest == Dest.PLAYER && playback != null && !mobileLayout)
 
@@ -210,7 +210,6 @@ fun RayRoot(vm: RayViewModel = hiltViewModel()) {
         ) {
         when {
             !settingsReady -> RayWallpaper()
-            showSplash -> RaySplashScreen(tr = settings.lang == AppLang.TR) { showSplash = false }
             !settings.onboardingDone -> OnboardingFlow(vm, strings)
             dest == Dest.PLAYER && playback != null && !mobileLayout && !tabletLayout -> RayPlayerRoute(vm, strings)
             mobileLayout -> MobileHost(vm, strings, requestExit)
@@ -485,7 +484,15 @@ fun RayRoot(vm: RayViewModel = hiltViewModel()) {
                 }
             }
         }
-}
+
+        if (showSplash) {
+            RaySplashScreen(
+                tr = settings.lang == AppLang.TR,
+                style = settings.splashStyle,
+                onFinished = { showSplash = false }
+            )
+        }
+    }
 
 @Composable
 private fun PinOverlay(cancel: String, onSubmit: (String) -> Boolean, onCancel: () -> Unit) {
