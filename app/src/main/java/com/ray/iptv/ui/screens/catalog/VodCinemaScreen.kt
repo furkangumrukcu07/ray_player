@@ -1531,7 +1531,7 @@ private fun PosterStrip(
     LaunchedEffect(items.size, onLoadMore) {
         snapshotFlow {
             val last = state.layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: 0
-            items.isNotEmpty() && last >= items.lastIndex - 8
+            items.isNotEmpty() && last >= items.lastIndex - 12
         }.distinctUntilChanged().collect { nearEnd ->
             if (nearEnd) onLoadMore()
         }
@@ -1546,11 +1546,16 @@ private fun PosterStrip(
             PosterTile(
                 item = item,
                 width = w,
-                onFocused = { onHover(item) },
+                onFocused = {
+                    onHover(item)
+                    if (index >= items.lastIndex - 12) {
+                        onLoadMore()
+                    }
+                },
                 onClick = { onOpen(item) },
                 onLeft = if (index == 0) onLeftFromFirst else null,
                 onDown = onExpandTo3Rows,
-                blockRight = index == items.lastIndex,
+                onRightAtEnd = onLoadMore,
                 focusRequester = if (takeFocus) firstFocus else null
             )
         }
@@ -1584,7 +1589,7 @@ private fun PosterStrip3Rows(
     LaunchedEffect(items.size, onLoadMore) {
         snapshotFlow {
             val last = gridState.layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: 0
-            items.isNotEmpty() && last >= items.lastIndex - 12
+            items.isNotEmpty() && last >= items.lastIndex - 18
         }.distinctUntilChanged().collect { nearEnd ->
             if (nearEnd) onLoadMore()
         }
@@ -1604,11 +1609,16 @@ private fun PosterStrip3Rows(
             PosterTile(
                 item = item,
                 width = w,
-                onFocused = { onHover(item) },
+                onFocused = {
+                    onHover(item)
+                    if (index >= items.lastIndex - 18) {
+                        onLoadMore()
+                    }
+                },
                 onClick = { onOpen(item) },
                 onLeft = if (isFirstCol) onLeftFromFirst else null,
                 onUp = if (isTopRow) onCollapseToSingleRow else null,
-                blockRight = index >= items.size - 3,
+                onRightAtEnd = onLoadMore,
                 focusRequester = if (takeFocus) firstFocus else null
             )
         }
@@ -1624,7 +1634,7 @@ private fun PosterTile(
     onLeft: (() -> Unit)? = null,
     onDown: (() -> Unit)? = null,
     onUp: (() -> Unit)? = null,
-    blockRight: Boolean = false,
+    onRightAtEnd: (() -> Unit)? = null,
     focusRequester: FocusRequester? = null
 ) {
     var focused by remember { mutableStateOf(false) }
@@ -1652,7 +1662,10 @@ private fun PosterTile(
                             onLeft != null && e.key == Key.DirectionLeft -> { onLeft(); true }
                             onDown != null && e.key == Key.DirectionDown -> { onDown(); true }
                             onUp != null && e.key == Key.DirectionUp -> { onUp(); true }
-                            blockRight && e.key == Key.DirectionRight -> true
+                            e.key == Key.DirectionRight -> {
+                                onRightAtEnd?.invoke()
+                                false
+                            }
                             else -> false
                         }
                     }

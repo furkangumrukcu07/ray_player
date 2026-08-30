@@ -508,30 +508,30 @@ https://test-streams.mux.dev/dai-discontinuity-deltatre/manifest.m3u8
     fun vodPageSize(): Int {
         val hints = AndroidPlaybackSocHints.get(context)
         return when {
-            hints.oneGiBRamClass -> 40
-            hints.playbackChallengedTv || hints.totalRamBytes < 2500L * 1024 * 1024 -> 60
-            hints.androidTv -> VOD_WINDOW_TV
-            else -> VOD_WINDOW
+            hints.oneGiBRamClass -> 120
+            hints.playbackChallengedTv || hints.totalRamBytes < 2500L * 1024 * 1024 -> 160
+            hints.androidTv -> 300
+            else -> 500
         }
     }
 
     fun liveBrowseCap(): Int {
         val hints = AndroidPlaybackSocHints.get(context)
         return when {
-            hints.oneGiBRamClass -> 500
-            hints.playbackChallengedTv || hints.totalRamBytes < 2500L * 1024 * 1024 -> 900
-            hints.androidTv -> 1600
-            else -> 4000
+            hints.oneGiBRamClass -> 1000
+            hints.playbackChallengedTv || hints.totalRamBytes < 2500L * 1024 * 1024 -> 2000
+            hints.androidTv -> 4000
+            else -> 8000
         }
     }
 
     fun vodBrowseCap(): Int {
         val hints = AndroidPlaybackSocHints.get(context)
         return when {
-            hints.oneGiBRamClass -> 250
-            hints.playbackChallengedTv || hints.totalRamBytes < 2500L * 1024 * 1024 -> 450
-            hints.androidTv -> 800
-            else -> 2000
+            hints.oneGiBRamClass -> 3000
+            hints.playbackChallengedTv || hints.totalRamBytes < 2500L * 1024 * 1024 -> 6000
+            hints.androidTv -> 12000
+            else -> 30000
         }
     }
 
