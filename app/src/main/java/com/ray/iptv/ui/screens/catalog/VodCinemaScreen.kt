@@ -767,7 +767,9 @@ private fun VodCinemaPane(
     var expandedRows by remember { mutableStateOf(false) }
 
     LaunchedEffect(pinned) {
-        if (pinned == null) {
+        if (pinned != null) {
+            expandedRows = false
+        } else {
             delay(100)
             runCatching { (firstFocus ?: restoreFocus).requestFocus() }
         }
@@ -827,7 +829,7 @@ private fun VodCinemaPane(
             } else {
                 Text(if (isSeries) copy.noSeries else copy.noMovies, color = g.muted)
             }
-            if (!expandedRows) {
+            if (pinned != null || !expandedRows) {
                 Spacer(Modifier.weight(1f))
             } else {
                 Spacer(Modifier.height(10.dp))
