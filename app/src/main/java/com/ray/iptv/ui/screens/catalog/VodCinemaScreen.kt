@@ -236,7 +236,7 @@ fun VodCinemaScreen(
             playFocus.tryFocus()
         }
     }
-    LaunchedEffect(showCategories, pinned?.id, railExpanded, contentFocusTrigger, categoryKeys.size, visible.size) {
+    LaunchedEffect(showCategories, pinned?.id, railExpanded, contentFocusTrigger) {
         if (showCategories && pinned == null && !railExpanded) {
             delay(20)
             if (targetCatIndex in 0 until categoryKeys.size) {

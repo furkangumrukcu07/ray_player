@@ -129,6 +129,7 @@ fun LiveScreen(
     val selectedCatFocus = remember { FocusRequester() }
     val listFocus = remember { FocusRequester() }
     val catListState = rememberLazyListState()
+    val channelListState = rememberLazyListState()
     val scope = rememberCoroutineScope()
     var hovered by remember { mutableStateOf<ChannelEntity?>(null) }
     var catMenu by remember { mutableStateOf<CategoryEntity?>(null) }
@@ -184,6 +185,11 @@ fun LiveScreen(
         }
     }
 
+    LaunchedEffect(selectedCategory) {
+        hovered = null
+        runCatching { channelListState.scrollToItem(0) }
+    }
+
     LaunchedEffect(channels.size, channels.firstOrNull()?.id, channels.lastOrNull()?.id) {
         onLoadNowMap(channels.map { it.id })
         if (hovered == null || channels.none { it.id == hovered?.id }) {
@@ -205,7 +211,7 @@ fun LiveScreen(
             }
         }
     }
-    LaunchedEffect(showCategories, railExpanded, contentFocusTrigger, categoryKeys.size, channels.size) {
+    LaunchedEffect(showCategories, railExpanded, contentFocusTrigger) {
         if (showCategories && !railExpanded && !pendingChannelFocus) {
             delay(20)
             if (targetCatIndex in 0 until categoryKeys.size) {
@@ -318,6 +324,7 @@ fun LiveScreen(
                     onLeftFromChannel = focusToSelectedCategory,
                     onLoadMore = onLoadMore,
                     listFocus = listFocus,
+                    listState = channelListState,
                     modifier = Modifier.fillMaxSize()
                 )
             }
@@ -346,6 +353,7 @@ private fun LiveMinaPanel(
     onLeftFromChannel: () -> Unit,
     onLoadMore: () -> Unit = {},
     listFocus: FocusRequester? = null,
+    listState: LazyListState = rememberLazyListState(),
     modifier: Modifier = Modifier
 ) {
     BoxWithConstraints(modifier) {
@@ -406,6 +414,7 @@ private fun LiveMinaPanel(
                     onLeft = onLeftFromChannel,
                     onLoadMore = onLoadMore,
                     listFocus = listFocus,
+                    listState = listState,
                     modifier = Modifier.weight(1f).fillMaxWidth()
                 )
             }
@@ -587,10 +596,10 @@ private fun LiveGuide(
     onLeft: () -> Unit,
     onLoadMore: () -> Unit = {},
     listFocus: FocusRequester? = null,
+    listState: LazyListState = rememberLazyListState(),
     modifier: Modifier = Modifier
 ) {
     val g = LocalGlass.current
-    val listState = rememberLazyListState()
     LaunchedEffect(channels.size, onLoadMore) {
         snapshotFlow {
             val last = listState.layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: 0
@@ -691,8 +700,7 @@ private fun LiveGuide(
                     onLeft = onLeft,
                     isFirst = index == 0,
                     isLast = index == channels.lastIndex,
-                    focusRequester = if (ch.id == hoveredId || (hoveredId == null && index == 0) || (channels.none { it.id == hoveredId } && index == 0)) listFocus else null
-
+                    focusRequester = if (index == 0) listFocus else null
                 )
 
             }
