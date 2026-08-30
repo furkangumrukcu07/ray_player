@@ -1225,25 +1225,38 @@ private fun VodInfo(
     val plotH = (LocalConfiguration.current.screenHeightDp * 0.22f).dp.coerceIn(80.dp, 180.dp)
     Column(modifier) {
         if (compact) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(10.dp)
-            ) {
-                Text(
-                    title,
-                    color = g.text,
-                    style = MaterialTheme.typography.titleLarge.copy(
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 20.sp
-                    ),
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-                if (badges.isNotEmpty()) {
-                    Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                        badges.take(3).forEach { MetaChip(it) }
+            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    Text(
+                        title,
+                        color = g.text,
+                        style = MaterialTheme.typography.titleLarge.copy(
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 19.sp
+                        ),
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                    if (badges.isNotEmpty()) {
+                        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                            badges.take(3).forEach { MetaChip(it) }
+                        }
                     }
                 }
+                val body = plot.ifBlank { copy.noPlot }
+                Text(
+                    body,
+                    color = Color.White.copy(alpha = 0.85f),
+                    style = MaterialTheme.typography.bodyMedium.copy(
+                        fontSize = 12.sp,
+                        lineHeight = 16.sp
+                    ),
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis
+                )
             }
         } else {
             Text(
@@ -1251,36 +1264,36 @@ private fun VodInfo(
                 color = g.text,
                 style = MaterialTheme.typography.headlineLarge.copy(
                     fontWeight = FontWeight.ExtraBold,
-                    fontSize = if (pinned) 32.sp else 28.sp,
+                    fontSize = if (pinned) 30.sp else 25.sp,
                     letterSpacing = (-0.3).sp,
-                    lineHeight = if (pinned) 34.sp else 30.sp
+                    lineHeight = if (pinned) 32.sp else 28.sp
                 ),
                 maxLines = if (pinned) 3 else 2,
                 overflow = TextOverflow.Ellipsis
             )
             if (subtitle != null) {
-                Spacer(Modifier.height(6.dp))
+                Spacer(Modifier.height(4.dp))
                 Text(
                     subtitle,
                     color = g.accent,
                     style = MaterialTheme.typography.titleMedium.copy(
                         fontWeight = FontWeight.Bold,
                         letterSpacing = 2.4.sp,
-                        fontSize = if (pinned) 15.sp else 13.5.sp
+                        fontSize = if (pinned) 14.sp else 13.sp
                     ),
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
             }
             if (badges.isNotEmpty()) {
-                Spacer(Modifier.height(14.dp))
+                Spacer(Modifier.height(10.dp))
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     badges.forEach { MetaChip(it) }
                 }
             }
             val awards = extras?.awards?.takeIf { it.isNotBlank() && it.uppercase() != "N/A" }
             if (pinned && awards != null) {
-                Spacer(Modifier.height(8.dp))
+                Spacer(Modifier.height(6.dp))
                 Text(
                     "🏆 $awards",
                     color = g.accent.copy(alpha = 0.92f),
@@ -1289,24 +1302,24 @@ private fun VodInfo(
             }
             val body = plot.ifBlank { copy.noPlot }
             if (pinned) {
-                Spacer(Modifier.height(16.dp))
+                Spacer(Modifier.height(12.dp))
                 AutoScrollPlot(
                     text = body,
                     modifier = Modifier.height(plotH)
                 )
                 if (includeCast && people.isNotEmpty()) {
-                    Spacer(Modifier.height(16.dp))
+                    Spacer(Modifier.height(12.dp))
                     CastStrip(people)
                 }
             } else {
-                Spacer(Modifier.height(14.dp))
+                Spacer(Modifier.height(10.dp))
                 Text(
                     body,
-                    color = Color.White.copy(alpha = 0.88f),
-                    style = MaterialTheme.typography.bodyLarge.copy(
-                        fontSize = 13.sp,
-                        fontWeight = FontWeight.Medium,
-                        lineHeight = 18.sp
+                    color = Color.White.copy(alpha = 0.90f),
+                    style = MaterialTheme.typography.bodyMedium.copy(
+                        fontSize = 12.5.sp,
+                        fontWeight = FontWeight.Normal,
+                        lineHeight = 17.5.sp
                     ),
                     maxLines = 4,
                     overflow = TextOverflow.Ellipsis
@@ -1521,10 +1534,10 @@ private fun PosterStrip(
     focusId: String? = null
 ) {
     val g = LocalGlass.current
-    val w = if (compact) 95.dp else 115.dp
+    val w = if (compact) 72.dp else 88.dp
     val state = rememberLazyListState()
     if (items.isEmpty()) {
-        Box(Modifier.height(if (compact) 140.dp else 180.dp).fillMaxWidth(), contentAlignment = Alignment.Center) {
+        Box(Modifier.height(if (compact) 115.dp else 145.dp).fillMaxWidth(), contentAlignment = Alignment.Center) {
             Text(empty, color = g.muted)
         }
         return
@@ -1542,8 +1555,8 @@ private fun PosterStrip(
     }
     LazyRow(
         state = state,
-        horizontalArrangement = Arrangement.spacedBy(14.dp),
-        contentPadding = PaddingValues(start = 6.dp, top = 6.dp, bottom = 10.dp, end = 24.dp)
+        horizontalArrangement = Arrangement.spacedBy(10.dp),
+        contentPadding = PaddingValues(start = 4.dp, top = 4.dp, bottom = 8.dp, end = 20.dp)
     ) {
         itemsIndexed(items, key = { _, v -> v.id }) { index, item ->
             val takeFocus = firstFocus != null && index == focusIndex
@@ -1580,9 +1593,9 @@ private fun PosterStrip2Rows(
 ) {
     val g = LocalGlass.current
     val gridState = rememberLazyGridState()
-    val w = 110.dp
+    val w = 82.dp
     if (items.isEmpty()) {
-        Box(Modifier.height(300.dp).fillMaxWidth(), contentAlignment = Alignment.Center) {
+        Box(Modifier.height(250.dp).fillMaxWidth(), contentAlignment = Alignment.Center) {
             Text(empty, color = g.muted)
         }
         return
@@ -1601,10 +1614,10 @@ private fun PosterStrip2Rows(
     LazyHorizontalGrid(
         rows = GridCells.Fixed(2),
         state = gridState,
-        horizontalArrangement = Arrangement.spacedBy(14.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp),
-        contentPadding = PaddingValues(start = 6.dp, top = 6.dp, bottom = 10.dp, end = 24.dp),
-        modifier = Modifier.fillMaxWidth().height(360.dp)
+        horizontalArrangement = Arrangement.spacedBy(10.dp),
+        verticalArrangement = Arrangement.spacedBy(10.dp),
+        contentPadding = PaddingValues(start = 4.dp, top = 4.dp, bottom = 8.dp, end = 20.dp),
+        modifier = Modifier.fillMaxWidth().height(290.dp)
     ) {
         gridItemsIndexed(items, key = { _, v -> v.id }) { index, item ->
             val takeFocus = firstFocus != null && index == focusIndex
@@ -1644,24 +1657,24 @@ private fun PosterTile(
     var focused by remember { mutableStateOf(false) }
     val g = LocalGlass.current
     val scale by animateFloatAsState(
-        targetValue = if (focused) 1.15f else 1.0f,
+        targetValue = if (focused) 1.12f else 1.0f,
         animationSpec = tween(140),
         label = "poster-scale"
     )
 
     val borderModifier = if (focused) {
         Modifier.border(
-            width = 2.5.dp,
+            width = 2.dp,
             brush = Brush.horizontalGradient(
                 listOf(Color(0xFF00F0FF), Color(0xFF38BDF8), Color(0xFF67E8F9))
             ),
-            shape = RoundedCornerShape(12.dp)
+            shape = RoundedCornerShape(10.dp)
         )
     } else {
         Modifier.border(
             width = 0.8.dp,
             color = Color.White.copy(alpha = 0.12f),
-            shape = RoundedCornerShape(12.dp)
+            shape = RoundedCornerShape(10.dp)
         )
     }
 
@@ -1669,19 +1682,19 @@ private fun PosterTile(
         modifier = Modifier
             .width(width)
             .scale(scale)
-            .padding(vertical = 4.dp)
+            .padding(vertical = 2.dp)
     ) {
         Box(
             Modifier
                 .fillMaxWidth()
                 .aspectRatio(2f / 3f)
-                .clip(RoundedCornerShape(12.dp))
+                .clip(RoundedCornerShape(10.dp))
                 .then(borderModifier)
                 .background(g.panelStrong)
         ) {
             GlassPanel(
                 focused = focused,
-                radius = 12.dp,
+                radius = 10.dp,
                 onClick = onClick,
                 modifier = Modifier
                     .fillMaxSize()
@@ -1723,24 +1736,24 @@ private fun PosterTile(
                         Text(
                             item.name.take(1),
                             color = g.muted,
-                            fontSize = 22.sp,
+                            fontSize = 18.sp,
                             fontWeight = FontWeight.Bold
                         )
                     }
                 }
             }
         }
-        Spacer(Modifier.height(5.dp))
+        Spacer(Modifier.height(4.dp))
         Text(
             text = item.name,
             color = if (focused) Color(0xFF00F0FF) else Color.White.copy(alpha = 0.85f),
             style = MaterialTheme.typography.bodySmall.copy(
-                fontSize = 12.sp,
+                fontSize = 11.sp,
                 fontWeight = if (focused) FontWeight.Bold else FontWeight.Medium
             ),
             maxLines = 2,
             minLines = 2,
-            lineHeight = 15.sp,
+            lineHeight = 13.5.sp,
             overflow = TextOverflow.Ellipsis,
             modifier = Modifier.fillMaxWidth().padding(horizontal = 2.dp)
         )
