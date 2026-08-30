@@ -403,6 +403,15 @@ fun RayRoot(vm: RayViewModel = hiltViewModel()) {
                             onCatchup = { ch, p -> vm.playCatchup(ch, p) }
                         )
                         Dest.CHAT, Dest.ADMIN -> Unit
+                        Dest.PAYWALL -> {
+                            val licensingState by vm.licensingState.collectAsState()
+                            com.ray.iptv.ui.screens.paywall.RayPaywallScreen(
+                                licensingState = licensingState,
+                                copy = strings,
+                                onRedeemCode = vm::redeemLicenseCode,
+                                onDismiss = { vm.go(Dest.CONTINUE) }
+                            )
+                        }
                     }
                     }
                 }

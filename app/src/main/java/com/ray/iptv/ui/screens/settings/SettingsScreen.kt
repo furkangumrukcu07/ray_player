@@ -550,25 +550,30 @@ private fun Hub(
         )
     }
     if (subOpen) {
-        val status = settings.xtreamStatus.ifBlank { if (tr) "Premium Aktif (Sınırsız)" else "Premium Active (Lifetime)" }
+        val licensing by vm.licensingState.collectAsState()
+        var showRedeem by remember { mutableStateOf(false) }
         val email = if (account.signedIn) account.email.ifBlank { "" } else ""
         LicenseDetailsDialog(
             tr = tr,
             email = email,
-            licenseStatus = status,
-            isExempt = false,
-            deviceCount = 0,
-            maxDevices = 999,
-            purchaseDate = "6 Haz 2026 02:42",
-            onBuyCoffee = {
+            licensing = licensing,
+            onRedeemClick = { showRedeem = true },
+            onBuyPlayStore = {
                 android.widget.Toast.makeText(
                     ctx,
-                    if (tr) "☕ Kahve ısmarlama / abonelik sistemi yakında aktifleşecek!" else "☕ Donation & subscription system coming soon!",
+                    if (tr) "Google Play satın alma yakında aktifleşecek!" else "Google Play in-app purchase coming soon!",
                     android.widget.Toast.LENGTH_SHORT
                 ).show()
             },
             onDismiss = { subOpen = false }
         )
+
+        if (showRedeem) {
+            com.ray.iptv.ui.screens.paywall.RedeemLicenseDialog(
+                onDismiss = { showRedeem = false },
+                onRedeem = vm::redeemLicenseCode
+            )
+        }
     }
     if (delAcc) {
         GlassConfirmDialog(
@@ -585,12 +590,9 @@ private fun Hub(
 fun LicenseDetailsDialog(
     tr: Boolean,
     email: String,
-    licenseStatus: String,
-    isExempt: Boolean,
-    deviceCount: Int,
-    maxDevices: Int,
-    purchaseDate: String,
-    onBuyCoffee: () -> Unit,
+    licensing: com.ray.iptv.data.repo.LicensingState,
+    onRedeemClick: () -> Unit,
+    onBuyPlayStore: () -> Unit,
     onDismiss: () -> Unit
 ) {
     Dialog(onDismissRequest = onDismiss) {
@@ -632,29 +634,33 @@ fun LicenseDetailsDialog(
                         fontSize = 14.sp
                     )
                     Text(
-                        licenseStatus,
-                        color = Color(0xFF4ADE80),
+                        if (licensing.isPremium) (if (tr) "Premium Aktif (Ömür Boyu)" else "Premium Active (Lifetime)")
+                        else if (licensing.isTrialActive) (if (tr) "4 Günlük Deneme Aktif" else "4-Day Trial Active")
+                        else (if (tr) "Deneme Süresi Sona Erdi" else "Trial Expired"),
+                        color = if (licensing.isPremium || licensing.isTrialActive) Color(0xFF4ADE80) else Color(0xFFEF4444),
                         fontSize = 14.sp,
                         fontWeight = FontWeight.Bold
                     )
                 }
 
-                Row(
-                    Modifier.fillMaxWidth().padding(vertical = 4.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text(
-                        if (tr) "Muafiyet Durumu:" else "Exemption Status:",
-                        color = Color.White.copy(alpha = 0.85f),
-                        fontSize = 14.sp
-                    )
-                    Text(
-                        if (isExempt) (if (tr) "Evet" else "Yes") else (if (tr) "Hayır" else "No"),
-                        color = Color.White,
-                        fontSize = 14.sp,
-                        fontWeight = FontWeight.SemiBold
-                    )
+                if (!licensing.isPremium && licensing.isTrialActive) {
+                    Row(
+                        Modifier.fillMaxWidth().padding(vertical = 4.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            if (tr) "Kalan Deneme Süresi:" else "Trial Remaining:",
+                            color = Color.White.copy(alpha = 0.85f),
+                            fontSize = 14.sp
+                        )
+                        Text(
+                            licensing.trialRemainingFormatted,
+                            color = Color(0xFF22D3EE),
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
                 }
 
                 Row(
@@ -668,25 +674,7 @@ fun LicenseDetailsDialog(
                         fontSize = 14.sp
                     )
                     Text(
-                        "$deviceCount / $maxDevices",
-                        color = Color.White,
-                        fontSize = 14.sp,
-                        fontWeight = FontWeight.SemiBold
-                    )
-                }
-
-                Row(
-                    Modifier.fillMaxWidth().padding(vertical = 4.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text(
-                        if (tr) "Lisans Alım Tarihi:" else "Purchase Date:",
-                        color = Color.White.copy(alpha = 0.85f),
-                        fontSize = 14.sp
-                    )
-                    Text(
-                        purchaseDate,
+                        "${licensing.deviceCount} / ${licensing.maxDevices}",
                         color = Color.White,
                         fontSize = 14.sp,
                         fontWeight = FontWeight.SemiBold
@@ -695,22 +683,46 @@ fun LicenseDetailsDialog(
 
                 Spacer(Modifier.height(18.dp))
 
-                Box(
-                    Modifier
-                        .fillMaxWidth()
-                        .clip(RoundedCornerShape(14.dp))
-                        .background(Color(0xFF262012).copy(alpha = 0.6f))
-                        .border(1.2.dp, Color(0xFFF59E0B), RoundedCornerShape(14.dp))
-                        .rayClickable(onClick = onBuyCoffee)
-                        .padding(vertical = 12.dp),
-                    contentAlignment = Alignment.Center
+                // Action buttons
+                Row(
+                    Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    Text(
-                        text = if (tr) "☕  Bana Bir Kahve Ismarla ☕" else "☕  Buy Me a Coffee ☕",
-                        color = Color(0xFFFBBF24),
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 14.sp
-                    )
+                    Box(
+                        Modifier
+                            .weight(1f)
+                            .clip(RoundedCornerShape(12.dp))
+                            .background(Color(0xFF0F766E).copy(alpha = 0.5f))
+                            .border(1.dp, Color(0xFF2DD4BF), RoundedCornerShape(12.dp))
+                            .rayClickable(onClick = onRedeemClick)
+                            .padding(vertical = 10.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = if (tr) "🔑 Kod Etkinleştir" else "🔑 Redeem Code",
+                            color = Color.White,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 13.sp
+                        )
+                    }
+
+                    Box(
+                        Modifier
+                            .weight(1f)
+                            .clip(RoundedCornerShape(12.dp))
+                            .background(Color(0xFF262012).copy(alpha = 0.6f))
+                            .border(1.dp, Color(0xFFF59E0B), RoundedCornerShape(12.dp))
+                            .rayClickable(onClick = onBuyPlayStore)
+                            .padding(vertical = 10.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = if (tr) "⭐ Premium Satın Al" else "⭐ Buy Premium",
+                            color = Color(0xFFFBBF24),
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 13.sp
+                        )
+                    }
                 }
 
                 Spacer(Modifier.height(16.dp))

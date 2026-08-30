@@ -40,10 +40,22 @@ service cloud.firestore {
       allow update: if false;
     }
 
+    // ⏱️ CİHAZ DENEME SÜRELERİ (TRIAL & ANTI-RESET)
+    match /device_trials/{hardwareId} {
+      allow read, write: if true;
+    }
+
+    // 🔑 KULLANICI LİSANSLARI & ÇOKLU CİHAZ (USER LICENSES)
+    match /user_licenses/{userId} {
+      allow read: if request.auth != null;
+      allow write: if isOwner(userId) || isAppAdmin();
+    }
+
     // 🔑 LİSANS AKTİVASYON KODLARI
-    // Yalnızca Admin oluşturabilir, düzenleyebilir ve silebilir.
+    // Yalnızca Admin oluşturabilir, düzenleyebilir ve silebilir. Kullanıcılar kod doğrulama için okuyabilir.
     match /license_codes/{codeId} {
-      allow read, write: if isAppAdmin();
+      allow read: if request.auth != null;
+      allow write: if isAppAdmin();
     }
 
     // 📢 DUYURULAR & BİLDİRİMLER

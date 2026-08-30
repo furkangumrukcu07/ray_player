@@ -111,8 +111,14 @@ class RayViewModel @Inject constructor(
     val firebaseService: com.ray.iptv.data.firebase.FirebaseService,
     val openSubtitles: com.ray.iptv.data.meta.OpenSubtitlesService,
     val speedTestService: com.ray.iptv.net.SpeedTestService,
-    val dataUsageService: com.ray.iptv.net.DataUsageService
+    val dataUsageService: com.ray.iptv.net.DataUsageService,
+    val licensingRepo: com.ray.iptv.data.repo.LicensingRepository
 ) : ViewModel() {
+
+    val licensingState: StateFlow<com.ray.iptv.data.repo.LicensingState> = licensingRepo.state
+
+    fun refreshLicensing() = viewModelScope.launch { licensingRepo.refresh() }
+    suspend fun redeemLicenseCode(code: String): Result<String> = licensingRepo.redeemLicenseCode(code)
 
     private val settingsHydrated = MutableStateFlow(false)
     val settingsReady: StateFlow<Boolean> = settingsHydrated
@@ -438,7 +444,7 @@ class RayViewModel @Inject constructor(
                     seriesPhase.value = LiveBrowsePhase.CATEGORIES
                 }
                 Dest.PLAYLISTS, Dest.SETTINGS, Dest.CATCHUP -> railExpanded.value = false
-                Dest.CONTINUE, Dest.WRAPPED, Dest.EPG_MIX, Dest.CHAT, Dest.ADMIN -> railExpanded.value = true
+                Dest.CONTINUE, Dest.WRAPPED, Dest.EPG_MIX, Dest.CHAT, Dest.ADMIN, Dest.PAYWALL -> railExpanded.value = true
                 Dest.PLAYER -> Unit
             }
             if (s.startup == StartupScreen.GUIDE) dest.value = Dest.CATCHUP
@@ -587,7 +593,7 @@ class RayViewModel @Inject constructor(
                 closeDetail()
             }
             Dest.PLAYLISTS, Dest.SETTINGS, Dest.CONTINUE, Dest.CATCHUP -> railExpanded.value = false
-            Dest.WRAPPED, Dest.EPG_MIX, Dest.CHAT, Dest.ADMIN -> railExpanded.value = true
+            Dest.WRAPPED, Dest.EPG_MIX, Dest.CHAT, Dest.ADMIN, Dest.PAYWALL -> railExpanded.value = true
             Dest.PLAYER -> Unit
         }
     }

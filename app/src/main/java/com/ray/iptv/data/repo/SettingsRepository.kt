@@ -16,7 +16,7 @@ import com.ray.iptv.R
 import javax.inject.Inject
 import javax.inject.Singleton
 
-private val Context.rayStore by preferencesDataStore("ray_settings")
+val Context.rayStore by preferencesDataStore("ray_settings")
 
 enum class StartupScreen { HOME, LIVE, MOVIES, SERIES, GUIDE }
 enum class SplashStyle(

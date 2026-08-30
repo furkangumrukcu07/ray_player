@@ -4,7 +4,7 @@ import com.ray.iptv.data.local.ChannelEntity
 import com.ray.iptv.data.local.EpgEntity
 
 enum class Dest {
-    LIVE, MOVIES, SERIES, CONTINUE, PLAYLISTS, CATCHUP, SETTINGS, PLAYER, WRAPPED, EPG_MIX, CHAT, ADMIN
+    LIVE, MOVIES, SERIES, CONTINUE, PLAYLISTS, CATCHUP, SETTINGS, PLAYER, WRAPPED, EPG_MIX, CHAT, ADMIN, PAYWALL
 }
 
 data class NextUpPrompt(
