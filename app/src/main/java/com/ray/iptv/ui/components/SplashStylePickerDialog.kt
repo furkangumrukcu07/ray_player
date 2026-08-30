@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -186,33 +187,98 @@ fun SplashStylePickerDialog(
                                         Box(
                                             modifier = Modifier
                                                 .size(
-                                                    width = if (isCompactHeight) 52.dp else 64.dp,
-                                                    height = if (isCompactHeight) 60.dp else 74.dp
+                                                    width = if (isCompactHeight) 56.dp else 68.dp,
+                                                    height = if (isCompactHeight) 62.dp else 76.dp
                                                 )
                                                 .clip(RoundedCornerShape(10.dp))
-                                                .border(1.dp, Color.White.copy(alpha = 0.18f), RoundedCornerShape(10.dp)),
+                                                .border(1.dp, Color.White.copy(alpha = 0.20f), RoundedCornerShape(10.dp)),
                                             contentAlignment = Alignment.Center
                                         ) {
+                                            // Natural blurred leaf background for all
                                             Image(
-                                                painter = painterResource(id = style.drawableRes),
+                                                painter = painterResource(id = R.drawable.splash_nature_bg),
                                                 contentDescription = null,
                                                 contentScale = ContentScale.Crop,
                                                 modifier = Modifier.fillMaxSize()
                                             )
-                                            // Mini Glass Scrim
+                                            // Mini Scrim
                                             Box(
                                                 modifier = Modifier
                                                     .fillMaxSize()
-                                                    .background(Color.Black.copy(alpha = 0.30f))
+                                                    .background(Color.Black.copy(alpha = 0.25f))
                                             )
-                                            // Mini App Logo in center
-                                            Image(
-                                                painter = painterResource(id = R.drawable.ic_ray_splash_logo),
-                                                contentDescription = null,
-                                                modifier = Modifier
-                                                    .size(if (isCompactHeight) 22.dp else 28.dp)
-                                                    .clip(RoundedCornerShape(6.dp))
-                                            )
+
+                                            // Concept-specific micro preview
+                                            when (style) {
+                                                SplashStyle.DARK_GLASS_CARD -> {
+                                                    // Mini Center Card
+                                                    Box(
+                                                        modifier = Modifier
+                                                            .size(if (isCompactHeight) 42.dp else 50.dp)
+                                                            .clip(RoundedCornerShape(8.dp))
+                                                            .background(Color(0xD910131B))
+                                                            .border(1.dp, Color(0xFF64D2FF).copy(alpha = 0.8f), RoundedCornerShape(8.dp)),
+                                                        contentAlignment = Alignment.Center
+                                                    ) {
+                                                        Image(
+                                                            painter = painterResource(id = R.drawable.ic_ray_splash_logo),
+                                                            contentDescription = null,
+                                                            modifier = Modifier
+                                                                .size(if (isCompactHeight) 22.dp else 26.dp)
+                                                                .clip(RoundedCornerShape(5.dp))
+                                                        )
+                                                    }
+                                                }
+                                                SplashStyle.MINIMAL_NEON_PULSE -> {
+                                                    // Mini Free Floating Logo with Neon Glow Ring
+                                                    Box(
+                                                        modifier = Modifier
+                                                            .size(if (isCompactHeight) 44.dp else 52.dp)
+                                                            .border(1.dp, Color(0xFF00F0FF).copy(alpha = 0.7f), CircleShape),
+                                                        contentAlignment = Alignment.Center
+                                                    ) {
+                                                        Image(
+                                                            painter = painterResource(id = R.drawable.ic_ray_splash_logo),
+                                                            contentDescription = null,
+                                                            modifier = Modifier
+                                                                .size(if (isCompactHeight) 24.dp else 28.dp)
+                                                                .clip(RoundedCornerShape(6.dp))
+                                                        )
+                                                    }
+                                                }
+                                                SplashStyle.GLASS_CAPSULE_PROGRESS -> {
+                                                    // Mini Logo + Bottom Progress Line
+                                                    Column(
+                                                        horizontalAlignment = Alignment.CenterHorizontally,
+                                                        verticalArrangement = Arrangement.Center,
+                                                        modifier = Modifier.fillMaxSize().padding(horizontal = 4.dp)
+                                                    ) {
+                                                        Image(
+                                                            painter = painterResource(id = R.drawable.ic_ray_splash_logo),
+                                                            contentDescription = null,
+                                                            modifier = Modifier
+                                                                .size(if (isCompactHeight) 20.dp else 24.dp)
+                                                                .clip(RoundedCornerShape(5.dp))
+                                                        )
+                                                        Spacer(Modifier.height(4.dp))
+                                                        Box(
+                                                            modifier = Modifier
+                                                                .fillMaxWidth()
+                                                                .height(5.dp)
+                                                                .clip(RoundedCornerShape(3.dp))
+                                                                .background(Color(0xD910131B))
+                                                                .border(0.5.dp, Color(0xFF4EECD2).copy(alpha = 0.8f), RoundedCornerShape(3.dp))
+                                                        ) {
+                                                            Box(
+                                                                modifier = Modifier
+                                                                    .fillMaxWidth(0.65f)
+                                                                    .fillMaxHeight()
+                                                                    .background(Color(0xFF4EECD2))
+                                                            )
+                                                        }
+                                                    }
+                                                }
+                                            }
                                         }
 
                                         Spacer(Modifier.width(12.dp))

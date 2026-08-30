@@ -23,29 +23,25 @@ enum class SplashStyle(
     val titleTr: String,
     val titleEn: String,
     val subtitleTr: String,
-    val subtitleEn: String,
-    val drawableRes: Int
+    val subtitleEn: String
 ) {
-    NATURE_GLASS(
-        "Doğal Yeşil Cam",
-        "Natural Green Glass",
-        "Bulanıklaştırılmış yeşil yaprak ve Dark Glass kartı (Varsayılan)",
-        "Blurred green leaf nature with Dark Glass card (Default)",
-        R.drawable.splash_nature_bg
+    DARK_GLASS_CARD(
+        "Koyu Cam Kartı",
+        "Dark Glass Card",
+        "Füme cam merkez kartı, parlayan logo ve durum kapsülü (Varsayılan)",
+        "Center dark glass card, pulsing neon logo and status capsule (Default)"
     ),
-    CYBER_CINEMA(
-        "Siber Sinema",
-        "Cyber Cinema",
-        "Obsidyen zemin ve dikey camgöbeği lazer ışıması",
-        "Obsidian black with vertical cyan laser light beam",
-        R.drawable.splash_cyber_bg
+    MINIMAL_NEON_PULSE(
+        "Minimalist Neon",
+        "Minimalist Neon",
+        "Kartsız serbest yüzen parlayan logo, çift neon halka ve saf tipografi",
+        "Floating glowing logo with dual neon ripples and pure typography"
     ),
-    OBSIDIAN_AURORA(
-        "Obsidyen Aurora",
-        "Obsidian Aurora",
-        "Karanlık kadife zemin üzerinde turkuaz dalga aurora",
-        "Dark velvet backdrop with turquoise wave aurora",
-        R.drawable.splash_aurora_bg
+    GLASS_CAPSULE_PROGRESS(
+        "Cam Kapsül & İlerleme",
+        "Glass Capsule & Progress",
+        "Geniş yatay cam kapsül ve akıcı neon ilerleme çizgisi",
+        "Wide horizontal glass capsule with smooth neon progress line"
     )
 }
 enum class GlassStyle {
@@ -167,7 +163,7 @@ data class RaySettings(
     val onboardingDone: Boolean = false,
     val disclaimerAccepted: Boolean = false,
     val startup: StartupScreen = StartupScreen.HOME,
-    val splashStyle: SplashStyle = SplashStyle.NATURE_GLASS,
+    val splashStyle: SplashStyle = SplashStyle.DARK_GLASS_CARD,
     val glass: GlassStyle = GlassStyle.DARK,
     val parentalPinHash: String = "",
     val hideAdult: Boolean = true,
@@ -283,7 +279,15 @@ class SettingsRepository @Inject constructor(
             onboardingDone = p[Keys.onboard] ?: false,
             disclaimerAccepted = p[Keys.disclaimer] ?: false,
             startup = parseEnum(p[Keys.startup], StartupScreen.HOME),
-            splashStyle = parseEnum(p[Keys.splashStyle], SplashStyle.NATURE_GLASS),
+            splashStyle = runCatching {
+                val raw = p[Keys.splashStyle]
+                when (raw) {
+                    "NATURE_GLASS" -> SplashStyle.DARK_GLASS_CARD
+                    "CYBER_CINEMA" -> SplashStyle.MINIMAL_NEON_PULSE
+                    "OBSIDIAN_AURORA" -> SplashStyle.GLASS_CAPSULE_PROGRESS
+                    else -> SplashStyle.valueOf(raw ?: SplashStyle.DARK_GLASS_CARD.name)
+                }
+            }.getOrDefault(SplashStyle.DARK_GLASS_CARD),
             glass = parseEnum(p[Keys.glass], GlassStyle.DARK),
             parentalPinHash = p[Keys.pin].orEmpty(),
             hideAdult = p[Keys.hideAdult] ?: true,
