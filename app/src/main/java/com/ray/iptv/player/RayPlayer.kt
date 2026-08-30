@@ -74,7 +74,7 @@ class RayPlayer @Inject constructor(
     private val okHttp: OkHttpClient
 ) {
     private var softwareDecoder = false
-    private var liveBufferSeconds = 0
+    private var liveBufferSeconds = 3
     private var subtitleAuto = false
     private var preferredSubtitleToken = ""
     private var subtitleUserPicked = false

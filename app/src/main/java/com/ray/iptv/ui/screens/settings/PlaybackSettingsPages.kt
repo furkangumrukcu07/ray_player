@@ -147,7 +147,9 @@ private fun PlaybackSettingsList(
         StreamFormat.TS -> if (tr) "MPEG-TS (.ts) · Hızlı" else "MPEG-TS (.ts) · Fast"
         else -> if (tr) "HLS (.m3u8) · Kararlı (Varsayılan)" else "HLS (.m3u8) · Stable (Default)"
     }
-    val bufferSub = if (settings.liveBufferSeconds == 0) {
+    val bufferSub = if (settings.liveBufferSeconds == 3) {
+        if (tr) "3 saniye · Varsayılan" else "3 seconds · Default"
+    } else if (settings.liveBufferSeconds == 0) {
         if (tr) "Otomatik" else "Auto"
     } else if (tr) "${settings.liveBufferSeconds} saniye" else "${settings.liveBufferSeconds} seconds"
     val extSub = when {
@@ -482,14 +484,19 @@ private fun PlaybackSettingsList(
         )
     }
     if (bufferOpen) {
-        val opts = listOf(0, 1, 2, 3, 5, 8, 10, 15, 20, 30)
-            .let { base -> if (settings.liveBufferSeconds in base) base else (base + settings.liveBufferSeconds).sorted() }
+        val opts = listOf(3, 5, 8, 10, 15, 20, 30, 2, 1, 0)
+            .let { base -> if (settings.liveBufferSeconds in base) base else (base + settings.liveBufferSeconds) }
         GlassChoiceDialog(
             title = if (tr) "Canlı yayın tamponu" else "Live buffer",
-            body = if (tr) "0 = otomatik. Düşük değer zaplamayı hızlandırır; yüksek değer donmayı azaltır."
-            else "0 = auto. Lower values zap faster; higher values reduce stalling.",
+            body = if (tr) "3 saniye en dengeli varsayılandır (hızlı kanal geçişi + donma koruması). Yüksek değerler dalgalı hatlarda donmayı tamamen keser."
+            else "3 seconds is the balanced default (fast zapping + drop protection). Higher values prevent stutter on fluctuating connections.",
             options = opts.map {
-                it to if (it == 0) (if (tr) "Otomatik" else "Auto") else if (tr) "$it saniye" else "$it seconds"
+                it to when (it) {
+                    3 -> if (tr) "3 saniye (Önerilen / Varsayılan)" else "3 seconds (Recommended / Default)"
+                    5 -> if (tr) "5 saniye (Yüksek Koruma)" else "5 seconds (High Protection)"
+                    0 -> if (tr) "Otomatik" else "Auto"
+                    else -> if (tr) "$it saniye" else "$it seconds"
+                }
             },
             selected = settings.liveBufferSeconds,
             onDismiss = { bufferOpen = false },

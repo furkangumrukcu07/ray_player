@@ -177,7 +177,7 @@ data class RaySettings(
     val combineM3u: Boolean = false,
     val osdHideSeconds: Int = 7,
     val osdOpacity: Int = 70,
-    val liveBufferSeconds: Int = 0,
+    val liveBufferSeconds: Int = 3,
     val streamFormat: StreamFormat = StreamFormat.HLS,
     val streamFormatAutoResolved: StreamFormat = StreamFormat.HLS,
     val userAgentPreset: UserAgentPreset = UserAgentPreset.DEFAULT,
@@ -301,7 +301,7 @@ class SettingsRepository @Inject constructor(
             combineM3u = p[Keys.combine] ?: false,
             osdHideSeconds = p[Keys.osdHide] ?: 7,
             osdOpacity = p[Keys.osdOpacity] ?: 70,
-            liveBufferSeconds = p[Keys.liveBuffer] ?: 0,
+            liveBufferSeconds = p[Keys.liveBuffer]?.takeIf { it > 0 } ?: 3,
             streamFormat = when (parseEnum(p[Keys.streamFmt], StreamFormat.HLS)) {
                 StreamFormat.TS -> StreamFormat.TS
                 else -> StreamFormat.HLS
