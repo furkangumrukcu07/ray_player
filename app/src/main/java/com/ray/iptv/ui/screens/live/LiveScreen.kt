@@ -256,6 +256,7 @@ fun LiveScreen(
                     listState = catListState,
                     onCategory = onCategory,
                     onPick = {
+                        hovered = null
                         channelsFocused = true
                         pendingChannelFocus = true
                         onPickCategory()
