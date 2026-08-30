@@ -470,19 +470,14 @@ fun RayRoot(vm: RayViewModel = hiltViewModel()) {
                     DarkGlassPopupTheme {
                         if (pin != null) PinOverlay(cancel = strings.cancel, onSubmit = { vm.confirmPin(it) }, onCancel = { vm.pinChallenge.value = null })
                         resume?.let { (item, prog) ->
-                            GlassPanel(strong = true, modifier = Modifier.align(Alignment.Center).padding(24.dp)) {
-                                Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                                    Text(item.name, color = LocalGlass.current.text, style = MaterialTheme.typography.headlineMedium)
-                                    Text(
-                                        strings.resumePrompt,
-                                        color = LocalGlass.current.muted
-                                    )
-                                    Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                                        GlassButton(strings.resumeButton) { vm.confirmResume(false) }
-                                        GlassButton(strings.startOver) { vm.confirmResume(true) }
-                                    }
-                                }
-                            }
+                            com.ray.iptv.ui.components.ResumePlaybackDialog(
+                                item = item,
+                                prog = prog,
+                                strings = strings,
+                                onResume = { vm.confirmResume(false) },
+                                onStartOver = { vm.confirmResume(true) },
+                                onDismiss = { vm.resumePrompt.value = null }
+                            )
                         }
                         PlaylistLoadDialog(
                             sync = sync,
