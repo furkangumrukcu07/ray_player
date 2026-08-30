@@ -341,26 +341,37 @@ class FirebaseService @Inject constructor(
         scope.launch {
             try {
                 val firestore = FirebaseFirestore.getInstance()
-                val devName = "${Build.MANUFACTURER.replaceFirstChar { it.uppercase() }} ${Build.MODEL}"
+                val isTv = try {
+                    val pm = context.packageManager
+                    pm.hasSystemFeature(android.content.pm.PackageManager.FEATURE_LEANBACK) ||
+                    pm.hasSystemFeature("android.hardware.type.television")
+                } catch (_: Exception) { false }
+
+                val deviceCategory = if (isTv) "TV Box" else "Mobil"
+                val devName = "$deviceCategory (${Build.MANUFACTURER.replaceFirstChar { it.uppercase() }} ${Build.MODEL})"
                 val devOs = "Android ${Build.VERSION.RELEASE}"
                 val isAnon = if (email.isNotBlank()) false else isAnonymous
+                val version = try {
+                    context.packageManager.getPackageInfo(context.packageName, 0).versionName ?: "1.3.20"
+                } catch (_: Exception) { "1.3.20" }
+
                 val data = mutableMapOf<String, Any>(
                     "uid" to uid,
                     "email" to email,
-                    "displayName" to displayName.ifBlank { if (email.isNotBlank()) email.substringBefore("@") else "Kullanıcı" },
+                    "displayName" to displayName.ifBlank { if (email.isNotBlank()) email.substringBefore("@") else if (isTv) "Android TV Kullanıcısı" else "Mobil Kullanıcı" },
                     "photoUrl" to photoUrl,
                     "isPremium" to isPremium,
                     "isAnonymous" to isAnon,
                     "lastDeviceName" to devName,
                     "lastDeviceOs" to devOs,
-                    "appVersion" to "1.3.15",
+                    "appVersion" to version,
                     "lastActive" to System.currentTimeMillis()
                 )
                 if (licenseCode.isNotBlank()) {
                     data["licenseCode"] = licenseCode
                 }
                 firestore.collection("users").document(uid).set(data, com.google.firebase.firestore.SetOptions.merge())
-                Log.d("RayFirebase", "User profile synced to Firestore: $uid ($email, isAnon=$isAnon)")
+                Log.d("RayFirebase", "User profile synced to Firestore: $uid ($email, dev=$devName)")
             } catch (e: Exception) {
                 Log.w("RayFirebase", "syncUserProfile error: ${e.message}")
             }

@@ -135,10 +135,8 @@ class AdminRepository @Inject constructor(
                 for (doc in snap.documents) {
                     val uid = doc.id
                     val email = doc.getString("email").orEmpty()
-                    val rawName = doc.getString("displayName") ?: doc.getString("name")
-                    val name = rawName?.ifBlank { null } ?: (if (email.isNotBlank()) email.substringBefore("@") else "Kullanıcı (${uid.take(8)})")
-                    val isPremium = doc.getBoolean("isPremium") == true || doc.getBoolean("premium") == true
-                    val isBanned = doc.getBoolean("isBanned") == true || doc.getBoolean("banned") == true
+                    val devName = doc.getString("lastDeviceName") ?: doc.getString("deviceName").orEmpty()
+                    val devOs = doc.getString("lastDeviceOs") ?: doc.getString("deviceOs").orEmpty()
                     val isAnon = when {
                         doc.getBoolean("isAnonymous") == false -> false
                         email.isNotBlank() -> false
@@ -146,9 +144,16 @@ class AdminRepository @Inject constructor(
                         uid.startsWith("dev-") -> true
                         else -> false
                     }
+                    val rawName = doc.getString("displayName") ?: doc.getString("name")
+                    val name = when {
+                        !rawName.isNullOrBlank() -> rawName
+                        email.isNotBlank() -> email.substringBefore("@")
+                        devName.isNotBlank() -> "$devName Kullanıcısı"
+                        else -> "Anonim (${uid.take(8)})"
+                    }
+                    val isPremium = doc.getBoolean("isPremium") == true || doc.getBoolean("premium") == true
+                    val isBanned = doc.getBoolean("isBanned") == true || doc.getBoolean("banned") == true
                     val lastActive = doc.getLong("lastActive") ?: doc.getLong("updatedAt") ?: doc.getLong("lastLoginAt") ?: 0L
-                    val devName = doc.getString("lastDeviceName") ?: doc.getString("deviceName").orEmpty()
-                    val devOs = doc.getString("lastDeviceOs") ?: doc.getString("deviceOs").orEmpty()
                     val purchaseDate = doc.getString("purchaseDate").orEmpty()
                     val premiumSource = doc.getString("premiumSource").orEmpty()
                     val premiumExpiry = doc.getString("premiumExpiry").orEmpty()
@@ -158,13 +163,13 @@ class AdminRepository @Inject constructor(
                     list.add(
                         AdminUser(
                             uid = uid,
-                            email = email.ifBlank { if (isAnon) "Anonim (${uid.take(8)})" else name },
+                            email = email.ifBlank { if (isAnon) "Anonim (Giriş Yapılmadı)" else name },
                             displayName = name,
                             isPremium = isPremium,
                             isBanned = isBanned,
                             isAnonymous = isAnon,
                             lastLoginAt = lastActive,
-                            lastDeviceName = devName,
+                            lastDeviceName = devName.ifBlank { "Bilinmeyen Cihaz" },
                             lastDeviceOs = devOs,
                             purchaseDate = purchaseDate,
                             premiumSource = premiumSource,
