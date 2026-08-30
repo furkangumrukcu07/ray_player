@@ -291,9 +291,7 @@ fun MobileClockSettingsChip(
         Box(Modifier.width(1.dp).height(28.dp).background(fg.copy(alpha = 0.22f)))
         Box(
             Modifier
-                .size(36.dp)
-                .clip(CircleShape)
-                .background(fg.copy(alpha = 0.12f))
+                .size(32.dp)
                 .rayClickable(onSettings),
             contentAlignment = Alignment.Center
         ) {
@@ -313,7 +311,6 @@ fun MobileClockSettingsChip(
                         modifier = Modifier
                             .size(26.dp)
                             .clip(CircleShape)
-                            .border(1.dp, fg.copy(alpha = 0.45f), CircleShape)
                     )
                 } else {
                     Icon(
