@@ -244,7 +244,7 @@ class RayPlayer @Inject constructor(
         userAgent: String = "",
         referer: String = "",
         speed: Float = 1f,
-        format: StreamFormat = StreamFormat.AUTO,
+        format: StreamFormat = StreamFormat.HLS,
         externalSubtitleUri: String = ""
     ) {
         _state.value = _state.value.copy(

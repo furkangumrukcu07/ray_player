@@ -144,16 +144,8 @@ private fun PlaybackSettingsList(
     val liveName = engineName(settings.liveEngine)
     val vodName = engineName(settings.vodPlaybackEngine)
     val fmtSub = when (settings.streamFormat) {
-        StreamFormat.HLS -> if (tr) "HLS (.m3u8) · kararlı" else "HLS (.m3u8) · stable"
-        StreamFormat.TS -> if (tr) "MPEG-TS (.ts) · hızlı" else "MPEG-TS (.ts) · fast"
-        StreamFormat.AUTO -> {
-            val resolved = when (settings.streamFormatAutoResolved) {
-                StreamFormat.TS -> "MPEG-TS"
-                StreamFormat.HLS -> "HLS"
-                else -> if (tr) "ipucu yok" else "no hint"
-            }
-            if (tr) "Otomatik · $resolved" else "Auto · $resolved"
-        }
+        StreamFormat.TS -> if (tr) "MPEG-TS (.ts) · Hızlı" else "MPEG-TS (.ts) · Fast"
+        else -> if (tr) "HLS (.m3u8) · Kararlı (Varsayılan)" else "HLS (.m3u8) · Stable (Default)"
     }
     val bufferSub = if (settings.liveBufferSeconds == 0) {
         if (tr) "Otomatik" else "Auto"
@@ -441,16 +433,15 @@ private fun PlaybackSettingsList(
         GlassChoiceDialog(
             title = if (tr) "Canlı yayın formatı" else "Live stream format",
             body = if (tr) {
-                "Liste adresindeki ipucuna göre biçimi kendiliğinden seçer (örn. output=ts → MPEG-TS). Çoğu kullanıcı için en doğru seçenek otomatiktir."
+                "HLS (.m3u8) parçalı veri transferi sayesinde dalgalı internet hızlarında donma ve kopmaları engeller ve en kararlı akışı sağlar. MPEG-TS (.ts) ise ham akış olup hızlı kanal geçişi sunar."
             } else {
-                "Picks the format from the playlist URL hint (e.g. output=ts → MPEG-TS). Auto is the right choice for most users."
+                "HLS (.m3u8) prevents buffering and drops on fluctuating connections via chunked streaming. MPEG-TS (.ts) is raw stream for faster channel zapping."
             },
             options = listOf(
-                StreamFormat.AUTO to if (tr) "Otomatik (önerilen)" else "Auto (recommended)",
-                StreamFormat.HLS to if (tr) "HLS (.m3u8) — Kararlı" else "HLS (.m3u8) — Stable",
+                StreamFormat.HLS to if (tr) "HLS (.m3u8) — Kararlı (Varsayılan)" else "HLS (.m3u8) — Stable (Default)",
                 StreamFormat.TS to if (tr) "MPEG-TS (.ts) — Hızlı" else "MPEG-TS (.ts) — Fast"
             ),
-            selected = settings.streamFormat,
+            selected = if (settings.streamFormat == StreamFormat.TS) StreamFormat.TS else StreamFormat.HLS,
             onDismiss = { formatOpen = false },
             onPick = { vm.setStreamFormat(it); formatOpen = false }
         )

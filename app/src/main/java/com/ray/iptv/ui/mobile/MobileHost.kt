@@ -260,11 +260,11 @@ fun MobileHost(
             ) {
                 if (liveWatch && playback != null) {
                     val pb = playback!!
-                    val fmt = if (settings.streamFormat != StreamFormat.AUTO) settings.streamFormat else settings.streamFormatAutoResolved
+                    val fmt = settings.streamFormat
                     val streamLabel = when {
                         fmt == StreamFormat.HLS || pb.url.contains("m3u8", true) -> "HLS"
                         fmt == StreamFormat.TS -> "TS"
-                        else -> "TS"
+                        else -> "HLS"
                     }
                     MobileLiveWatchScreen(
                         tr = tr,

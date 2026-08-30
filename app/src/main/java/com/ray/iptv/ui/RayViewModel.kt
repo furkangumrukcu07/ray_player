@@ -184,7 +184,7 @@ class RayViewModel @Inject constructor(
     private var sessionRef = ""
     private var sessionId = ""
     private var sessionEngine = PlaybackEngine.BETTER
-    private var sessionFormat = StreamFormat.AUTO
+    private var sessionFormat = StreamFormat.HLS
     private var sessionSoftware = false
     private var fallbackStep = 0
     private var rememberedThisSession = false

@@ -13,13 +13,8 @@ object XtreamStreamUrls {
     fun applyFormat(url: String, format: StreamFormat): String {
         if (url.isBlank()) return url
         return when (format) {
-            StreamFormat.AUTO -> {
-                if (StreamHints.hls(url) || StreamHints.mpegTs(url) || StreamHints.dash(url)) url
-                else if (looksLiveXtream(url)) forceContainer(url, hls = false)
-                else url
-            }
-            StreamFormat.HLS -> forceContainer(url, hls = true)
             StreamFormat.TS -> forceContainer(url, hls = false)
+            else -> forceContainer(url, hls = true)
         }
     }
 

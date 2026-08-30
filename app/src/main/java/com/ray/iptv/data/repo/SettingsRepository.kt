@@ -178,8 +178,8 @@ data class RaySettings(
     val osdHideSeconds: Int = 7,
     val osdOpacity: Int = 70,
     val liveBufferSeconds: Int = 0,
-    val streamFormat: StreamFormat = StreamFormat.AUTO,
-    val streamFormatAutoResolved: StreamFormat = StreamFormat.AUTO,
+    val streamFormat: StreamFormat = StreamFormat.HLS,
+    val streamFormatAutoResolved: StreamFormat = StreamFormat.HLS,
     val userAgentPreset: UserAgentPreset = UserAgentPreset.DEFAULT,
     val customUserAgent: String = "",
     val ignoreSsl: Boolean = true,
@@ -263,7 +263,7 @@ data class RaySettings(
     val lastAutoBackupTime: Long = 0L
 ) {
     fun effectiveStreamFormat(): StreamFormat =
-        if (streamFormat != StreamFormat.AUTO) streamFormat else streamFormatAutoResolved
+        if (streamFormat == StreamFormat.TS) StreamFormat.TS else StreamFormat.HLS
 }
 
 @Singleton
@@ -302,8 +302,14 @@ class SettingsRepository @Inject constructor(
             osdHideSeconds = p[Keys.osdHide] ?: 7,
             osdOpacity = p[Keys.osdOpacity] ?: 70,
             liveBufferSeconds = p[Keys.liveBuffer] ?: 0,
-            streamFormat = parseEnum(p[Keys.streamFmt], StreamFormat.AUTO),
-            streamFormatAutoResolved = parseEnum(p[Keys.streamFmtAuto], StreamFormat.AUTO),
+            streamFormat = when (parseEnum(p[Keys.streamFmt], StreamFormat.HLS)) {
+                StreamFormat.TS -> StreamFormat.TS
+                else -> StreamFormat.HLS
+            },
+            streamFormatAutoResolved = when (parseEnum(p[Keys.streamFmtAuto], StreamFormat.HLS)) {
+                StreamFormat.TS -> StreamFormat.TS
+                else -> StreamFormat.HLS
+            },
             userAgentPreset = parseEnum(p[Keys.ua], UserAgentPreset.DEFAULT),
             customUserAgent = p[Keys.uaCustom].orEmpty(),
             ignoreSsl = p[Keys.ignoreSsl] ?: true,
