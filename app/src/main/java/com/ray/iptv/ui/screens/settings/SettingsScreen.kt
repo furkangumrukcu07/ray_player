@@ -551,13 +551,18 @@ private fun Hub(
     }
     if (subOpen) {
         val licensing by vm.licensingState.collectAsState()
-        var showRedeem by remember { mutableStateOf(false) }
         val email = if (account.signedIn) account.email.ifBlank { "" } else ""
         LicenseDetailsDialog(
             tr = tr,
             email = email,
             licensing = licensing,
-            onRedeemClick = { showRedeem = true },
+            onBuyCoffee = {
+                android.widget.Toast.makeText(
+                    ctx,
+                    if (tr) "☕ Kahve ısmarlama / destek sistemi yakında aktifleşecek!" else "☕ Donation & coffee system coming soon!",
+                    android.widget.Toast.LENGTH_SHORT
+                ).show()
+            },
             onBuyPlayStore = {
                 android.widget.Toast.makeText(
                     ctx,
@@ -567,13 +572,6 @@ private fun Hub(
             },
             onDismiss = { subOpen = false }
         )
-
-        if (showRedeem) {
-            com.ray.iptv.ui.screens.paywall.RedeemLicenseDialog(
-                onDismiss = { showRedeem = false },
-                onRedeem = vm::redeemLicenseCode
-            )
-        }
     }
     if (delAcc) {
         GlassConfirmDialog(
@@ -591,10 +589,23 @@ fun LicenseDetailsDialog(
     tr: Boolean,
     email: String,
     licensing: com.ray.iptv.data.repo.LicensingState,
-    onRedeemClick: () -> Unit,
+    onBuyCoffee: () -> Unit,
     onBuyPlayStore: () -> Unit,
     onDismiss: () -> Unit
 ) {
+    val coffeeFocus = remember { FocusRequester() }
+    val buyFocus = remember { FocusRequester() }
+    val closeFocus = remember { FocusRequester() }
+
+    LaunchedEffect(Unit) {
+        delay(40)
+        if (licensing.isPremium) {
+            coffeeFocus.tryFocus()
+        } else {
+            buyFocus.tryFocus()
+        }
+    }
+
     Dialog(onDismissRequest = onDismiss) {
         Box(
             Modifier
@@ -683,45 +694,69 @@ fun LicenseDetailsDialog(
 
                 Spacer(Modifier.height(18.dp))
 
-                // Action buttons
+                // Action buttons with full D-pad TV focus
                 Row(
                     Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
+                    var isCoffeeFocused by remember { mutableStateOf(false) }
                     Box(
                         Modifier
                             .weight(1f)
                             .clip(RoundedCornerShape(12.dp))
-                            .background(Color(0xFF0F766E).copy(alpha = 0.5f))
-                            .border(1.dp, Color(0xFF2DD4BF), RoundedCornerShape(12.dp))
-                            .rayClickable(onClick = onRedeemClick)
-                            .padding(vertical = 10.dp),
+                            .background(
+                                if (isCoffeeFocused) Color(0xFFF59E0B).copy(alpha = 0.35f)
+                                else Color(0xFF262012).copy(alpha = 0.6f)
+                            )
+                            .border(
+                                width = if (isCoffeeFocused) 2.dp else 1.2.dp,
+                                color = if (isCoffeeFocused) Color(0xFFFBBF24) else Color(0xFFF59E0B).copy(alpha = 0.7f),
+                                shape = RoundedCornerShape(12.dp)
+                            )
+                            .focusRequester(coffeeFocus)
+                            .onFocusChanged { isCoffeeFocused = it.isFocused }
+                            .focusable()
+                            .rayClickable(onClick = onBuyCoffee)
+                            .padding(vertical = 12.dp),
                         contentAlignment = Alignment.Center
                     ) {
                         Text(
-                            text = if (tr) "🔑 Kod Etkinleştir" else "🔑 Redeem Code",
-                            color = Color.White,
+                            text = if (tr) "☕  Kahve Ismarla" else "☕  Buy Coffee",
+                            color = if (isCoffeeFocused) Color.White else Color(0xFFFBBF24),
                             fontWeight = FontWeight.Bold,
-                            fontSize = 13.sp
+                            fontSize = 13.5.sp
                         )
                     }
 
-                    Box(
-                        Modifier
-                            .weight(1f)
-                            .clip(RoundedCornerShape(12.dp))
-                            .background(Color(0xFF262012).copy(alpha = 0.6f))
-                            .border(1.dp, Color(0xFFF59E0B), RoundedCornerShape(12.dp))
-                            .rayClickable(onClick = onBuyPlayStore)
-                            .padding(vertical = 10.dp),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text(
-                            text = if (tr) "⭐ Premium Satın Al" else "⭐ Buy Premium",
-                            color = Color(0xFFFBBF24),
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 13.sp
-                        )
+                    if (!licensing.isPremium) {
+                        var isBuyFocused by remember { mutableStateOf(false) }
+                        Box(
+                            Modifier
+                                .weight(1f)
+                                .clip(RoundedCornerShape(12.dp))
+                                .background(
+                                    if (isBuyFocused) Color(0xFF10B981).copy(alpha = 0.35f)
+                                    else Color(0xFF0F766E).copy(alpha = 0.5f)
+                                )
+                                .border(
+                                    width = if (isBuyFocused) 2.dp else 1.2.dp,
+                                    color = if (isBuyFocused) Color(0xFF34D399) else Color(0xFF2DD4BF).copy(alpha = 0.7f),
+                                    shape = RoundedCornerShape(12.dp)
+                                )
+                                .focusRequester(buyFocus)
+                                .onFocusChanged { isBuyFocused = it.isFocused }
+                                .focusable()
+                                .rayClickable(onClick = onBuyPlayStore)
+                                .padding(vertical = 12.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = if (tr) "⭐ Premium Satın Al" else "⭐ Buy Premium",
+                                color = if (isBuyFocused) Color.White else Color(0xFF34D399),
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 13.5.sp
+                            )
+                        }
                     }
                 }
 
@@ -731,18 +766,29 @@ fun LicenseDetailsDialog(
                     Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.End
                 ) {
+                    var isCloseFocused by remember { mutableStateOf(false) }
                     Box(
                         Modifier
                             .clip(RoundedCornerShape(10.dp))
-                            .background(Color.White.copy(alpha = 0.05f))
-                            .border(1.dp, Color.White.copy(alpha = 0.25f), RoundedCornerShape(10.dp))
+                            .background(
+                                if (isCloseFocused) Color(0xFF64D2FF).copy(alpha = 0.25f)
+                                else Color.White.copy(alpha = 0.05f)
+                            )
+                            .border(
+                                width = if (isCloseFocused) 1.8.dp else 1.dp,
+                                color = if (isCloseFocused) Color(0xFF64D2FF) else Color.White.copy(alpha = 0.25f),
+                                shape = RoundedCornerShape(10.dp)
+                            )
+                            .focusRequester(closeFocus)
+                            .onFocusChanged { isCloseFocused = it.isFocused }
+                            .focusable()
                             .rayClickable(onClick = onDismiss)
-                            .padding(horizontal = 22.dp, vertical = 9.dp),
+                            .padding(horizontal = 24.dp, vertical = 10.dp),
                         contentAlignment = Alignment.Center
                     ) {
                         Text(
                             if (tr) "Kapat" else "Close",
-                            color = Color.White,
+                            color = if (isCloseFocused) Color(0xFF64D2FF) else Color.White,
                             fontWeight = FontWeight.Bold,
                             fontSize = 13.sp
                         )

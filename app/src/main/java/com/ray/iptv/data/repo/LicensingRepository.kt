@@ -152,10 +152,16 @@ class LicensingRepository @Inject constructor(
                 )
             }
 
-            // Kullanıcı lisans kontrolü
+            // Kullanıcı lisans kontrolü & Admin Whitelist
             val auth = FirebaseAuth.getInstance()
             val user = auth.currentUser
-            if (user != null) {
+            val userEmail = user?.email?.lowercase()?.trim().orEmpty()
+            val manualPremiums = listOf("furkangumrukcu07@gmail.com", "allachehata@gmail.com")
+
+            if (userEmail.isNotEmpty() && manualPremiums.contains(userEmail)) {
+                isPremium = true
+                ds.edit { it[KEY_LOCAL_PREMIUM] = true }
+            } else if (user != null) {
                 val licenseDoc = firestore.collection("user_licenses").document(user.uid).get().await()
                 if (licenseDoc != null && licenseDoc.exists() && licenseDoc.getBoolean("isPremium") == true) {
                     isPremium = true
@@ -166,10 +172,16 @@ class LicensingRepository @Inject constructor(
             // Çevrimdışı fallback: Yerel verilerle devam et
         }
 
+        // Whitelist kontrolü (çevrimdışı olsa bile)
+        val authUserEmail = FirebaseAuth.getInstance().currentUser?.email?.lowercase()?.trim().orEmpty()
+        if (authUserEmail == "furkangumrukcu07@gmail.com" || authUserEmail == "allachehata@gmail.com") {
+            isPremium = true
+        }
+
         // 3. Kalan Süre Hesaplama
         val expireMs = trialStartMs + (TRIAL_DURATION_DAYS * 24 * 60 * 60 * 1000L)
-        val isTrialActive = now < expireMs
-        val remainingFormatted = formatRemainingTime(expireMs, now)
+        val isTrialActive = if (isPremium) false else (now < expireMs)
+        val remainingFormatted = if (isPremium) "Sınırsız (Ömür Boyu)" else formatRemainingTime(expireMs, now)
 
         _state.value = LicensingState(
             isPremium = isPremium,

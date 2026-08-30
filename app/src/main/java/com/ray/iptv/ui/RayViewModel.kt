@@ -493,6 +493,7 @@ class RayViewModel @Inject constructor(
                     isAnonymous = !isSigned,
                     licenseCode = sess.licenseCode
                 )
+                licensingRepo.refresh()
             }
         }
         viewModelScope.launch {
