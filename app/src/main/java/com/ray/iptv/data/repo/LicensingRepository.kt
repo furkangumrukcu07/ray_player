@@ -126,6 +126,7 @@ class LicensingRepository @Inject constructor(
 
         // 2. Firebase Firestore Anti-Reset Kontrolü
         val hardwareId = getHardwareDeviceId()
+        var maxDevices = 3
         try {
             val firestore = FirebaseFirestore.getInstance()
             val trialDocRef = firestore.collection("device_trials").document(hardwareId)
@@ -134,9 +135,16 @@ class LicensingRepository @Inject constructor(
             if (snap != null && snap.exists()) {
                 val serverStart = snap.getLong("trialStartMs") ?: 0L
                 if (serverStart > 0L) {
-                    // Sunucudaki başlangıç tarihi yerelden daha eskiyse sunucuyu baz al (Anti-Reset)
                     trialStartMs = minOf(trialStartMs, serverStart)
                     ds.edit { it[KEY_TRIAL_START] = trialStartMs }
+                }
+                val snapMaxDev = snap.getLong("maxDevices")?.toInt()
+                if (snapMaxDev != null && snapMaxDev > 0) {
+                    maxDevices = snapMaxDev
+                }
+                if (snap.getBoolean("isPremium") == true) {
+                    isPremium = true
+                    ds.edit { it[KEY_LOCAL_PREMIUM] = true }
                 }
             } else {
                 // İlk defa kaydediliyor
@@ -160,8 +168,20 @@ class LicensingRepository @Inject constructor(
 
             if (userEmail.isNotEmpty() && manualPremiums.contains(userEmail)) {
                 isPremium = true
+                maxDevices = 999
                 ds.edit { it[KEY_LOCAL_PREMIUM] = true }
             } else if (user != null) {
+                val userDoc = firestore.collection("users").document(user.uid).get().await()
+                if (userDoc != null && userDoc.exists()) {
+                    if (userDoc.getBoolean("isPremium") == true || userDoc.getBoolean("premium") == true) {
+                        isPremium = true
+                        ds.edit { it[KEY_LOCAL_PREMIUM] = true }
+                    }
+                    val userMaxDev = userDoc.getLong("maxDevices")?.toInt()
+                    if (userMaxDev != null && userMaxDev > 0) {
+                        maxDevices = userMaxDev
+                    }
+                }
                 val licenseDoc = firestore.collection("user_licenses").document(user.uid).get().await()
                 if (licenseDoc != null && licenseDoc.exists() && licenseDoc.getBoolean("isPremium") == true) {
                     isPremium = true
@@ -176,6 +196,7 @@ class LicensingRepository @Inject constructor(
         val authUserEmail = FirebaseAuth.getInstance().currentUser?.email?.lowercase()?.trim().orEmpty()
         if (authUserEmail == "furkangumrukcu07@gmail.com" || authUserEmail == "allachehata@gmail.com") {
             isPremium = true
+            maxDevices = 999
         }
 
         // 3. Kalan Süre Hesaplama
@@ -189,7 +210,7 @@ class LicensingRepository @Inject constructor(
             trialExpirationMs = expireMs,
             trialRemainingFormatted = remainingFormatted,
             deviceCount = 1,
-            maxDevices = 3,
+            maxDevices = maxDevices,
             isDeviceLimitExceeded = false,
             isGrandfathered = false,
             isEnforced = ENFORCE_PAYWALL
