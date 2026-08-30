@@ -267,12 +267,13 @@ fun LiveScreen(
                         pendingChannelFocus = true
                         onPickCategory()
                         scope.launch {
+                            delay(120)
                             repeat(30) {
-                                delay(25)
                                 if (listFocus.tryFocus()) {
                                     pendingChannelFocus = false
                                     return@launch
                                 }
+                                delay(25)
                             }
                         }
                     },
@@ -737,20 +738,23 @@ private fun GuideRow(
                 if (it.isFocused) onFocus()
             }
             .onPreviewKeyEvent { e ->
-                if (e.type != KeyEventType.KeyDown) return@onPreviewKeyEvent false
-                when (e.key) {
-                    Key.DirectionLeft -> {
-                        onLeft()
-                        true
+                if (e.type == KeyEventType.KeyDown) {
+                    when (e.key) {
+                        Key.DirectionLeft -> {
+                            onLeft()
+                            true
+                        }
+                        Key.DirectionUp -> isFirst
+                        Key.DirectionDown -> isLast
+                        Key.DirectionCenter, Key.Enter, Key.NumPadEnter -> {
+                            onClick()
+                            true
+                        }
+                        else -> false
                     }
-                    Key.DirectionUp -> {
-                        if (isFirst) true else false
-                    }
-                    Key.DirectionDown -> {
-                        if (isLast) true else false
-                    }
-                    else -> false
-                }
+                } else if (e.type == KeyEventType.KeyUp && (e.key == Key.DirectionCenter || e.key == Key.Enter || e.key == Key.NumPadEnter)) {
+                    true
+                } else false
             }
             .rayClickable(onClick, onLong)
             .background(if (focused) g.accent.copy(alpha = 0.22f) else if (selected) Color.White.copy(alpha = 0.04f) else Color.Transparent)
@@ -1005,22 +1009,16 @@ private fun CatRow(
                 if (it.isFocused) onFocus()
             }
             .onPreviewKeyEvent { e ->
-                if (e.type != KeyEventType.KeyDown) return@onPreviewKeyEvent false
-                when (e.key) {
-                    Key.DirectionRight, Key.DirectionCenter, Key.Enter -> {
-                        if (onRight != null) {
-                            onRight()
-                            true
-                        } else {
-                            onClick()
-                            true
-                        }
+                if (e.key == Key.DirectionRight || e.key == Key.DirectionCenter || e.key == Key.Enter || e.key == Key.NumPadEnter) {
+                    if (e.type == KeyEventType.KeyDown) {
+                        onRight?.invoke() ?: onClick()
                     }
-                    Key.DirectionUp -> {
-                        if (isFirst) true else false
-                    }
-                    else -> false
+                    return@onPreviewKeyEvent true
                 }
+                if (e.type == KeyEventType.KeyDown && e.key == Key.DirectionUp) {
+                    return@onPreviewKeyEvent isFirst
+                }
+                false
             }
 
     ) {
