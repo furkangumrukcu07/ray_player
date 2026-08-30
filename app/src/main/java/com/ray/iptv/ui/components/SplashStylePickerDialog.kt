@@ -1,12 +1,11 @@
 package com.ray.iptv.ui.components
 
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.focusable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -24,19 +23,26 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.RadioButtonUnchecked
-import androidx.tv.material3.Icon
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.scale
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
@@ -46,10 +52,14 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import androidx.tv.material3.Icon
 import androidx.tv.material3.Text
 import com.ray.iptv.R
 import com.ray.iptv.data.repo.SplashStyle
 import com.ray.iptv.ui.glass.DarkGlassPopupTheme
+import com.ray.iptv.ui.input.rayClickable
+import com.ray.iptv.ui.input.tryFocus
+import kotlinx.coroutines.delay
 
 @Composable
 fun SplashStylePickerDialog(
@@ -58,6 +68,17 @@ fun SplashStylePickerDialog(
     onDismiss: () -> Unit,
     onSelect: (SplashStyle) -> Unit
 ) {
+    val styles = SplashStyle.entries
+    val itemRequesters = remember { List(styles.size) { FocusRequester() } }
+    val closeFocusRequester = remember { FocusRequester() }
+
+    LaunchedEffect(Unit) {
+        delay(40)
+        val selectedIdx = styles.indexOf(currentStyle).coerceAtLeast(0)
+        val target = itemRequesters.getOrNull(selectedIdx) ?: itemRequesters.firstOrNull()
+        target?.tryFocus()
+    }
+
     Dialog(
         onDismissRequest = onDismiss,
         properties = DialogProperties(usePlatformDefaultWidth = false)
@@ -130,53 +151,78 @@ fun SplashStylePickerDialog(
                                 )
                             }
 
+                            var isCloseFocused by remember { mutableStateOf(false) }
                             Box(
                                 modifier = Modifier
-                                    .size(32.dp)
+                                    .size(36.dp)
                                     .clip(CircleShape)
-                                    .background(Color.White.copy(alpha = 0.08f))
-                                    .clickable { onDismiss() },
+                                    .background(
+                                        if (isCloseFocused) Color(0xFF64D2FF).copy(alpha = 0.25f)
+                                        else Color.White.copy(alpha = 0.08f)
+                                    )
+                                    .border(
+                                        width = if (isCloseFocused) 1.5.dp else 1.dp,
+                                        color = if (isCloseFocused) Color(0xFF64D2FF) else Color.White.copy(alpha = 0.15f),
+                                        shape = CircleShape
+                                    )
+                                    .focusRequester(closeFocusRequester)
+                                    .onFocusChanged { isCloseFocused = it.isFocused }
+                                    .focusable()
+                                    .rayClickable(onClick = { onDismiss() }),
                                 contentAlignment = Alignment.Center
                             ) {
                                 Icon(
                                     imageVector = Icons.Filled.Close,
                                     contentDescription = "Close",
-                                    tint = Color.White.copy(alpha = 0.85f),
-                                    modifier = Modifier.size(16.dp)
+                                    tint = if (isCloseFocused) Color(0xFF64D2FF) else Color.White.copy(alpha = 0.85f),
+                                    modifier = Modifier.size(18.dp)
                                 )
                             }
                         }
 
                         Spacer(Modifier.height(if (isCompactHeight) 12.dp else 16.dp))
 
-                        // List of 3 styles
+                        // List of 3 styles with D-pad navigation and focus support
                         LazyColumn(
                             verticalArrangement = Arrangement.spacedBy(if (isCompactHeight) 8.dp else 11.dp),
                             contentPadding = PaddingValues(bottom = 4.dp)
                         ) {
-                            items(SplashStyle.entries) { style ->
+                            itemsIndexed(styles) { index, style ->
                                 val selected = style == currentStyle
+                                var isFocused by remember { mutableStateOf(false) }
+                                val scale by animateFloatAsState(
+                                    targetValue = if (isFocused) 1.02f else 1.0f,
+                                    label = "splash-card-scale"
+                                )
 
                                 Box(
                                     modifier = Modifier
                                         .fillMaxWidth()
+                                        .scale(scale)
                                         .clip(RoundedCornerShape(16.dp))
                                         .background(
-                                            if (selected) {
-                                                Color(0xFF64D2FF).copy(alpha = 0.12f)
-                                            } else {
-                                                Color.White.copy(alpha = 0.05f)
+                                            when {
+                                                isFocused -> Color(0xFF64D2FF).copy(alpha = 0.22f)
+                                                selected -> Color(0xFF64D2FF).copy(alpha = 0.12f)
+                                                else -> Color.White.copy(alpha = 0.05f)
                                             }
                                         )
                                         .border(
-                                            width = if (selected) 1.5.dp else 1.dp,
-                                            color = if (selected) Color(0xFF64D2FF).copy(alpha = 0.80f) else Color.White.copy(alpha = 0.10f),
+                                            width = if (isFocused) 2.dp else if (selected) 1.5.dp else 1.dp,
+                                            color = when {
+                                                isFocused -> Color(0xFF64D2FF)
+                                                selected -> Color(0xFF64D2FF).copy(alpha = 0.80f)
+                                                else -> Color.White.copy(alpha = 0.10f)
+                                            },
                                             shape = RoundedCornerShape(16.dp)
                                         )
-                                        .clickable {
+                                        .focusRequester(itemRequesters[index])
+                                        .onFocusChanged { isFocused = it.isFocused }
+                                        .focusable()
+                                        .rayClickable(onClick = {
                                             onSelect(style)
                                             onDismiss()
-                                        }
+                                        })
                                         .padding(if (isCompactHeight) 9.dp else 12.dp)
                                 ) {
                                     Row(
@@ -191,7 +237,11 @@ fun SplashStylePickerDialog(
                                                     height = if (isCompactHeight) 62.dp else 76.dp
                                                 )
                                                 .clip(RoundedCornerShape(10.dp))
-                                                .border(1.dp, Color.White.copy(alpha = 0.20f), RoundedCornerShape(10.dp)),
+                                                .border(
+                                                    width = if (isFocused || selected) 1.5.dp else 1.dp,
+                                                    color = if (isFocused || selected) Color(0xFF64D2FF).copy(alpha = 0.8f) else Color.White.copy(alpha = 0.20f),
+                                                    shape = RoundedCornerShape(10.dp)
+                                                ),
                                             contentAlignment = Alignment.Center
                                         ) {
                                             // Natural blurred leaf background for all
@@ -206,7 +256,7 @@ fun SplashStylePickerDialog(
                                                 modifier = Modifier
                                                     .fillMaxSize()
                                                     .background(Color.Black.copy(alpha = 0.25f))
-                                            )
+                                             )
 
                                             // Concept-specific micro preview
                                             when (style) {
@@ -289,14 +339,14 @@ fun SplashStylePickerDialog(
                                         ) {
                                             Text(
                                                 text = if (tr) style.titleTr else style.titleEn,
-                                                color = if (selected) Color(0xFF64D2FF) else Color.White,
+                                                color = if (isFocused || selected) Color(0xFF64D2FF) else Color.White,
                                                 fontSize = if (isCompactHeight) 13.5.sp else 14.5.sp,
                                                 fontWeight = FontWeight.Bold
                                             )
                                             Spacer(Modifier.height(2.dp))
                                             Text(
                                                 text = if (tr) style.subtitleTr else style.subtitleEn,
-                                                color = Color.White.copy(alpha = 0.60f),
+                                                color = if (isFocused) Color.White.copy(alpha = 0.90f) else Color.White.copy(alpha = 0.60f),
                                                 fontSize = if (isCompactHeight) 10.5.sp else 11.5.sp,
                                                 lineHeight = if (isCompactHeight) 13.sp else 14.sp
                                             )
@@ -308,7 +358,7 @@ fun SplashStylePickerDialog(
                                         Icon(
                                             imageVector = if (selected) Icons.Filled.CheckCircle else Icons.Filled.RadioButtonUnchecked,
                                             contentDescription = null,
-                                            tint = if (selected) Color(0xFF64D2FF) else Color.White.copy(alpha = 0.30f),
+                                            tint = if (isFocused || selected) Color(0xFF64D2FF) else Color.White.copy(alpha = 0.30f),
                                             modifier = Modifier.size(if (isCompactHeight) 20.dp else 24.dp)
                                         )
                                     }
