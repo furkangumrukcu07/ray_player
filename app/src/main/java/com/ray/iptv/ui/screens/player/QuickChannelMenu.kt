@@ -70,6 +70,12 @@ import java.util.Date
 import java.util.Locale
 import androidx.activity.compose.BackHandler
 
+import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.key
+import androidx.compose.ui.input.key.type
+import androidx.compose.ui.input.key.onPreviewKeyEvent
+
 private data class QuickTape(
     val id: String,
     val name: String,
@@ -89,7 +95,9 @@ fun QuickChannelMenu(
     onPick: (ChannelEntity) -> Unit,
     onClose: () -> Unit
 ) {
-    val tapes = remember(channels, categories) { buildTapes(channels, categories) }
+    val tapes = remember(channels, categories, copy.allChannels) {
+        buildTapes(channels, categories, copy.allChannels)
+    }
     if (tapes.isEmpty()) return
     val start = remember(playingId, tapes) {
         tapes.indexOfFirst { tape -> tape.channels.any { it.id == playingId } }.coerceAtLeast(0)
@@ -108,13 +116,26 @@ fun QuickChannelMenu(
         delay(7_000)
         onClose()
     }
+
+    fun bump() { tick++ }
+    fun shift(delta: Int) {
+        if (tapes.size <= 1) return
+        bump()
+        val nextIdx = (catIndex + delta + tapes.size) % tapes.size
+        catIndex = nextIdx
+        val nextTape = tapes[nextIdx]
+        focusedId = nextTape.channels.firstOrNull()?.id.orEmpty()
+    }
+
     LaunchedEffect(tape.id, tape.channels.size, tape.channels.firstOrNull()?.id, tape.channels.lastOrNull()?.id, playingId) {
         val ids = tape.channels.map { it.id }
         val target = ids.indexOfFirst { it == playingId }.let { if (it >= 0) it else 0 }
         val from = (target - 10).coerceAtLeast(0)
         val to = (target + 30).coerceAtMost(ids.size)
         nowMap = if (ids.isEmpty()) emptyMap() else loadNowMap(ids.subList(from, to))
-        focusedId = tape.channels.getOrNull(target)?.id ?: focusedId
+        if (tape.channels.none { it.id == focusedId }) {
+            focusedId = tape.channels.getOrNull(target)?.id.orEmpty()
+        }
         if (tape.channels.isNotEmpty()) {
             listState.scrollToItem(target)
             delay(40)
@@ -122,19 +143,31 @@ fun QuickChannelMenu(
         }
     }
 
-    fun bump() { tick++ }
-    fun shift(delta: Int) {
-        if (tapes.size <= 1) return
-        bump()
-        catIndex = (catIndex + delta + tapes.size) % tapes.size
-    }
-
     val focused = tape.channels.firstOrNull { it.id == focusedId } ?: tape.channels.firstOrNull()
     val focusedEpg = focused?.let { nowMap[it.id] }
     val focusIndex = tape.channels.indexOfFirst { it.id == focusedId }.coerceAtLeast(0)
 
     BoxWithConstraints(
-        Modifier.fillMaxSize()
+        Modifier
+            .fillMaxSize()
+            .onPreviewKeyEvent { ev ->
+                if (ev.type != KeyEventType.KeyDown) return@onPreviewKeyEvent false
+                when (ev.key) {
+                    Key.DirectionLeft -> {
+                        shift(-1)
+                        true
+                    }
+                    Key.DirectionRight -> {
+                        shift(1)
+                        true
+                    }
+                    Key.Back, Key.Escape -> {
+                        onClose()
+                        true
+                    }
+                    else -> false
+                }
+            }
     ) {
         val compact = maxWidth < 700.dp
         val railW = if (compact) 300.dp else 560.dp
@@ -160,23 +193,11 @@ fun QuickChannelMenu(
                 Modifier
                     .width(railW)
                     .fillMaxHeight()
-                    .onPreviewKeyEvent { ev ->
-                        if (ev.nativeKeyEvent.keyCode == KeyEvent.KEYCODE_BACK) {
-                            if (ev.nativeKeyEvent.action == KeyEvent.ACTION_DOWN) {
-                                onClose()
-                            }
-                            return@onPreviewKeyEvent true
-                        }
-                        if (ev.nativeKeyEvent.action != KeyEvent.ACTION_DOWN) return@onPreviewKeyEvent false
-                        when (ev.nativeKeyEvent.keyCode) {
-                            KeyEvent.KEYCODE_DPAD_LEFT -> { shift(-1); true }
-                            KeyEvent.KEYCODE_DPAD_RIGHT -> { shift(1); true }
-                            else -> false
-                        }
-                    }
             ) {
                 CategoryPill(
                     name = tape.name,
+                    index = catIndex + 1,
+                    total = tapes.size,
                     showArrows = tapes.size > 1,
                     onPrev = { shift(-1) },
                     onNext = { shift(1) }
@@ -196,6 +217,8 @@ fun QuickChannelMenu(
                             pillWidth = pillW,
                             showEpg = !compact,
                             liveBadge = copy.liveBadge,
+                            onPrevCategory = { shift(-1) },
+                            onNextCategory = { shift(1) },
                             modifier = Modifier
                                 .then(if (index == focusIndex) Modifier.focusRequester(focusReq) else Modifier)
                                 .onFocusChanged {
@@ -229,6 +252,8 @@ fun QuickChannelMenu(
 @Composable
 private fun CategoryPill(
     name: String,
+    index: Int,
+    total: Int,
     showArrows: Boolean,
     onPrev: () -> Unit,
     onNext: () -> Unit
@@ -236,20 +261,41 @@ private fun CategoryPill(
     GlassPanel(
         strong = true,
         radius = 16.dp,
-        modifier = Modifier.width(260.dp).height(40.dp)
+        modifier = Modifier.width(280.dp).height(44.dp)
     ) {
-        Row(Modifier.fillMaxSize(), verticalAlignment = Alignment.CenterVertically) {
-            if (showArrows) PillArrow(Icons.Filled.ChevronLeft, onPrev) else Spacer(Modifier.width(12.dp))
-            Text(
-                name,
-                color = Color.White.copy(alpha = 0.95f),
-                style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold, fontSize = 16.sp),
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-                textAlign = TextAlign.Center,
-                modifier = Modifier.weight(1f)
-            )
-            if (showArrows) PillArrow(Icons.Filled.ChevronRight, onNext) else Spacer(Modifier.width(12.dp))
+        Row(Modifier.fillMaxSize().padding(horizontal = 4.dp), verticalAlignment = Alignment.CenterVertically) {
+            if (showArrows) {
+                PillArrow(Icons.Filled.ChevronLeft, onPrev)
+            } else {
+                Spacer(Modifier.width(12.dp))
+            }
+            Row(
+                Modifier.weight(1f),
+                horizontalArrangement = Arrangement.Center,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    name,
+                    color = Color.White.copy(alpha = 0.95f),
+                    style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold, fontSize = 15.sp),
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    textAlign = TextAlign.Center
+                )
+                if (total > 1) {
+                    Spacer(Modifier.width(6.dp))
+                    Text(
+                        "($index/$total)",
+                        color = CyanAccent.copy(alpha = 0.85f),
+                        style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.SemiBold, fontSize = 11.sp)
+                    )
+                }
+            }
+            if (showArrows) {
+                PillArrow(Icons.Filled.ChevronRight, onNext)
+            } else {
+                Spacer(Modifier.width(12.dp))
+            }
         }
     }
 }
@@ -280,6 +326,8 @@ private fun ChannelRow(
     pillWidth: Dp,
     showEpg: Boolean,
     liveBadge: String,
+    onPrevCategory: () -> Unit = {},
+    onNextCategory: () -> Unit = {},
     modifier: Modifier,
     onClick: () -> Unit
 ) {
@@ -291,7 +339,24 @@ private fun ChannelRow(
             radius = 16.dp,
             scaleOnFocus = false,
             onClick = onClick,
-            modifier = Modifier.width(pillWidth).height(56.dp)
+            modifier = Modifier
+                .width(pillWidth)
+                .height(56.dp)
+                .onPreviewKeyEvent { ev ->
+                    if (ev.type == KeyEventType.KeyDown) {
+                        when (ev.key) {
+                            Key.DirectionLeft -> {
+                                onPrevCategory()
+                                true
+                            }
+                            Key.DirectionRight -> {
+                                onNextCategory()
+                                true
+                            }
+                            else -> false
+                        }
+                    } else false
+                }
         ) {
             Row(
                 Modifier.fillMaxSize().padding(horizontal = 8.dp, vertical = 6.dp),
@@ -537,16 +602,28 @@ private fun streamTransport(url: String): String {
 
 private fun buildTapes(
     channels: List<ChannelEntity>,
-    categories: List<CategoryEntity>
+    categories: List<CategoryEntity>,
+    allChannelsTitle: String = "Tüm Kanallar"
 ): List<QuickTape> {
     val live = channels.filter { !it.hidden }
-    val grouped = live.groupBy { it.categoryId }
-    val tapes = categories.mapNotNull { cat ->
-        val list = grouped[cat.id].orEmpty()
-        if (list.isEmpty()) null else QuickTape(cat.id, cat.name, list.sortedBy { it.number })
-    }
-    if (tapes.isNotEmpty()) return tapes
     if (live.isEmpty()) return emptyList()
-    return live.groupBy { it.categoryName.ifBlank { "Live" } }
-        .map { (name, list) -> QuickTape(name, name, list.sortedBy { it.number }) }
+    val grouped = live.groupBy { it.categoryId }
+    val tapes = mutableListOf<QuickTape>()
+
+    // 1. Tüm Kanallar
+    tapes.add(QuickTape("all", allChannelsTitle, live.sortedBy { if (it.number > 0) it.number else Int.MAX_VALUE }))
+
+    // 2. Kategoriler
+    categories.forEach { cat ->
+        val list = grouped[cat.id].orEmpty()
+        if (list.isNotEmpty()) {
+            tapes.add(QuickTape(cat.id, cat.name, list.sortedBy { if (it.number > 0) it.number else Int.MAX_VALUE }))
+        }
+    }
+
+    if (tapes.size > 1) return tapes
+
+    val byName = live.groupBy { it.categoryName.ifBlank { "Live" } }
+        .map { (name, list) -> QuickTape(name, name, list.sortedBy { if (it.number > 0) it.number else Int.MAX_VALUE }) }
+    return if (byName.isNotEmpty()) byName else tapes
 }
