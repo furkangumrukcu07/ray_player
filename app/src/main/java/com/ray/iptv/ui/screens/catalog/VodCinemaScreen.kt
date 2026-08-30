@@ -7,6 +7,7 @@ import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -37,12 +38,15 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.DownloadDone
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FavoriteBorder
+import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.MovieFilter
 import androidx.compose.material.icons.filled.OpenInNew
 import androidx.compose.material.icons.filled.Person
@@ -79,6 +83,7 @@ import androidx.compose.ui.input.key.KeyEventType
 import androidx.compose.ui.input.key.key
 import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.input.key.type
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalFocusManager
@@ -835,12 +840,39 @@ private fun VodCinemaPane(
                 Spacer(Modifier.height(10.dp))
             }
             if (pinned == null) {
-                Text(
-                    categoryName,
-                    color = g.text,
-                    style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
-                    modifier = Modifier.padding(bottom = 6.dp)
-                )
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    modifier = Modifier.fillMaxWidth().padding(bottom = 6.dp)
+                ) {
+                    Text(
+                        categoryName,
+                        color = g.text,
+                        style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold)
+                    )
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(8.dp))
+                            .background(Color.White.copy(alpha = 0.08f))
+                            .border(0.8.dp, Color.White.copy(alpha = 0.16f), RoundedCornerShape(8.dp))
+                            .clickable { expandedRows = !expandedRows }
+                            .padding(horizontal = 8.dp, vertical = 4.dp)
+                    ) {
+                        Icon(
+                            if (expandedRows) Icons.Filled.KeyboardArrowUp else Icons.Filled.KeyboardArrowDown,
+                            contentDescription = null,
+                            tint = g.accent,
+                            modifier = Modifier.size(16.dp)
+                        )
+                        Spacer(Modifier.width(4.dp))
+                        Text(
+                            if (expandedRows) "1 Satır" else "2 Satır",
+                            color = Color.White.copy(alpha = 0.9f),
+                            style = MaterialTheme.typography.labelMedium.copy(fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
+                        )
+                    }
+                }
                 if (expandedRows) {
                     PosterStrip2Rows(
                         items = items,
@@ -1556,7 +1588,14 @@ private fun PosterStrip(
     LazyRow(
         state = state,
         horizontalArrangement = Arrangement.spacedBy(10.dp),
-        contentPadding = PaddingValues(start = 4.dp, top = 4.dp, bottom = 8.dp, end = 20.dp)
+        contentPadding = PaddingValues(start = 4.dp, top = 4.dp, bottom = 8.dp, end = 20.dp),
+        modifier = Modifier
+            .fillMaxWidth()
+            .pointerInput(Unit) {
+                detectVerticalDragGestures { _, dragAmount ->
+                    if (dragAmount > 16f) onExpandTo2Rows?.invoke()
+                }
+            }
     ) {
         itemsIndexed(items, key = { _, v -> v.id }) { index, item ->
             val takeFocus = firstFocus != null && index == focusIndex
@@ -1617,7 +1656,14 @@ private fun PosterStrip2Rows(
         horizontalArrangement = Arrangement.spacedBy(10.dp),
         verticalArrangement = Arrangement.spacedBy(10.dp),
         contentPadding = PaddingValues(start = 4.dp, top = 4.dp, bottom = 8.dp, end = 20.dp),
-        modifier = Modifier.fillMaxWidth().height(290.dp)
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(290.dp)
+            .pointerInput(Unit) {
+                detectVerticalDragGestures { _, dragAmount ->
+                    if (dragAmount < -16f) onCollapseToSingleRow()
+                }
+            }
     ) {
         gridItemsIndexed(items, key = { _, v -> v.id }) { index, item ->
             val takeFocus = firstFocus != null && index == focusIndex
