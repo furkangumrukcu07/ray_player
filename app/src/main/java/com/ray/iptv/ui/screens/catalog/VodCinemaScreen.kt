@@ -775,8 +775,10 @@ private fun VodCinemaPane(
         if (pinned != null) {
             expandedRows = false
         } else {
-            delay(100)
-            runCatching { (firstFocus ?: restoreFocus).requestFocus() }
+            repeat(30) {
+                if ((firstFocus ?: restoreFocus).tryFocus()) return@LaunchedEffect
+                delay(25)
+            }
         }
     }
     Box(modifier.fillMaxSize().clip(RoundedCornerShape(16.dp))) {
@@ -804,15 +806,6 @@ private fun VodCinemaPane(
                 Brush.verticalGradient(listOf(Color.Transparent, Color.Black.copy(alpha = 0.88f)))
             )
         )
-        if (pinned == null) {
-            Row(
-                Modifier.align(Alignment.TopEnd).padding(top = 12.dp, end = 18.dp),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                CinemaIconChip(Icons.Filled.Sort, copy.sort, sort != VodSort.NAME, onOpenSort)
-                CinemaIconChip(Icons.Filled.Search, copy.search, false, onSearch)
-            }
-        }
         val people = remember(extras) { castPeople(extras) }
         Column(Modifier.fillMaxSize().padding(horizontal = 22.dp, vertical = 14.dp)) {
             if (hero != null) {
@@ -924,6 +917,15 @@ private fun VodCinemaPane(
                     onLeft = onClosePin,
                     modifier = Modifier.fillMaxWidth()
                 )
+            }
+        }
+        if (pinned == null) {
+            Row(
+                Modifier.align(Alignment.TopEnd).padding(top = 12.dp, end = 18.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                CinemaIconChip(Icons.Filled.Sort, copy.sort, sort != VodSort.NAME, onOpenSort)
+                CinemaIconChip(Icons.Filled.Search, copy.search, false, onSearch)
             }
         }
     }
@@ -1567,15 +1569,20 @@ private fun PosterStrip(
 ) {
     val g = LocalGlass.current
     val w = if (compact) 72.dp else 88.dp
-    val state = rememberLazyListState()
+    val focusIndex = remember(items, focusId) {
+        if (focusId.isNullOrBlank()) 0 else items.indexOfFirst { it.id == focusId }.coerceAtLeast(0)
+    }
+    val state = rememberLazyListState(initialFirstVisibleItemIndex = focusIndex.coerceAtLeast(0))
+    LaunchedEffect(focusIndex, items.size) {
+        if (focusIndex in items.indices) {
+            runCatching { state.scrollToItem(focusIndex) }
+        }
+    }
     if (items.isEmpty()) {
         Box(Modifier.height(if (compact) 115.dp else 145.dp).fillMaxWidth(), contentAlignment = Alignment.Center) {
             Text(empty, color = g.muted)
         }
         return
-    }
-    val focusIndex = remember(items, focusId) {
-        if (focusId.isNullOrBlank()) 0 else items.indexOfFirst { it.id == focusId }.coerceAtLeast(0)
     }
     LaunchedEffect(items.size, onLoadMore) {
         snapshotFlow {
@@ -1631,16 +1638,21 @@ private fun PosterStrip2Rows(
     focusId: String? = null
 ) {
     val g = LocalGlass.current
-    val gridState = rememberLazyGridState()
+    val focusIndex = remember(items, focusId) {
+        if (focusId.isNullOrBlank()) 0 else items.indexOfFirst { it.id == focusId }.coerceAtLeast(0)
+    }
+    val gridState = rememberLazyGridState(initialFirstVisibleItemIndex = focusIndex.coerceAtLeast(0))
+    LaunchedEffect(focusIndex, items.size) {
+        if (focusIndex in items.indices) {
+            runCatching { gridState.scrollToItem(focusIndex) }
+        }
+    }
     val w = 82.dp
     if (items.isEmpty()) {
         Box(Modifier.height(250.dp).fillMaxWidth(), contentAlignment = Alignment.Center) {
             Text(empty, color = g.muted)
         }
         return
-    }
-    val focusIndex = remember(items, focusId) {
-        if (focusId.isNullOrBlank()) 0 else items.indexOfFirst { it.id == focusId }.coerceAtLeast(0)
     }
     LaunchedEffect(items.size, onLoadMore) {
         snapshotFlow {
