@@ -876,7 +876,8 @@ private fun VodCinemaPane(
                         onCollapseToSingleRow = { expandedRows = false },
                         onLoadMore = onLoadMore,
                         firstFocus = firstFocus ?: restoreFocus,
-                        focusId = hero?.id
+                        focusId = hero?.id,
+                        modifier = Modifier.fillMaxWidth().weight(1f)
                     )
                 } else {
                     PosterStrip(
@@ -1635,7 +1636,8 @@ private fun PosterStrip2Rows(
     onCollapseToSingleRow: () -> Unit,
     onLoadMore: () -> Unit = {},
     firstFocus: FocusRequester? = null,
-    focusId: String? = null
+    focusId: String? = null,
+    modifier: Modifier = Modifier
 ) {
     val g = LocalGlass.current
     val focusIndex = remember(items, focusId) {
@@ -1647,9 +1649,9 @@ private fun PosterStrip2Rows(
             runCatching { gridState.scrollToItem(focusIndex) }
         }
     }
-    val w = 82.dp
+    val w = 76.dp
     if (items.isEmpty()) {
-        Box(Modifier.height(250.dp).fillMaxWidth(), contentAlignment = Alignment.Center) {
+        Box(modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
             Text(empty, color = g.muted)
         }
         return
@@ -1666,11 +1668,9 @@ private fun PosterStrip2Rows(
         rows = GridCells.Fixed(2),
         state = gridState,
         horizontalArrangement = Arrangement.spacedBy(10.dp),
-        verticalArrangement = Arrangement.spacedBy(10.dp),
-        contentPadding = PaddingValues(start = 4.dp, top = 4.dp, bottom = 8.dp, end = 20.dp),
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(290.dp)
+        verticalArrangement = Arrangement.spacedBy(8.dp),
+        contentPadding = PaddingValues(start = 4.dp, top = 2.dp, bottom = 4.dp, end = 20.dp),
+        modifier = modifier
             .pointerInput(Unit) {
                 detectVerticalDragGestures { _, dragAmount ->
                     if (dragAmount < -16f) onCollapseToSingleRow()
@@ -1801,17 +1801,17 @@ private fun PosterTile(
                 }
             }
         }
-        Spacer(Modifier.height(4.dp))
+        Spacer(Modifier.height(3.dp))
         Text(
             text = item.name,
-            color = if (focused) Color(0xFF00F0FF) else Color.White.copy(alpha = 0.85f),
+            color = if (focused) Color(0xFF00F0FF) else Color.White.copy(alpha = 0.9f),
             style = MaterialTheme.typography.bodySmall.copy(
-                fontSize = 11.sp,
+                fontSize = 10.5.sp,
                 fontWeight = if (focused) FontWeight.Bold else FontWeight.Medium
             ),
             maxLines = 2,
             minLines = 2,
-            lineHeight = 13.5.sp,
+            lineHeight = 12.5.sp,
             overflow = TextOverflow.Ellipsis,
             modifier = Modifier.fillMaxWidth().padding(horizontal = 2.dp)
         )
