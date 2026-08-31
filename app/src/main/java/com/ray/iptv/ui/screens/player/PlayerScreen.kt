@@ -23,6 +23,7 @@ import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.focusable
 import androidx.compose.foundation.horizontalScroll
@@ -286,7 +287,9 @@ fun PlayerScreen(
     var sheet by remember { mutableStateOf<OsdSheet?>(null) }
     var hideGen by remember { mutableIntStateOf(0) }
     val playPauseFocusRequester = remember { FocusRequester() }
+    val seekbarFocusRequester = remember { FocusRequester() }
     val screenFocusRequester = remember { FocusRequester() }
+    var isSeekbarFocused by remember { mutableStateOf(false) }
     val hideAfterMs = osdHideMs.coerceAtLeast(7_000L)
     fun showOsd() {
         overlay = true
@@ -401,6 +404,10 @@ fun PlayerScreen(
                     }
                     if (code in KeyEvent.KEYCODE_0..KeyEvent.KEYCODE_9 && (playback.live || playback.kind == "LIVE") && sheet == null && !guide && !peek) {
                         onDigit('0' + (code - KeyEvent.KEYCODE_0))
+                        return@onPreviewKeyEvent true
+                    }
+                    if (code == KeyEvent.KEYCODE_DPAD_UP && !playback.live && playback.kind != "LIVE" && sheet == null && !guide && !peek && !isSeekbarFocused) {
+                        runCatching { seekbarFocusRequester.requestFocus() }
                         return@onPreviewKeyEvent true
                     }
                     return@onPreviewKeyEvent false
@@ -736,6 +743,8 @@ fun PlayerScreen(
                                 durationMs = tick.duration,
                                 buffering = tick.buffering,
                                 fillAlpha = (osdOpacity.coerceIn(20, 100)) / 100f,
+                                focusRequester = seekbarFocusRequester,
+                                onFocusChanged = { isSeekbarFocused = it },
                                 onSeek = { ms ->
                                     showOsd()
                                     rayPlayer.seek(ms)
@@ -743,6 +752,17 @@ fun PlayerScreen(
                                 onScrub = { active ->
                                     scrubbing = active
                                     if (active) showOsd()
+                                },
+                                onDownToPlayPause = {
+                                    showOsd()
+                                    runCatching { playPauseFocusRequester.requestFocus() }
+                                },
+                                onTogglePlayPause = {
+                                    showOsd()
+                                    if (tick.playing) rayPlayer.pause() else rayPlayer.resume()
+                                },
+                                onCloseOsd = {
+                                    overlay = false
                                 }
                             )
                         }
@@ -757,6 +777,7 @@ fun PlayerScreen(
                             speed = speed,
                             streamFormat = streamFormat,
                             fillAlpha = (osdOpacity.coerceIn(20, 100)) / 100f,
+                            playPauseFocus = playPauseFocusRequester,
                             onRewind = {
                                 showOsd()
                                 if (playback.live) onZapUp() else onRewind(-SkipMs)
@@ -807,8 +828,7 @@ fun PlayerScreen(
                             onPortrait = if (touch && !context.isTelevisionDevice()) ({
                                 showOsd()
                                 context.setPortrait()
-                            }) else null,
-                            playPauseFocus = playPauseFocusRequester
+                            }) else null
                         )
                     }
                     val openSheet = sheet
@@ -876,11 +896,17 @@ private fun VodSeekRow(
     buffering: Boolean,
     fillAlpha: Float,
     onSeek: (Long) -> Unit,
-    onScrub: (Boolean) -> Unit
+    onScrub: (Boolean) -> Unit,
+    onFocusChanged: (Boolean) -> Unit = {},
+    onDownToPlayPause: () -> Unit = {},
+    onTogglePlayPause: () -> Unit = {},
+    onCloseOsd: () -> Unit = {},
+    focusRequester: FocusRequester? = null
 ) {
     val total = durationMs.coerceAtLeast(1L)
     var dragMs by remember { mutableStateOf<Long?>(null) }
     var settleMs by remember { mutableStateOf<Long?>(null) }
+    var focused by remember { mutableStateOf(false) }
     val live = positionMs.coerceIn(0L, total)
     LaunchedEffect(live, settleMs) {
         val settle = settleMs ?: return@LaunchedEffect
@@ -895,20 +921,37 @@ private fun VodSeekRow(
         fontSize = 12.sp,
         fontFeatureSettings = "tnum"
     )
+    val borderModifier = if (focused) {
+        Modifier.border(
+            width = 2.dp,
+            brush = Brush.horizontalGradient(
+                listOf(Color(0xFF00F0FF), Color(0xFF38BDF8), Color(0xFF67E8F9))
+            ),
+            shape = RoundedCornerShape(14.dp)
+        )
+    } else {
+        Modifier.border(
+            width = 0.8.dp,
+            color = Color.White.copy(alpha = 0.15f),
+            shape = RoundedCornerShape(14.dp)
+        )
+    }
     GlassPanel(
         strong = true,
         radius = 14.dp,
-        fillAlpha = fillAlpha,
-        modifier = Modifier.fillMaxWidth()
+        fillAlpha = if (focused) 0.95f else fillAlpha,
+        modifier = Modifier
+            .fillMaxWidth()
+            .then(borderModifier)
     ) {
         Row(
-            Modifier.fillMaxWidth().padding(start = 14.dp, end = 14.dp, top = 5.dp, bottom = 5.dp),
+            Modifier.fillMaxWidth().padding(start = 14.dp, end = 14.dp, top = 6.dp, bottom = 6.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(10.dp)
         ) {
             Text(
                 fmt(shown),
-                color = Color.White,
+                color = if (focused) Color(0xFF00F0FF) else Color.White,
                 style = timeStyle,
                 maxLines = 1,
                 modifier = Modifier.width(68.dp)
@@ -917,7 +960,12 @@ private fun VodSeekRow(
                 fraction = shown.toFloat() / total.toFloat(),
                 label = fmt(shown),
                 enabled = durationMs > 0,
-                modifier = Modifier.weight(1f).height(24.dp),
+                isFocused = focused,
+                focusRequester = focusRequester,
+                onFocusChanged = { f ->
+                    focused = f
+                    onFocusChanged(f)
+                },
                 onScrubFraction = { f ->
                     onScrub(true)
                     dragMs = (f * total).toLong().coerceIn(0L, total)
@@ -934,7 +982,11 @@ private fun VodSeekRow(
                     onSeek(ms)
                     settleMs = ms
                     dragMs = null
-                }
+                },
+                onDown = onDownToPlayPause,
+                onCenter = onTogglePlayPause,
+                onBack = onCloseOsd,
+                modifier = Modifier.weight(1f).height(28.dp)
             )
             Text(
                 fmt(durationMs),
@@ -953,16 +1005,27 @@ private fun VodSeekTrack(
     fraction: Float,
     label: String,
     enabled: Boolean,
+    isFocused: Boolean,
+    focusRequester: FocusRequester? = null,
+    onFocusChanged: (Boolean) -> Unit,
     onScrubFraction: (Float) -> Unit,
     onScrubEnd: (Float) -> Unit,
     onKeySeek: (Long) -> Unit,
+    onDown: () -> Unit,
+    onCenter: () -> Unit,
+    onBack: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val thumb = 8.dp
-    val trackH = 5.dp
+    val thumb = if (isFocused) 10.dp else 8.dp
+    val trackH = if (isFocused) 6.dp else 5.dp
     var dragging by remember { mutableStateOf(false) }
     val density = LocalDensity.current
-    BoxWithConstraints(modifier.focusable(enabled)) {
+    BoxWithConstraints(
+        modifier
+            .then(if (focusRequester != null) Modifier.focusRequester(focusRequester) else Modifier)
+            .onFocusChanged { onFocusChanged(it.isFocused) }
+            .focusable(enabled)
+    ) {
         val thumbPx = with(density) { thumb.toPx() }
         val usable = (constraints.maxWidth.toFloat() - thumbPx * 2f).coerceAtLeast(1f)
         val f = fraction.coerceIn(0f, 1f)
@@ -970,14 +1033,30 @@ private fun VodSeekTrack(
             Modifier
                 .fillMaxSize()
                 .onPreviewKeyEvent { ev ->
-                    if (!enabled || ev.nativeKeyEvent.action != KeyEvent.ACTION_DOWN) return@onPreviewKeyEvent false
-                    when (ev.nativeKeyEvent.keyCode) {
-                        KeyEvent.KEYCODE_DPAD_LEFT, KeyEvent.KEYCODE_MEDIA_REWIND -> {
+                    if (!enabled) return@onPreviewKeyEvent false
+                    val code = ev.nativeKeyEvent.keyCode
+                    if (code == KeyEvent.KEYCODE_BACK) {
+                        if (ev.nativeKeyEvent.action == KeyEvent.ACTION_UP) {
+                            onBack()
+                        }
+                        return@onPreviewKeyEvent true
+                    }
+                    if (ev.nativeKeyEvent.action != KeyEvent.ACTION_DOWN) return@onPreviewKeyEvent false
+                    when (code) {
+                        KeyEvent.KEYCODE_DPAD_LEFT, KeyEvent.KEYCODE_MEDIA_REWIND, KeyEvent.KEYCODE_MEDIA_STEP_BACKWARD -> {
                             onKeySeek(-SkipMs)
                             true
                         }
-                        KeyEvent.KEYCODE_DPAD_RIGHT, KeyEvent.KEYCODE_MEDIA_FAST_FORWARD -> {
+                        KeyEvent.KEYCODE_DPAD_RIGHT, KeyEvent.KEYCODE_MEDIA_FAST_FORWARD, KeyEvent.KEYCODE_MEDIA_STEP_FORWARD -> {
                             onKeySeek(SkipMs)
+                            true
+                        }
+                        KeyEvent.KEYCODE_DPAD_DOWN -> {
+                            onDown()
+                            true
+                        }
+                        KeyEvent.KEYCODE_DPAD_CENTER, KeyEvent.KEYCODE_ENTER, KeyEvent.KEYCODE_NUMPAD_ENTER -> {
+                            onCenter()
                             true
                         }
                         else -> false
@@ -1019,16 +1098,22 @@ private fun VodSeekTrack(
                 )
                 val x = start + f * (end - start)
                 drawLine(
-                    color = Color.White,
+                    color = if (isFocused) Color(0xFF00F0FF) else Color.White,
                     start = Offset(start, cy),
                     end = Offset(x, cy),
                     strokeWidth = trackH.toPx(),
                     cap = StrokeCap.Round
                 )
-                drawCircle(color = SeekTeal.copy(alpha = 0.18f), radius = thumbPx * 2f, center = Offset(x, cy))
-                drawCircle(color = SeekTeal, radius = thumbPx, center = Offset(x, cy))
+                if (isFocused) {
+                    drawCircle(color = Color(0xFF00F0FF).copy(alpha = 0.35f), radius = thumbPx * 2.2f, center = Offset(x, cy))
+                    drawCircle(color = Color(0xFF00F0FF), radius = thumbPx * 1.25f, center = Offset(x, cy))
+                    drawCircle(color = Color.White, radius = thumbPx * 0.6f, center = Offset(x, cy))
+                } else {
+                    drawCircle(color = SeekTeal.copy(alpha = 0.18f), radius = thumbPx * 2f, center = Offset(x, cy))
+                    drawCircle(color = SeekTeal, radius = thumbPx, center = Offset(x, cy))
+                }
             }
-            if (dragging) {
+            if (dragging || isFocused) {
                 val bubbleWpx = with(density) { 92.dp.roundToPx() }
                 val gapPx = with(density) { 42.dp.roundToPx() }
                 val thumbX = thumbPx + f * usable
@@ -1046,7 +1131,8 @@ private fun VodSeekTrack(
                         ),
                         modifier = Modifier
                             .clip(RoundedCornerShape(8.dp))
-                            .background(Color.Black.copy(alpha = 0.85f))
+                            .background(if (isFocused) Color(0xFF0A192F).copy(alpha = 0.92f) else Color.Black.copy(alpha = 0.85f))
+                            .border(if (isFocused) 1.dp else 0.dp, if (isFocused) Color(0xFF00F0FF) else Color.Transparent, RoundedCornerShape(8.dp))
                             .padding(horizontal = 12.dp, vertical = 7.dp),
                         textAlign = TextAlign.Center
                     )
