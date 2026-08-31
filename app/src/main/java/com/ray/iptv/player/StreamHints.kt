@@ -47,12 +47,16 @@ internal object StreamHints {
             hls(url)
     }
 
-    fun kind(url: String, format: StreamFormat): Kind {
+    fun kind(url: String, format: StreamFormat, live: Boolean = true): Kind {
         if (url.startsWith("rtsp://", true)) return Kind.RTSP
-        if (format == StreamFormat.HLS || hls(url)) return Kind.HLS
         if (dash(url)) return Kind.DASH
-        if (format == StreamFormat.TS || mpegTs(url)) return Kind.TS
-        if (format == StreamFormat.AUTO && liveIptv(url)) return Kind.TS
+        if (hls(url)) return Kind.HLS
+        if (mpegTs(url)) return Kind.TS
+        if (live) {
+            if (format == StreamFormat.HLS) return Kind.HLS
+            if (format == StreamFormat.TS) return Kind.TS
+            if (liveIptv(url)) return Kind.TS
+        }
         return Kind.OTHER
     }
 

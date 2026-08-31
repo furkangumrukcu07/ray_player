@@ -262,7 +262,7 @@ class RayPlayer @Inject constructor(
                 return
             }
             destroyMpv()
-            val kind = StreamHints.kind(playUrl, format)
+            val kind = StreamHints.kind(playUrl, format, live = forLive)
             val raw = forLive && kind == StreamHints.Kind.TS
             val uhd = forLive && kind == StreamHints.Kind.HLS && ExoDeviceBuffers.urlLooksUhd(playUrl)
             if (raw != liveRawTs || uhd != liveUhdHls) {
@@ -927,7 +927,7 @@ class RayPlayer @Inject constructor(
     }
 
     private fun rewrite(url: String, format: StreamFormat): String =
-        XtreamStreamUrls.applyFormat(url, format)
+        if (forLive) XtreamStreamUrls.applyFormat(url, format) else url
 
     private fun classify(err: PlaybackException): PlayErrorKind {
         val status = httpStatus(err)
