@@ -903,14 +903,14 @@ class RayPlayer @Inject constructor(
         when (kind) {
             StreamHints.Kind.HLS -> {
                 builder.setMimeType(MimeTypes.APPLICATION_M3U8)
-                if (StreamHints.liveIptv(url)) {
+                if (forLive && StreamHints.liveIptv(url)) {
                     builder.setLiveConfiguration(MediaItem.LiveConfiguration.Builder().build())
                 }
             }
             StreamHints.Kind.DASH -> builder.setMimeType(MimeTypes.APPLICATION_MPD)
             StreamHints.Kind.TS -> {
                 builder.setMimeType(MimeTypes.VIDEO_MP2T)
-                if (StreamHints.liveIptv(url)) {
+                if (forLive && StreamHints.liveIptv(url)) {
                     builder.setLiveConfiguration(MediaItem.LiveConfiguration.Builder().build())
                 }
             }
