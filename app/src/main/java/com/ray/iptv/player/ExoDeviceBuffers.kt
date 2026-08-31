@@ -35,13 +35,13 @@ object ExoDeviceBuffers {
     private val liveCapableTwoGiB = ExoBufferProfile(8_000, 25_000, 500, 1_000, BYTES_TWO_GIB_LIVE, true)
     private val liveMediatekMobile = ExoBufferProfile(8_000, 25_000, 500, 1_000, BYTES_VOD, true)
 
-    private val vodMid = ExoBufferProfile(25_000, 60_000, 2_500, 4_500, BYTES_VOD, true)
-    private val vodLow = ExoBufferProfile(20_000, 50_000, 2_000, 3_500, BYTES_TWO_GIB_VOD, true)
-    private val vodHigh = ExoBufferProfile(30_000, 90_000, 2_500, 5_000, 64 * 1024 * 1024, true)
-    private val vodOneGiB = ExoBufferProfile(18_000, 40_000, 2_000, 3_000, BYTES_LOW_RAM_VOD, true)
-    private val vodBudgetTwoGiB = ExoBufferProfile(22_000, 50_000, 2_000, 3_500, BYTES_TWO_GIB_VOD, true)
-    private val vodCapableTwoGiB = ExoBufferProfile(25_000, 60_000, 2_500, 4_500, BYTES_VOD, true)
-    private val vodMediatekMobile = ExoBufferProfile(22_000, 50_000, 2_000, 3_500, BYTES_TWO_GIB_VOD, true)
+    private val vodMid = ExoBufferProfile(15_000, 60_000, 1_000, 2_000, BYTES_VOD, true)
+    private val vodLow = ExoBufferProfile(12_000, 45_000, 1_000, 1_500, BYTES_TWO_GIB_VOD, true)
+    private val vodHigh = ExoBufferProfile(20_000, 90_000, 1_200, 2_500, 64 * 1024 * 1024, true)
+    private val vodOneGiB = ExoBufferProfile(10_000, 35_000, 800, 1_500, BYTES_LOW_RAM_VOD, true)
+    private val vodBudgetTwoGiB = ExoBufferProfile(12_000, 45_000, 1_000, 1_800, BYTES_TWO_GIB_VOD, true)
+    private val vodCapableTwoGiB = ExoBufferProfile(15_000, 60_000, 1_000, 2_000, BYTES_VOD, true)
+    private val vodMediatekMobile = ExoBufferProfile(12_000, 45_000, 1_000, 1_800, BYTES_TWO_GIB_VOD, true)
 
     fun resolve(
         hints: AndroidPlaybackSocHints,

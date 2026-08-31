@@ -293,10 +293,12 @@ class RayPlayer @Inject constructor(
                         .createMediaSource(item)
                 StreamHints.Kind.TS, StreamHints.Kind.OTHER -> {
                     val extractors = DefaultExtractorsFactory()
+                        .setConstantBitrateSeekingEnabled(true)
                         .setTsExtractorFlags(1)
                         .setTsExtractorTimestampSearchBytes(600 * 188)
                     ProgressiveMediaSource.Factory(factory, extractors)
                         .setLoadErrorHandlingPolicy(retry)
+                        .setContinueLoadingCheckIntervalBytes(1024 * 1024)
                         .createMediaSource(item)
                 }
             }
@@ -434,7 +436,7 @@ class RayPlayer @Inject constructor(
         runCatching { m.attachSurface(surface) }
         m.setPropertyString("force-window", "yes")
         m.setPropertyString("vo", "gpu")
-        if (preferCopyHwdec && !softwareDecoder) {
+        if (preferCopyHwdec && !softwareDecoder && !socHints.androidTv && !socHints.playbackChallengedTv) {
             val hw = m.getPropertyString("hwdec").orEmpty()
             if (hw == "mediacodec" || hw.isBlank()) m.setPropertyString("hwdec", "mediacodec-copy")
         }
@@ -803,7 +805,7 @@ class RayPlayer @Inject constructor(
                 MimeTypes.AUDIO_FLAC
             )
         val maxH = socHints.adaptiveMaxVideoHeightHint()
-        if (maxH != null) {
+        if (forLive && maxH != null) {
             val maxW = if (maxH <= 720) 1280 else 1920
             trackParams.setMaxVideoSize(maxW, maxH)
         } else {
@@ -817,7 +819,7 @@ class RayPlayer @Inject constructor(
                     .setBufferDurationsMs(min, max, playback, rebuffer)
                     .setTargetBufferBytes(bytes)
                     .setPrioritizeTimeOverSizeThresholds(buf.prioritizeTime)
-                    .setBackBuffer(if (forLive) 10_000 else 20_000, false)
+                    .setBackBuffer(if (forLive) 10_000 else 30_000, false)
                     .build()
             )
             .setSeekBackIncrementMs(15_000)

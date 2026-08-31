@@ -15,16 +15,16 @@ internal class IptvLoadErrorPolicy(
 ) : DefaultLoadErrorHandlingPolicy() {
 
     override fun getMinimumLoadableRetryCount(dataType: Int): Int =
-        if (live) 18 else super.getMinimumLoadableRetryCount(dataType)
+        if (live) 18 else 12
 
     override fun getRetryDelayMsFor(loadErrorInfo: LoadErrorHandlingPolicy.LoadErrorInfo): Long {
         val code = httpCode(loadErrorInfo.exception)
         if (code == 401 || code == 403 || code == 404) return C.TIME_UNSET
         if (code == 456 || code == 509) return 1_500L
-        if (live && malformedHls(loadErrorInfo.exception)) return 800L
-        if (live && transient(loadErrorInfo.exception)) return 700L
+        if (malformedHls(loadErrorInfo.exception)) return 800L
+        if (transient(loadErrorInfo.exception)) return if (live) 700L else 1_000L
         val base = super.getRetryDelayMsFor(loadErrorInfo)
-        return if (live) minOf(base, 2_500L).coerceAtLeast(400L) else base
+        return if (live) minOf(base, 2_500L).coerceAtLeast(400L) else minOf(base, 4_000L).coerceAtLeast(800L)
     }
 
     override fun getFallbackSelectionFor(

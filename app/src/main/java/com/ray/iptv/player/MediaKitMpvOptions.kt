@@ -18,8 +18,7 @@ internal object MediaKitMpvOptions {
         uhd: Boolean
     ): String {
         if (software || hints.isSamsungSmT530) return "no"
-        if (uhd || hints.amlogicLike || hints.preferDirectMediacodecHwdec) return "mediacodec"
-        return if (lowPower) "mediacodec" else "mediacodec-copy"
+        return "mediacodec"
     }
 
     fun applyBeforeInit(mpv: MPV, hwdec: String) {
@@ -27,10 +26,11 @@ internal object MediaKitMpvOptions {
         set(mpv, "gpu-context", "android")
         set(mpv, "opengl-es", "yes")
         set(mpv, "hwdec", hwdec)
-        set(mpv, "hwdec-codecs", "h264,hevc,mpeg4,mpeg2video,vp8,vp9,av1")
+        set(mpv, "hwdec-codecs", "h264,hevc,mpeg4,mpeg2video,vp8,vp9,av1,vc1")
         set(mpv, "ao", "audiotrack")
         set(mpv, "keep-open", "yes")
         set(mpv, "force-window", "no")
+        set(mpv, "tls-verify", "no")
     }
 
     fun applyPlayback(
@@ -57,7 +57,9 @@ internal object MediaKitMpvOptions {
         setProp(mpv, "demuxer-lavf-o", lavf)
         if (ignoreSsl) {
             setProp(mpv, "tls-verify", "no")
-            setProp(mpv, "stream-lavf-o", "tls_verify=0")
+            setProp(mpv, "stream-lavf-o", "reconnect=1,reconnect_streamed=1,reconnect_delay_max=10,tls_verify=0")
+        } else {
+            setProp(mpv, "stream-lavf-o", "reconnect=1,reconnect_streamed=1,reconnect_delay_max=10")
         }
         if (userAgent.isNotBlank()) setProp(mpv, "user-agent", userAgent)
         if (referer.isNotBlank()) setProp(mpv, "referrer", referer)
@@ -113,11 +115,12 @@ internal object MediaKitMpvOptions {
         } else {
             setProp(mpv, "untimed", "no")
             setProp(mpv, "hr-seek", "no")
-            setProp(mpv, "force-seekable", "no")
+            setProp(mpv, "force-seekable", "yes")
             setProp(mpv, "cache-pause", "yes")
-            setProp(mpv, "cache-pause-initial", "yes")
-            setProp(mpv, "cache-pause-wait", "3")
-            setProp(mpv, "network-timeout", "30")
+            setProp(mpv, "cache-pause-initial", "no")
+            setProp(mpv, "cache-pause-wait", "1")
+            val timeout = if (hints.androidTv || hints.playbackChallengedTv) "25" else "30"
+            setProp(mpv, "network-timeout", timeout)
             setProp(mpv, "video-latency-hacks", "no")
             val fwd = maxOf(hints.vodDemuxerForwardMiB(), 64)
             setProp(mpv, "demuxer-max-bytes", "${fwd}M")
@@ -266,7 +269,7 @@ internal object MediaKitMpvOptions {
 
     private fun buildDemuxerLavfOpts(live: Boolean, ignoreSsl: Boolean): String {
         val ext = if (ignoreSsl) "allowed_extensions=ALL,tls_verify=0" else "allowed_extensions=ALL"
-        return if (live) "reconnect=1,reconnect_streamed=1,reconnect_delay_max=10,$ext" else ext
+        return "reconnect=1,reconnect_streamed=1,reconnect_delay_max=10,$ext"
     }
 
     fun shouldApplyHlsBitrate(url: String): Boolean =
