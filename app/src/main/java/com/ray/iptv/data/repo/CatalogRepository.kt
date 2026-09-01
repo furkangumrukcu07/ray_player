@@ -1117,6 +1117,10 @@ https://test-streams.mux.dev/dai-discontinuity-deltatre/manifest.m3u8
         )
     }
 
+    suspend fun hasUpcomingEpg(now: Long = System.currentTimeMillis()): Boolean {
+        return db.epg().futureProgrammeCount(now) > 0
+    }
+
     suspend fun addEpgSource(name: String, url: String) {
         db.epgSources().upsert(EpgSourceEntity(UUID.randomUUID().toString(), name.ifBlank { "XMLTV" }, url, true))
     }

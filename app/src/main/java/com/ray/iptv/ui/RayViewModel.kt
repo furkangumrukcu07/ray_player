@@ -468,6 +468,16 @@ class RayViewModel @Inject constructor(
         viewModelScope.launch { settingsRepo.maybeForceTsLiveFormatForWeakHardware() }
         viewModelScope.launch { refreshEpgStats() }
         viewModelScope.launch {
+            delay(2500)
+            checkAndAutoSyncEpg()
+        }
+        viewModelScope.launch {
+            while (isActive) {
+                delay(30 * 60 * 1000L)
+                checkAndAutoSyncEpg()
+            }
+        }
+        viewModelScope.launch {
             val s = settingsRepo.settings.first()
             val initial = if (s.layoutMode == LayoutMode.MOBILE || s.layoutMode == LayoutMode.TABLET) {
                 if (s.startup == StartupScreen.LIVE) Dest.CONTINUE else s.startup.toDest()
@@ -790,6 +800,7 @@ class RayViewModel @Inject constructor(
             }
             toast.value = playlistSavedMsg()
             triggerAutoCloudBackupIfSignedIn()
+            refreshGuide(force = false, silent = true)
         }.onFailure { failCatalogLoad(it) }
     }
 
@@ -817,6 +828,7 @@ class RayViewModel @Inject constructor(
             }
             toast.value = playlistSavedMsg()
             triggerAutoCloudBackupIfSignedIn()
+            refreshGuide(force = false, silent = true)
         }.onFailure { failCatalogLoad(it) }
     }
 
@@ -992,18 +1004,39 @@ class RayViewModel @Inject constructor(
             }
         }.onSuccess {
             if (!silent) toast.value = strings.libraryRefreshed
+            refreshGuide(force = true, silent = silent)
         }.onFailure {
             if (!silent) toast.value = it.message.orEmpty()
         }
     }
 
-    fun refreshGuide(force: Boolean = true) = viewModelScope.launch {
+    suspend fun checkAndAutoSyncEpg() {
+        if (!settings.value.epgEnabled) return
+        val now = System.currentTimeMillis()
+        val s = settings.value
+        val hasFuture = withContext(Dispatchers.IO) { catalog.hasUpcomingEpg(now) }
+        val isStale = s.lastEpgRefreshMs == 0L || (now - s.lastEpgRefreshMs) > 12L * 3600_000L
+        val isDifferentDay = run {
+            if (s.lastEpgRefreshMs == 0L) true
+            else {
+                val calLast = java.util.Calendar.getInstance().apply { timeInMillis = s.lastEpgRefreshMs }
+                val calNow = java.util.Calendar.getInstance().apply { timeInMillis = now }
+                calLast.get(java.util.Calendar.DAY_OF_YEAR) != calNow.get(java.util.Calendar.DAY_OF_YEAR) ||
+                calLast.get(java.util.Calendar.YEAR) != calNow.get(java.util.Calendar.YEAR)
+            }
+        }
+        if (!hasFuture || isStale || isDifferentDay) {
+            refreshGuide(force = false, silent = true)
+        }
+    }
+
+    fun refreshGuide(force: Boolean = true, silent: Boolean = false) = viewModelScope.launch {
         if (!settings.value.epgEnabled) {
-            if (!settings.value.silentSync) toast.value = strings.epgOff
+            if (!silent && !settings.value.silentSync) toast.value = strings.epgOff
             return@launch
         }
         if (!guideRefreshing.compareAndSet(false, true)) {
-            toast.value = strings.epgRefreshing
+            if (!silent) toast.value = strings.epgRefreshing
             return@launch
         }
         try {
@@ -1012,12 +1045,23 @@ class RayViewModel @Inject constructor(
             val allowXtream = s.epgSourceMode != EpgSourceMode.XMLTV
             val allowGlobal = s.epgSourceMode != EpgSourceMode.XTREAM
             val lang = s.lang.code
+            val now = System.currentTimeMillis()
             if (!force && s.epgRefreshDays > 0 && s.lastEpgRefreshMs > 0) {
-                val freshUntil = s.lastEpgRefreshMs + s.epgRefreshDays * 86_400_000L
-                if (System.currentTimeMillis() < freshUntil) {
+                val hasFuture = withContext(Dispatchers.IO) { catalog.hasUpcomingEpg(now) }
+                val isRecent = (now - s.lastEpgRefreshMs) < 12L * 3600_000L
+                val isSameDay = run {
+                    val calLast = java.util.Calendar.getInstance().apply { timeInMillis = s.lastEpgRefreshMs }
+                    val calNow = java.util.Calendar.getInstance().apply { timeInMillis = now }
+                    calLast.get(java.util.Calendar.DAY_OF_YEAR) == calNow.get(java.util.Calendar.DAY_OF_YEAR) &&
+                    calLast.get(java.util.Calendar.YEAR) == calNow.get(java.util.Calendar.YEAR)
+                }
+                if (hasFuture && isRecent && isSameDay) {
                     refreshEpgStats()
                     return@launch
                 }
+            }
+            if (!silent && !settings.value.silentSync) {
+                toast.value = strings.epgRefreshing
             }
             withContext(Dispatchers.IO) {
                 catalog.importAllXmltv(
@@ -1030,13 +1074,17 @@ class RayViewModel @Inject constructor(
             }
             settingsRepo.setLastEpgRefresh(System.currentTimeMillis())
             refreshEpgStats()
-            if (!settings.value.silentSync) {
+            lastGuideChunk = emptyList()
+            playback.value?.let { p -> if (p.live && p.mediaId.isNotBlank()) refreshNowNext(p.mediaId) }
+            if (!silent && !settings.value.silentSync) {
                 toast.value = strings.epgRefreshed
             }
         } catch (t: Throwable) {
             if (t is kotlinx.coroutines.CancellationException) throw t
-            toast.value = t.message?.takeIf { it.isNotBlank() }
-                ?: if (isEn()) "TV guide refresh failed" else "TV rehberi yenilenemedi"
+            if (!silent) {
+                toast.value = t.message?.takeIf { it.isNotBlank() }
+                    ?: if (isEn()) "TV guide refresh failed" else "TV rehberi yenilenemedi"
+            }
         } finally {
             guideRefreshing.set(false)
         }

@@ -518,6 +518,9 @@ interface EpgDao {
     @Query("SELECT COUNT(*) FROM epg")
     suspend fun programmeCount(): Int
 
+    @Query("SELECT COUNT(*) FROM epg WHERE endMs > :now")
+    suspend fun futureProgrammeCount(now: Long): Int
+
     @Query("SELECT DISTINCT epgId FROM epg WHERE epgId != ''")
     suspend fun allEpgIds(): List<String>
 
