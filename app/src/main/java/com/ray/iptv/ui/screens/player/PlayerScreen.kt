@@ -410,6 +410,18 @@ fun PlayerScreen(
                         runCatching { seekbarFocusRequester.requestFocus() }
                         return@onPreviewKeyEvent true
                     }
+                    if (isSeekbarFocused && !playback.live && playback.kind != "LIVE" && sheet == null && !guide && !peek) {
+                        if (code == KeyEvent.KEYCODE_DPAD_LEFT || code == KeyEvent.KEYCODE_MEDIA_REWIND || code == KeyEvent.KEYCODE_MEDIA_STEP_BACKWARD) {
+                            showOsd()
+                            onRewind(-SkipMs)
+                            return@onPreviewKeyEvent true
+                        }
+                        if (code == KeyEvent.KEYCODE_DPAD_RIGHT || code == KeyEvent.KEYCODE_MEDIA_FAST_FORWARD || code == KeyEvent.KEYCODE_MEDIA_STEP_FORWARD) {
+                            showOsd()
+                            onRewind(SkipMs)
+                            return@onPreviewKeyEvent true
+                        }
+                    }
                     return@onPreviewKeyEvent false
                 }
                 when (code) {
@@ -1022,6 +1034,36 @@ private fun VodSeekTrack(
     val density = LocalDensity.current
     BoxWithConstraints(
         modifier
+            .onPreviewKeyEvent { ev ->
+                if (!enabled) return@onPreviewKeyEvent false
+                val code = ev.nativeKeyEvent.keyCode
+                if (code == KeyEvent.KEYCODE_BACK) {
+                    if (ev.nativeKeyEvent.action == KeyEvent.ACTION_UP) {
+                        onBack()
+                    }
+                    return@onPreviewKeyEvent true
+                }
+                if (ev.nativeKeyEvent.action != KeyEvent.ACTION_DOWN) return@onPreviewKeyEvent false
+                when (code) {
+                    KeyEvent.KEYCODE_DPAD_LEFT, KeyEvent.KEYCODE_MEDIA_REWIND, KeyEvent.KEYCODE_MEDIA_STEP_BACKWARD -> {
+                        onKeySeek(-SkipMs)
+                        true
+                    }
+                    KeyEvent.KEYCODE_DPAD_RIGHT, KeyEvent.KEYCODE_MEDIA_FAST_FORWARD, KeyEvent.KEYCODE_MEDIA_STEP_FORWARD -> {
+                        onKeySeek(SkipMs)
+                        true
+                    }
+                    KeyEvent.KEYCODE_DPAD_DOWN -> {
+                        onDown()
+                        true
+                    }
+                    KeyEvent.KEYCODE_DPAD_CENTER, KeyEvent.KEYCODE_ENTER, KeyEvent.KEYCODE_NUMPAD_ENTER -> {
+                        onCenter()
+                        true
+                    }
+                    else -> false
+                }
+            }
             .then(if (focusRequester != null) Modifier.focusRequester(focusRequester) else Modifier)
             .onFocusChanged { onFocusChanged(it.isFocused) }
             .focusable(enabled)
@@ -1032,36 +1074,6 @@ private fun VodSeekTrack(
         Box(
             Modifier
                 .fillMaxSize()
-                .onPreviewKeyEvent { ev ->
-                    if (!enabled) return@onPreviewKeyEvent false
-                    val code = ev.nativeKeyEvent.keyCode
-                    if (code == KeyEvent.KEYCODE_BACK) {
-                        if (ev.nativeKeyEvent.action == KeyEvent.ACTION_UP) {
-                            onBack()
-                        }
-                        return@onPreviewKeyEvent true
-                    }
-                    if (ev.nativeKeyEvent.action != KeyEvent.ACTION_DOWN) return@onPreviewKeyEvent false
-                    when (code) {
-                        KeyEvent.KEYCODE_DPAD_LEFT, KeyEvent.KEYCODE_MEDIA_REWIND, KeyEvent.KEYCODE_MEDIA_STEP_BACKWARD -> {
-                            onKeySeek(-SkipMs)
-                            true
-                        }
-                        KeyEvent.KEYCODE_DPAD_RIGHT, KeyEvent.KEYCODE_MEDIA_FAST_FORWARD, KeyEvent.KEYCODE_MEDIA_STEP_FORWARD -> {
-                            onKeySeek(SkipMs)
-                            true
-                        }
-                        KeyEvent.KEYCODE_DPAD_DOWN -> {
-                            onDown()
-                            true
-                        }
-                        KeyEvent.KEYCODE_DPAD_CENTER, KeyEvent.KEYCODE_ENTER, KeyEvent.KEYCODE_NUMPAD_ENTER -> {
-                            onCenter()
-                            true
-                        }
-                        else -> false
-                    }
-                }
                 .pointerInput(enabled) {
                     if (!enabled) return@pointerInput
                     awaitEachGesture {
