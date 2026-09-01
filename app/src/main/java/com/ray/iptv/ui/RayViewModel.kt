@@ -614,6 +614,8 @@ class RayViewModel @Inject constructor(
         }
     }
 
+    var vodOriginDest: Dest? = null
+
     val contentFocusTrigger = MutableStateFlow(0L)
 
     fun go(d: Dest) {
@@ -622,6 +624,9 @@ class RayViewModel @Inject constructor(
         }
         overlay.value = Overlay.NONE
         dest.value = d
+        if (d != Dest.MOVIES && d != Dest.SERIES) {
+            vodOriginDest = null
+        }
         contentFocusTrigger.value = System.currentTimeMillis()
         when (d) {
             Dest.LIVE -> {
@@ -1309,6 +1314,15 @@ class RayViewModel @Inject constructor(
         return vodMeta.enrich(item, settings.value, xtream)
     }
 
+    fun openFromHub(item: VodEntity) {
+        vodOriginDest = Dest.CINEMA_HUB
+        if (item.kind == "SERIES") {
+            openSeries(item, fromHome = true)
+        } else {
+            openMovie(item, fromHome = true)
+        }
+    }
+
     fun closeDetail() {
         selectedMovie.value = null
         selectedSeries.value = null
@@ -1316,6 +1330,12 @@ class RayViewModel @Inject constructor(
         vodExtrasId.value = ""
         vodExtras.value = VodMeta("", "", "", "", "")
         vodMetaLoading.value = false
+        val origin = vodOriginDest
+        if (origin != null) {
+            vodOriginDest = null
+            dest.value = origin
+            contentFocusTrigger.value = System.currentTimeMillis()
+        }
     }
 
     fun backFromPlayer() {

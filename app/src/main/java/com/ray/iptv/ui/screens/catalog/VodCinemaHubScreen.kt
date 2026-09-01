@@ -81,7 +81,9 @@ import com.ray.iptv.data.local.FavoriteEntity
 import com.ray.iptv.data.local.VodEntity
 import com.ray.iptv.ui.glass.GlassPanel
 import com.ray.iptv.ui.i18n.Copy
+import com.ray.iptv.ui.input.tryFocus
 import com.ray.iptv.ui.theme.LocalGlass
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 private data class HubRail(
@@ -204,7 +206,12 @@ fun VodCinemaHubScreen(
 
     LaunchedEffect(contentFocusTrigger) {
         if (!railExpanded) {
-            playBtnFocusRequester.requestFocus()
+            delay(60)
+            repeat(12) {
+                if (firstItemFocusRequester.tryFocus()) return@LaunchedEffect
+                delay(35)
+            }
+            playBtnFocusRequester.tryFocus()
         }
     }
 
@@ -404,6 +411,16 @@ private fun HeroBanner(
                 Modifier
                     .focusRequester(playFocusRequester)
                     .onFocusChanged { playFocused = it.isFocused }
+                    .onPreviewKeyEvent { ev ->
+                        if (ev.nativeKeyEvent.action == KeyEvent.ACTION_DOWN &&
+                            (ev.nativeKeyEvent.keyCode == KeyEvent.KEYCODE_DPAD_CENTER ||
+                             ev.nativeKeyEvent.keyCode == KeyEvent.KEYCODE_ENTER ||
+                             ev.nativeKeyEvent.keyCode == KeyEvent.KEYCODE_NUMPAD_ENTER)
+                        ) {
+                            onPlay()
+                            true
+                        } else false
+                    }
                     .clip(RoundedCornerShape(12.dp))
                     .background(
                         if (playFocused) {
@@ -445,6 +462,16 @@ private fun HeroBanner(
             Box(
                 Modifier
                     .onFocusChanged { detailFocused = it.isFocused }
+                    .onPreviewKeyEvent { ev ->
+                        if (ev.nativeKeyEvent.action == KeyEvent.ACTION_DOWN &&
+                            (ev.nativeKeyEvent.keyCode == KeyEvent.KEYCODE_DPAD_CENTER ||
+                             ev.nativeKeyEvent.keyCode == KeyEvent.KEYCODE_ENTER ||
+                             ev.nativeKeyEvent.keyCode == KeyEvent.KEYCODE_NUMPAD_ENTER)
+                        ) {
+                            onDetail()
+                            true
+                        } else false
+                    }
                     .clip(RoundedCornerShape(12.dp))
                     .background(
                         if (detailFocused) Color.White.copy(alpha = 0.28f) else Color.White.copy(alpha = 0.12f)
@@ -482,6 +509,16 @@ private fun HeroBanner(
             Box(
                 Modifier
                     .onFocusChanged { favFocused = it.isFocused }
+                    .onPreviewKeyEvent { ev ->
+                        if (ev.nativeKeyEvent.action == KeyEvent.ACTION_DOWN &&
+                            (ev.nativeKeyEvent.keyCode == KeyEvent.KEYCODE_DPAD_CENTER ||
+                             ev.nativeKeyEvent.keyCode == KeyEvent.KEYCODE_ENTER ||
+                             ev.nativeKeyEvent.keyCode == KeyEvent.KEYCODE_NUMPAD_ENTER)
+                        ) {
+                            onFav()
+                            true
+                        } else false
+                    }
                     .size(40.dp)
                     .clip(CircleShape)
                     .background(
@@ -603,10 +640,19 @@ private fun HubPosterCard(
                 if (it.isFocused) onFocus()
             }
             .onPreviewKeyEvent { ev ->
-                if (ev.nativeKeyEvent.action == KeyEvent.ACTION_DOWN && ev.nativeKeyEvent.keyCode == KeyEvent.KEYCODE_DPAD_LEFT) {
-                    onLeftBoundary()
-                }
-                false
+                if (ev.nativeKeyEvent.action == KeyEvent.ACTION_DOWN) {
+                    when (ev.nativeKeyEvent.keyCode) {
+                        KeyEvent.KEYCODE_DPAD_LEFT -> {
+                            onLeftBoundary()
+                            false
+                        }
+                        KeyEvent.KEYCODE_DPAD_CENTER, KeyEvent.KEYCODE_ENTER, KeyEvent.KEYCODE_NUMPAD_ENTER -> {
+                            onClick()
+                            true
+                        }
+                        else -> false
+                    }
+                } else false
             }
             .clickable { onClick() }
             .focusable(),

@@ -378,9 +378,7 @@ fun RayRoot(vm: RayViewModel = hiltViewModel()) {
                             seriesCategories = visibleSeriesCats,
                             favorites = favs,
                             onPlay = vm::playVod,
-                            onOpenDetail = { item ->
-                                if (item.kind == "SERIES") vm.openSeries(item) else vm.openMovie(item)
-                            },
+                            onOpenDetail = vm::openFromHub,
                             onFav = { item ->
                                 vm.toggleFav(item.id, if (item.kind == "SERIES") "SERIES" else "MOVIE")
                             },
