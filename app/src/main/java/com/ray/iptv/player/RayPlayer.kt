@@ -332,7 +332,13 @@ class RayPlayer @Inject constructor(
             val httpFactory = OkHttpDataSource.Factory(okHttp)
                 .setUserAgent(userAgent.ifBlank { PlaybackIdentity.userAgent })
                 .apply {
-                    if (referer.isNotBlank()) setDefaultRequestProperties(mapOf("Referer" to referer))
+                    val headers = mutableMapOf<String, String>()
+                    if (referer.isNotBlank()) headers["Referer"] = referer
+                    if (forLive && kind == StreamHints.Kind.HLS) {
+                        headers["Cache-Control"] = "no-cache, no-store"
+                        headers["Pragma"] = "no-cache"
+                    }
+                    if (headers.isNotEmpty()) setDefaultRequestProperties(headers)
                 }
             val factory = DefaultDataSource.Factory(context, httpFactory)
             val item = mediaItem(playUrl, kind, externalSubtitleUri)
@@ -342,7 +348,7 @@ class RayPlayer @Inject constructor(
                 StreamHints.Kind.RTSP -> RtspMediaSource.Factory().createMediaSource(item)
                 StreamHints.Kind.HLS ->
                     HlsMediaSource.Factory(factory)
-                        .setAllowChunklessPreparation(true)
+                        .setAllowChunklessPreparation(false)
                         .setLoadErrorHandlingPolicy(retry)
                         .createMediaSource(item)
                 StreamHints.Kind.DASH ->
@@ -361,6 +367,8 @@ class RayPlayer @Inject constructor(
                 }
             }
             val exoPlayer = ensureExo()
+            exoPlayer.stop()
+            exoPlayer.clearMediaItems()
             exoPlayer.setMediaSource(source, start)
             exoPlayer.setPlaybackSpeed(speed)
             exoPlayer.prepare()

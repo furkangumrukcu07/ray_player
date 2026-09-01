@@ -192,6 +192,7 @@ class RayViewModel @Inject constructor(
     private var previewJob: Job? = null
     private val vodOpenGen = AtomicInteger(0)
     private var liveHoverJob: Job? = null
+    private var actuallyPlayJob: Job? = null
     private var zapRelativeJob: Job? = null
     private var pendingZapIndex: Int = -1
     private var guideSlotsJob: Job? = null
@@ -1053,7 +1054,8 @@ class RayViewModel @Inject constructor(
     private fun actuallyPlayChannel(ch: ChannelEntity) {
         liveHoverJob?.cancel()
         browsePreviewUrl.value = ""
-        viewModelScope.launch {
+        actuallyPlayJob?.cancel()
+        actuallyPlayJob = viewModelScope.launch {
             val url = catalog.resolvePlayUrl(ch)
             val p = Playback(
                 url = url,

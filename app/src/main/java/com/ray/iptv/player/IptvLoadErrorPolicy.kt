@@ -19,7 +19,11 @@ internal class IptvLoadErrorPolicy(
 
     override fun getRetryDelayMsFor(loadErrorInfo: LoadErrorHandlingPolicy.LoadErrorInfo): Long {
         val code = httpCode(loadErrorInfo.exception)
-        if (code == 401 || code == 403 || code == 404) return C.TIME_UNSET
+        if (code == 401) return C.TIME_UNSET
+        if (code == 403 || code == 404) {
+            if (live && loadErrorInfo.errorCount <= 2) return 400L
+            return C.TIME_UNSET
+        }
         if (code == 456 || code == 509) return 1_500L
         if (malformedHls(loadErrorInfo.exception)) return 800L
         if (transient(loadErrorInfo.exception)) return if (live) 700L else 1_000L
