@@ -773,6 +773,8 @@ private fun VodCinemaPane(
     val fav = hero != null && favorites.any { it.mediaId == hero.id }
     val dl = downloads.firstOrNull { it.mediaId == hero?.id }
     val restoreFocus = remember { FocusRequester() }
+    val sortFocus = remember { FocusRequester() }
+    val searchFocus = remember { FocusRequester() }
     var expandedRows by remember { mutableStateOf(false) }
 
     LaunchedEffect(pinned) {
@@ -878,6 +880,7 @@ private fun VodCinemaPane(
                         onOpen = onOpen,
                         onLeftFromFirst = onLeftFromFirst,
                         onCollapseToSingleRow = { expandedRows = false },
+                        onUpToTopControls = { sortFocus.tryFocus() },
                         onLoadMore = onLoadMore,
                         firstFocus = firstFocus ?: restoreFocus,
                         focusId = hero?.id,
@@ -894,6 +897,7 @@ private fun VodCinemaPane(
                         onOpen = onOpen,
                         onLeftFromFirst = onLeftFromFirst,
                         onExpandTo2Rows = { expandedRows = true },
+                        onUpToTopControls = { sortFocus.tryFocus() },
                         onLoadMore = onLoadMore
                     )
                 }
@@ -929,8 +933,22 @@ private fun VodCinemaPane(
                 Modifier.align(Alignment.TopEnd).padding(top = 12.dp, end = 18.dp),
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                CinemaIconChip(Icons.Filled.Sort, copy.sort, sort != VodSort.NAME, onOpenSort)
-                CinemaIconChip(Icons.Filled.Search, copy.search, false, onSearch)
+                CinemaIconChip(
+                    icon = Icons.Filled.Sort,
+                    label = copy.sort,
+                    active = sort != VodSort.NAME,
+                    onClick = onOpenSort,
+                    focusRequester = sortFocus,
+                    onDown = { (firstFocus ?: restoreFocus).tryFocus() }
+                )
+                CinemaIconChip(
+                    icon = Icons.Filled.Search,
+                    label = copy.search,
+                    active = false,
+                    onClick = onSearch,
+                    focusRequester = searchFocus,
+                    onDown = { (firstFocus ?: restoreFocus).tryFocus() }
+                )
             }
         }
     }
@@ -1073,7 +1091,14 @@ private fun CinemaAction(
 }
 
 @Composable
-private fun CinemaIconChip(icon: ImageVector, label: String, active: Boolean, onClick: () -> Unit) {
+private fun CinemaIconChip(
+    icon: ImageVector,
+    label: String,
+    active: Boolean,
+    onClick: () -> Unit,
+    focusRequester: FocusRequester? = null,
+    onDown: (() -> Unit)? = null
+) {
     var focused by remember { mutableStateOf(false) }
     val g = LocalGlass.current
     GlassPanel(
@@ -1082,7 +1107,16 @@ private fun CinemaIconChip(icon: ImageVector, label: String, active: Boolean, on
         accentFill = active,
         radius = 6.dp,
         onClick = onClick,
-        modifier = Modifier.size(44.dp).onFocusChanged { focused = it.isFocused }
+        modifier = Modifier
+            .size(44.dp)
+            .rayFocusRequester(focusRequester)
+            .onFocusChanged { focused = it.isFocused }
+            .onPreviewKeyEvent { e ->
+                if (e.type == KeyEventType.KeyDown && e.key == Key.DirectionDown && onDown != null) {
+                    onDown()
+                    true
+                } else false
+            }
     ) {
         Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
             Icon(icon, label, tint = if (active || focused) Color.White else g.text, modifier = Modifier.size(22.dp))
@@ -1568,6 +1602,7 @@ private fun PosterStrip(
     onOpen: (VodEntity) -> Unit,
     onLeftFromFirst: () -> Unit,
     onExpandTo2Rows: (() -> Unit)? = null,
+    onUpToTopControls: (() -> Unit)? = null,
     onLoadMore: () -> Unit = {},
     firstFocus: FocusRequester? = null,
     focusId: String? = null
@@ -1623,6 +1658,7 @@ private fun PosterStrip(
                 onClick = { onOpen(item) },
                 onLeft = if (index == 0) onLeftFromFirst else null,
                 onDown = onExpandTo2Rows,
+                onUp = onUpToTopControls,
                 onRightAtEnd = onLoadMore,
                 focusRequester = if (takeFocus) firstFocus else null
             )
@@ -1638,6 +1674,7 @@ private fun PosterStrip2Rows(
     onOpen: (VodEntity) -> Unit,
     onLeftFromFirst: () -> Unit,
     onCollapseToSingleRow: () -> Unit,
+    onUpToTopControls: () -> Unit = {},
     onLoadMore: () -> Unit = {},
     firstFocus: FocusRequester? = null,
     focusId: String? = null,
@@ -1696,7 +1733,8 @@ private fun PosterStrip2Rows(
                 },
                 onClick = { onOpen(item) },
                 onLeft = if (isFirstCol) onLeftFromFirst else null,
-                onUp = if (isTopRow) onCollapseToSingleRow else null,
+                onUp = if (isTopRow) onUpToTopControls else null,
+                onDown = if (!isTopRow) { {} } else null,
                 onRightAtEnd = onLoadMore,
                 focusRequester = if (takeFocus) firstFocus else null
             )
