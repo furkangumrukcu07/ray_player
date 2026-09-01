@@ -219,58 +219,12 @@ fun VodCinemaHubScreen(
     Box(
         Modifier
             .fillMaxSize()
-            .background(Color(0xFF070B14))
     ) {
-        // Dynamic Ambient Backdrop
-        if (activeHero != null) {
-            val bgImage = activeHero.poster
-            if (bgImage.isNotBlank()) {
-                AsyncImage(
-                    model = bgImage,
-                    contentDescription = null,
-                    contentScale = ContentScale.Crop,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(420.dp)
-                        .align(Alignment.TopCenter)
-                )
-                // Gradient Scrim
-                Box(
-                    Modifier
-                        .fillMaxWidth()
-                        .height(420.dp)
-                        .background(
-                            Brush.verticalGradient(
-                                listOf(
-                                    Color(0xFF070B14).copy(alpha = 0.35f),
-                                    Color(0xFF070B14).copy(alpha = 0.85f),
-                                    Color(0xFF070B14)
-                                )
-                            )
-                        )
-                )
-                Box(
-                    Modifier
-                        .fillMaxWidth()
-                        .height(420.dp)
-                        .background(
-                            Brush.horizontalGradient(
-                                listOf(
-                                    Color(0xFF070B14).copy(alpha = 0.95f),
-                                    Color(0xFF070B14).copy(alpha = 0.7f),
-                                    Color.Transparent
-                                )
-                            )
-                        )
-                )
-            }
-        }
-
         // Main Content Structure
         Column(
             Modifier
                 .fillMaxSize()
-                .padding(horizontal = 24.dp, vertical = 12.dp)
+                .padding(horizontal = 20.dp, vertical = 10.dp)
         ) {
             // 1. Top Filter Pills
             Row(
