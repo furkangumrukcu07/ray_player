@@ -37,6 +37,9 @@ import `is`.xyz.mpv.MPV
 import `is`.xyz.mpv.MPVNode
 import java.io.File
 import java.util.Locale
+import android.net.wifi.WifiManager
+import android.os.Build
+import android.os.PowerManager
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import okhttp3.OkHttpClient
@@ -105,6 +108,43 @@ class RayPlayer @Inject constructor(
     private var lastMpvReferer = ""
     private val mainHandler = Handler(Looper.getMainLooper())
     private var lastMpvPosPostMs = 0L
+    private val wifiManager = context.applicationContext.getSystemService(Context.WIFI_SERVICE) as? WifiManager
+    private var wifiLock: WifiManager.WifiLock? = null
+    private val powerManager = context.applicationContext.getSystemService(Context.POWER_SERVICE) as? PowerManager
+    private var wakeLock: PowerManager.WakeLock? = null
+
+    private fun acquireLocks() {
+        runCatching {
+            if (wakeLock == null) {
+                wakeLock = powerManager?.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "RayPlayer:WakeLock")?.apply {
+                    setReferenceCounted(false)
+                }
+            }
+            wakeLock?.acquire(6 * 60 * 60 * 1000L)
+        }
+        runCatching {
+            if (wifiLock == null) {
+                wifiLock = wifiManager?.createWifiLock(
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                        WifiManager.WIFI_MODE_FULL_LOW_LATENCY
+                    } else {
+                        @Suppress("DEPRECATION")
+                        WifiManager.WIFI_MODE_FULL_HIGH_PERF
+                    },
+                    "RayPlayer:WifiLock"
+                )?.apply {
+                    setReferenceCounted(false)
+                }
+            }
+            wifiLock?.acquire()
+        }
+    }
+
+    private fun releaseLocks() {
+        runCatching { if (wakeLock?.isHeld == true) wakeLock?.release() }
+        runCatching { if (wifiLock?.isHeld == true) wifiLock?.release() }
+    }
+
     private val mpvObserver = object : MPV.EventObserver {
         override fun eventProperty(property: String) {
             if (property.startsWith("track-list")) postUi { refreshMpvTracks() }
@@ -272,6 +312,7 @@ class RayPlayer @Inject constructor(
         )
         subtitleUserPicked = false
         lastAppliedSubtitleId = null
+        acquireLocks()
         val playUrl = rewrite(url, format)
         runCatching {
             if (engine == PlaybackEngine.MEDIA_KIT) {
@@ -363,6 +404,7 @@ class RayPlayer @Inject constructor(
             player?.clearVideoSurface()
             _state.value = _state.value.copy(playing = false, playWhenReady = false)
         }
+        releaseLocks()
     }
     fun seek(ms: Long) {
         if (engine == PlaybackEngine.MEDIA_KIT) {
