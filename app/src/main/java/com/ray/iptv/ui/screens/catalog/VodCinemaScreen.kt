@@ -246,13 +246,16 @@ fun VodCinemaScreen(
             playFocus.tryFocus()
         }
     }
-    LaunchedEffect(showCategories, pinned?.id, railExpanded, contentFocusTrigger, selectedCategory) {
+    LaunchedEffect(selectedCategory) {
+        hovered = null
+    }
+    LaunchedEffect(showCategories, pinned?.id, railExpanded, contentFocusTrigger) {
         if (showCategories && pinned == null && !railExpanded) {
             delay(50)
             if (targetCatIndex in 0 until categoryKeys.size) {
                 runCatching { catListState.scrollToItem(targetCatIndex) }
             }
-            repeat(35) {
+            repeat(30) {
                 delay(30)
                 if (selectedCatFocus.tryFocus()) return@LaunchedEffect
             }
@@ -533,7 +536,8 @@ private fun VodCatRow(
         focused = focused,
         strong = selected,
         accentFill = selected && !focused,
-        radius = 6.dp,
+        fillAlpha = if (active) 1f else 0.12f,
+        radius = 8.dp,
         onClick = onClick,
         modifier = Modifier
             .fillMaxWidth()
