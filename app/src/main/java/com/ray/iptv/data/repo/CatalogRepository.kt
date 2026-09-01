@@ -553,9 +553,6 @@ https://test-streams.mux.dev/dai-discontinuity-deltatre/manifest.m3u8
         val matches = db.epgMatch().all().associate { it.channelId to it.epgId }
         val oldLayout = db.channels().layoutBySource(source.id).associateBy { it.id }
 
-        db.categories().clearSource(source.id)
-        db.channels().clearSource(source.id)
-        db.vod().clearSource(source.id)
         db.categories().upsertAll(mergedCats)
 
         catalogCopy(message = "Canlı kanallar")
@@ -721,9 +718,6 @@ https://test-streams.mux.dev/dai-discontinuity-deltatre/manifest.m3u8
         val oldLayout = db.channels().layoutBySource(source.id).associateBy { it.id }
         val list = stalker.channels(source.baseUrl, mac, token)
         val chunk = dbChunk()
-        db.categories().clearSource(source.id)
-        db.channels().clearSource(source.id)
-        db.vod().clearSource(source.id)
         db.categories().upsertAll(cats)
         var liveN = 0
         val buf = ArrayList<ChannelEntity>(chunk)
@@ -816,10 +810,6 @@ https://test-streams.mux.dev/dai-discontinuity-deltatre/manifest.m3u8
         val oldCats = db.categories().listBySource(source.id).associateBy { it.id }
         val oldLayout = db.channels().layoutBySource(source.id).associateBy { it.id }
         val matches = db.epgMatch().all().associate { it.channelId to it.epgId }
-
-        db.categories().clearSource(source.id)
-        db.channels().clearSource(source.id)
-        db.vod().clearSource(source.id)
 
         val liveGroups = LinkedHashMap<String, Int>()
         val movieGroups = LinkedHashMap<String, Int>()
