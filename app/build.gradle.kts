@@ -17,8 +17,8 @@ android {
         applicationId = "com.ray.iptv.player"
         minSdk = 26
         targetSdk = 35
-        versionCode = 26
-        versionName = "1.3.22"
+        versionCode = 27
+        versionName = "1.3.23"
         vectorDrawables.useSupportLibrary = true
         ndk {
             abiFilters += listOf("armeabi-v7a", "arm64-v8a")
@@ -36,7 +36,8 @@ android {
 
     buildTypes {
         release {
-            isMinifyEnabled = false
+            isMinifyEnabled = true
+            isShrinkResources = true
             signingConfig = signingConfigs.getByName("release")
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),

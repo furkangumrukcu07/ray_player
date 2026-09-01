@@ -352,8 +352,8 @@ class FirebaseService @Inject constructor(
                 val devOs = "Android ${Build.VERSION.RELEASE}"
                 val isAnon = if (email.isNotBlank()) false else isAnonymous
                 val version = try {
-                    context.packageManager.getPackageInfo(context.packageName, 0).versionName ?: "1.3.22"
-                } catch (_: Exception) { "1.3.22" }
+                    context.packageManager.getPackageInfo(context.packageName, 0).versionName ?: "1.3.23"
+                } catch (_: Exception) { "1.3.23" }
 
                 val data = mutableMapOf<String, Any>(
                     "uid" to uid,
