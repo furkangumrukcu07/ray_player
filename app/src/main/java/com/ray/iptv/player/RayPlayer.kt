@@ -298,7 +298,7 @@ class RayPlayer @Inject constructor(
                         .setTsExtractorTimestampSearchBytes(600 * 188)
                     ProgressiveMediaSource.Factory(factory, extractors)
                         .setLoadErrorHandlingPolicy(retry)
-                        .setContinueLoadingCheckIntervalBytes(1024 * 1024)
+                        .setContinueLoadingCheckIntervalBytes(2 * 1024 * 1024)
                         .createMediaSource(item)
                 }
             }
@@ -819,7 +819,7 @@ class RayPlayer @Inject constructor(
                     .setBufferDurationsMs(min, max, playback, rebuffer)
                     .setTargetBufferBytes(bytes)
                     .setPrioritizeTimeOverSizeThresholds(buf.prioritizeTime)
-                    .setBackBuffer(if (forLive) 10_000 else 30_000, false)
+                    .setBackBuffer(if (forLive) 10_000 else 60_000, false)
                     .build()
             )
             .setSeekBackIncrementMs(15_000)

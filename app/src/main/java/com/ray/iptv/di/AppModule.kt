@@ -62,7 +62,8 @@ object AppModule {
         }
         val ssl = SSLContext.getInstance("TLS").apply { init(null, arrayOf<TrustManager>(trust), SecureRandom()) }
         return OkHttpClient.Builder()
-            .connectTimeout(15, TimeUnit.SECONDS)
+            .connectionPool(okhttp3.ConnectionPool(16, 5, TimeUnit.MINUTES))
+            .connectTimeout(20, TimeUnit.SECONDS)
             .readTimeout(120, TimeUnit.SECONDS)
             .writeTimeout(45, TimeUnit.SECONDS)
             .retryOnConnectionFailure(true)
