@@ -776,8 +776,10 @@ private fun VodCinemaPane(
     val sortFocus = remember { FocusRequester() }
     val searchFocus = remember { FocusRequester() }
     var expandedRows by remember { mutableStateOf(false) }
+    var targetFocusId by remember { mutableStateOf<String?>(null) }
+    var expandTrigger by remember { mutableStateOf(0) }
 
-    LaunchedEffect(pinned) {
+    LaunchedEffect(pinned, expandedRows, expandTrigger) {
         if (pinned != null) {
             expandedRows = false
         } else {
@@ -855,7 +857,17 @@ private fun VodCinemaPane(
                             .clip(RoundedCornerShape(8.dp))
                             .background(Color.White.copy(alpha = 0.08f))
                             .border(0.8.dp, Color.White.copy(alpha = 0.16f), RoundedCornerShape(8.dp))
-                            .clickable { expandedRows = !expandedRows }
+                            .clickable {
+                                if (!expandedRows) {
+                                    val target = items.getOrNull(1) ?: items.firstOrNull()
+                                    targetFocusId = target?.id
+                                    if (target != null) onHover(target)
+                                } else {
+                                    targetFocusId = hero?.id
+                                }
+                                expandedRows = !expandedRows
+                                expandTrigger++
+                            }
                             .padding(horizontal = 8.dp, vertical = 4.dp)
                     ) {
                         Icon(
@@ -879,11 +891,15 @@ private fun VodCinemaPane(
                         onHover = onHover,
                         onOpen = onOpen,
                         onLeftFromFirst = onLeftFromFirst,
-                        onCollapseToSingleRow = { expandedRows = false },
+                        onCollapseToSingleRow = {
+                            targetFocusId = hero?.id
+                            expandedRows = false
+                            expandTrigger++
+                        },
                         onUpToTopControls = { sortFocus.tryFocus() },
                         onLoadMore = onLoadMore,
                         firstFocus = firstFocus ?: restoreFocus,
-                        focusId = hero?.id,
+                        focusId = targetFocusId ?: hero?.id,
                         modifier = Modifier.fillMaxWidth().weight(1f)
                     )
                 } else {
@@ -892,11 +908,14 @@ private fun VodCinemaPane(
                         empty = if (isSeries) copy.noSeries else copy.noMovies,
                         compact = false,
                         firstFocus = firstFocus ?: restoreFocus,
-                        focusId = hero?.id,
+                        focusId = targetFocusId ?: hero?.id,
                         onHover = onHover,
                         onOpen = onOpen,
                         onLeftFromFirst = onLeftFromFirst,
-                        onExpandTo2Rows = { expandedRows = true },
+                        onExpandTo2Rows = {
+                            expandedRows = true
+                            expandTrigger++
+                        },
                         onUpToTopControls = { sortFocus.tryFocus() },
                         onLoadMore = onLoadMore
                     )
