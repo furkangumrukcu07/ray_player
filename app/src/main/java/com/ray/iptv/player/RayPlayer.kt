@@ -125,14 +125,25 @@ class RayPlayer @Inject constructor(
         override fun eventProperty(property: String, value: Boolean) {
             when (property) {
                 "pause" -> postUi {
-                    _state.value = _state.value.copy(playing = !value && _state.value.playWhenReady)
+                    val isPaused = value
+                    _state.value = _state.value.copy(
+                        playing = !isPaused && _state.value.playWhenReady,
+                        buffering = if (!isPaused) false else _state.value.buffering
+                    )
                 }
-                "paused-for-cache" -> postUi { _state.value = _state.value.copy(buffering = value) }
+                "paused-for-cache" -> postUi {
+                    _state.value = _state.value.copy(buffering = value)
+                }
                 "eof-reached" -> if (value) postUi {
-                    _state.value = _state.value.copy(ended = true, playing = false)
+                    _state.value = _state.value.copy(ended = true, playing = false, buffering = false)
                 }
                 "seeking" -> postUi {
-                    _state.value = _state.value.copy(buffering = value || _state.value.buffering)
+                    if (value) {
+                        _state.value = _state.value.copy(buffering = true)
+                    } else {
+                        val cachePaused = mpv?.getPropertyBoolean("paused-for-cache") == true
+                        _state.value = _state.value.copy(buffering = cachePaused)
+                    }
                 }
             }
         }
@@ -144,7 +155,13 @@ class RayPlayer @Inject constructor(
                     if (now - lastMpvPosPostMs < 250L) return
                     lastMpvPosPostMs = now
                     postUi {
-                        _state.value = _state.value.copy(position = (value * 1000).toLong())
+                        val cachePaused = mpv?.getPropertyBoolean("paused-for-cache") == true
+                        val isPaused = mpv?.getPropertyBoolean("pause") == true
+                        _state.value = _state.value.copy(
+                            position = (value * 1000).toLong(),
+                            buffering = cachePaused,
+                            playing = !isPaused && _state.value.playWhenReady
+                        )
                     }
                 }
                 "duration" -> if (value.isFinite() && value > 0) postUi {
@@ -843,8 +860,12 @@ class RayPlayer @Inject constructor(
         host.addListener(object : Player.Listener {
             override fun onIsPlayingChanged(isPlaying: Boolean) {
                 if (engine == PlaybackEngine.MEDIA_KIT) return
-                if (isPlaying) autoRetryCount = 0
-                _state.value = _state.value.copy(playing = isPlaying)
+                if (isPlaying) {
+                    autoRetryCount = 0
+                    _state.value = _state.value.copy(playing = true, buffering = false)
+                } else {
+                    _state.value = _state.value.copy(playing = false)
+                }
             }
 
             override fun onPlayWhenReadyChanged(playWhenReady: Boolean, reason: Int) {
@@ -856,8 +877,10 @@ class RayPlayer @Inject constructor(
                 if (engine == PlaybackEngine.MEDIA_KIT) return
                 val p = player ?: return
                 if (playbackState == Player.STATE_READY) autoRetryCount = 0
+                val isBuffering = playbackState == Player.STATE_BUFFERING
                 _state.value = _state.value.copy(
-                    buffering = playbackState == Player.STATE_BUFFERING,
+                    buffering = isBuffering,
+                    playing = if (isBuffering) false else (playbackState == Player.STATE_READY && p.isPlaying),
                     live = p.isCurrentMediaItemLive,
                     ended = playbackState == Player.STATE_ENDED,
                     playWhenReady = p.playWhenReady

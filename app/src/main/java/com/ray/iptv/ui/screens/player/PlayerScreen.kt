@@ -697,7 +697,7 @@ fun PlayerScreen(
             BufferingLogoIndicator(
                 playback = playback,
                 channel = channels.find { it.id == playback.mediaId },
-                buffering = tick.buffering && !guide && !peek
+                buffering = tick.buffering && !tick.playing && !guide && !peek
             )
             if ((overlay || st.error.isNotBlank() || zap.isNotBlank()) && !guide && !peek) {
                 Box(
