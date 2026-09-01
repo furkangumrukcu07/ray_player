@@ -60,7 +60,7 @@ data class BackupSettings(
     val ignoreSsl: Boolean = true,
     val softwareDecoder: Boolean = false,
     val smartPlayerSelection: Boolean = false,
-    val mediaKitLowPowerHwdec: Boolean = false,
+    val mediaKitLowPowerHwdec: Boolean = true,
     val smartPlayerMemory: String = "{}",
     val externalPlayerEnabled: Boolean = false,
     val externalPlayerPackage: String = "",
