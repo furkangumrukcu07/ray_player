@@ -178,6 +178,7 @@ class RayViewModel @Inject constructor(
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
     val dest = MutableStateFlow(Dest.CONTINUE)
+    private var playerOriginDest: Dest? = null
     val overlay = MutableStateFlow(Overlay.NONE)
     val playback = MutableStateFlow<Playback?>(null)
     val pendingNext = MutableStateFlow<NextUpPrompt?>(null)
@@ -1036,6 +1037,7 @@ class RayViewModel @Inject constructor(
                 hasArchive = ch.hasArchive,
                 remoteId = ch.remoteId
             )
+            if (dest.value != Dest.PLAYER) playerOriginDest = dest.value
             playback.value = p
             dest.value = Dest.PLAYER
             overlay.value = Overlay.NONE
@@ -1085,6 +1087,7 @@ class RayViewModel @Inject constructor(
     }
 
     private fun actuallyPlayVod(item: VodEntity, start: Long) {
+        if (dest.value != Dest.PLAYER) playerOriginDest = dest.value
         val p = Playback(
             url = item.streamUrl,
             title = item.name,
@@ -1102,6 +1105,7 @@ class RayViewModel @Inject constructor(
 
     fun playEpisode(ep: EpisodeEntity, series: VodEntity, start: Long = 0) {
         if (hidingAdult() && Parental.isAnyAdult(series.name, series.categoryName, series.genre, ep.name)) return
+        if (dest.value != Dest.PLAYER) playerOriginDest = dest.value
         playback.value = Playback(
             url = ep.streamUrl,
             title = series.name,
@@ -1299,8 +1303,10 @@ class RayViewModel @Inject constructor(
         liveWatchJob?.cancel()
         sessionLive = false
         liveSessionBeganAt = 0L
-        if (pb?.live == true) player.stop() else player.pause()
-        dest.value = when (pb?.kind) {
+        player.stop()
+        val origin = playerOriginDest
+        playerOriginDest = null
+        dest.value = origin ?: when (pb?.kind) {
             "LIVE" -> Dest.LIVE
             "SERIES", "EPISODE" -> if (settings.value.layoutMode == LayoutMode.MOBILE) Dest.MOVIES else Dest.SERIES
             "MOVIE" -> Dest.MOVIES
@@ -2098,7 +2104,7 @@ class RayViewModel @Inject constructor(
         viewModelScope.launch {
             when (item.kind) {
                 "LIVE" -> catalog.channel(item.mediaId)?.let { playChannel(it) }
-                "MOVIE" -> catalog.vodItem(item.mediaId)?.let { playVod(it, item.positionMs) }
+                "MOVIE" -> catalog.vodItem(item.mediaId)?.let { playVod(it, item.positionMs, force = true) }
                 "EPISODE" -> {
                     val ep = catalog.episode(item.mediaId) ?: return@launch
                     val series = catalog.vodItem(ep.seriesId) ?: return@launch
