@@ -862,6 +862,7 @@ private fun RailPage(vm: RayViewModel, settings: RaySettings, copy: Copy, tr: Bo
             SettingsToggleRow(copy.cont, if (tr) "Railde izlemeye devam sekmesi" else "Continue tab on the rail", settings.railContinue) { vm.setRailContinue(!settings.railContinue) }
             SettingsToggleRow(copy.playlists, if (tr) "Railde listeler sekmesi" else "Playlists tab on the rail", settings.railPlaylists) { vm.setRailPlaylists(!settings.railPlaylists) }
             SettingsToggleRow(copy.repeat, if (tr) "Railde tekrar / catch-up sekmesi" else "Catch-up tab on the rail", settings.railRepeat) { vm.setRailRepeat(!settings.railRepeat) }
+            SettingsToggleRow(if (tr) "Film & Dizi Hub" else "Cinema Hub", if (tr) "Sol menüde yeni sinematik Film & Dizi sekmesi" else "Cinematic Movies & Series hub tab on the rail", settings.railCinemaHub) { vm.setRailCinemaHub(!settings.railCinemaHub) }
         } }
     }
 }

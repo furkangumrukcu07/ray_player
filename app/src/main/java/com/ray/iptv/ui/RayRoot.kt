@@ -226,6 +226,7 @@ fun RayRoot(vm: RayViewModel = hiltViewModel()) {
                 showContinue = settings.railContinue,
                 showPlaylists = settings.railPlaylists,
                 showRepeat = settings.railRepeat,
+                showCinemaHub = settings.railCinemaHub,
                 railExpanded = railExpanded,
                 railHidden = (dest == Dest.MOVIES && (moviePhase == LiveBrowsePhase.CONTENT || movie != null)) ||
                     (dest == Dest.SERIES && (seriesPhase == LiveBrowsePhase.CONTENT || show != null)),
@@ -365,6 +366,25 @@ fun RayRoot(vm: RayViewModel = hiltViewModel()) {
                             onActivate = vm::selectSource,
                             onToggle = vm::toggleSourceEnabled,
                             onBackToRail = vm::expandRail,
+                            railExpanded = railExpanded,
+                            contentFocusTrigger = contentFocusTrigger,
+                            onExit = requestExit
+                        )
+                        Dest.CINEMA_HUB -> com.ray.iptv.ui.screens.catalog.VodCinemaHubScreen(
+                            copy = strings,
+                            movies = movies,
+                            series = series,
+                            movieCategories = visibleMovieCats,
+                            seriesCategories = visibleSeriesCats,
+                            favorites = favs,
+                            onPlay = vm::playVod,
+                            onOpenDetail = { item ->
+                                if (item.kind == "SERIES") vm.openSeries(item) else vm.openMovie(item)
+                            },
+                            onFav = { item ->
+                                vm.toggleFav(item.id, if (item.kind == "SERIES") "SERIES" else "MOVIE")
+                            },
+                            onExpandRail = vm::expandRail,
                             railExpanded = railExpanded,
                             contentFocusTrigger = contentFocusTrigger,
                             onExit = requestExit

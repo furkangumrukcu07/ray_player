@@ -485,7 +485,7 @@ class RayViewModel @Inject constructor(
                     railExpanded.value = false
                     seriesPhase.value = LiveBrowsePhase.CATEGORIES
                 }
-                Dest.PLAYLISTS, Dest.SETTINGS, Dest.CATCHUP -> railExpanded.value = false
+                Dest.PLAYLISTS, Dest.SETTINGS, Dest.CATCHUP, Dest.CINEMA_HUB -> railExpanded.value = false
                 Dest.CONTINUE, Dest.WRAPPED, Dest.EPG_MIX, Dest.CHAT, Dest.ADMIN, Dest.PAYWALL -> railExpanded.value = true
                 Dest.PLAYER -> Unit
             }
@@ -635,7 +635,7 @@ class RayViewModel @Inject constructor(
                 seriesPhase.value = LiveBrowsePhase.CATEGORIES
                 closeDetail()
             }
-            Dest.PLAYLISTS, Dest.SETTINGS, Dest.CONTINUE, Dest.CATCHUP -> railExpanded.value = false
+            Dest.PLAYLISTS, Dest.SETTINGS, Dest.CONTINUE, Dest.CATCHUP, Dest.CINEMA_HUB -> railExpanded.value = false
             Dest.WRAPPED, Dest.EPG_MIX, Dest.CHAT, Dest.ADMIN, Dest.PAYWALL -> railExpanded.value = true
             Dest.PLAYER -> Unit
         }
@@ -1766,6 +1766,7 @@ class RayViewModel @Inject constructor(
     fun setRailContinue(v: Boolean) = viewModelScope.launch { settingsRepo.setRailContinue(v) }
     fun setRailPlaylists(v: Boolean) = viewModelScope.launch { settingsRepo.setRailPlaylists(v) }
     fun setRailRepeat(v: Boolean) = viewModelScope.launch { settingsRepo.setRailRepeat(v) }
+    fun setRailCinemaHub(v: Boolean) = viewModelScope.launch { settingsRepo.setRailCinemaHub(v) }
     fun setCustomUserAgent(v: String) = viewModelScope.launch { settingsRepo.setCustomUserAgent(v) }
     fun setImageCacheMb(v: Int) = viewModelScope.launch { settingsRepo.setImageCacheMb(v) }
     fun resetAllSettings() = viewModelScope.launch {

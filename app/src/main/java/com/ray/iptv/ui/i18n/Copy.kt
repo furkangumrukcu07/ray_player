@@ -152,7 +152,8 @@ data class Copy(
     val allReset: String = "All settings and lists were reset",
     val signedIn: String = "Signed in",
     val signedOut: String = "Signed out",
-    val signInFailed: String = "Could not sign in"
+    val signInFailed: String = "Could not sign in",
+    val cinemaHub: String = "Film & Dizi"
 )
 
 fun copy(lang: AppLang) = copyFor(lang)

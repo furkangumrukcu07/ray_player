@@ -112,6 +112,7 @@ data class BackupSettings(
     val railContinue: Boolean = true,
     val railPlaylists: Boolean = true,
     val railRepeat: Boolean = true,
+    val railCinemaHub: Boolean = false,
     val keyMapJson: String = "{}"
 )
 
@@ -271,6 +272,7 @@ class BackupRepository @Inject constructor(
                 railContinue = s.railContinue,
                 railPlaylists = s.railPlaylists,
                 railRepeat = s.railRepeat,
+                railCinemaHub = s.railCinemaHub,
                 keyMapJson = s.keyMapJson
             ),
 

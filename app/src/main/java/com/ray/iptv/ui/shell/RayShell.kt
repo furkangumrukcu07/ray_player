@@ -32,6 +32,7 @@ import androidx.compose.material.icons.filled.PlaylistPlay
 import androidx.compose.material.icons.filled.Replay
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.Theaters
 import androidx.compose.material.icons.filled.VideoLibrary
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -102,6 +103,7 @@ private val items = listOf(
     NavItem(Dest.CONTINUE, Icons.Filled.History, { it.cont }),
     NavItem(Dest.PLAYLISTS, Icons.Filled.PlaylistPlay, { it.playlists }),
     NavItem(Dest.CATCHUP, Icons.Filled.Replay, { it.repeat }),
+    NavItem(Dest.CINEMA_HUB, Icons.Filled.Theaters, { it.cinemaHub }),
     NavItem(Dest.SETTINGS, Icons.Filled.Settings, { it.settings })
 )
 
@@ -117,6 +119,7 @@ fun RayShell(
     showContinue: Boolean = true,
     showPlaylists: Boolean = true,
     showRepeat: Boolean = true,
+    showCinemaHub: Boolean = false,
     railExpanded: Boolean = true,
     railHidden: Boolean = false,
     searchSelected: Boolean = false,
@@ -138,6 +141,7 @@ fun RayShell(
     val continueFocusRequester = remember { FocusRequester() }
     val playlistsFocusRequester = remember { FocusRequester() }
     val catchupFocusRequester = remember { FocusRequester() }
+    val cinemaHubFocusRequester = remember { FocusRequester() }
     val settingsFocusRequester = remember { FocusRequester() }
     var initialFocusDone by remember { mutableStateOf(false) }
 
@@ -152,6 +156,7 @@ fun RayShell(
                 current == Dest.CONTINUE -> continueFocusRequester
                 current == Dest.PLAYLISTS -> playlistsFocusRequester
                 current == Dest.CATCHUP -> catchupFocusRequester
+                current == Dest.CINEMA_HUB -> cinemaHubFocusRequester
                 current == Dest.SETTINGS -> settingsFocusRequester
                 else -> liveFocusRequester
             }
@@ -233,6 +238,8 @@ fun RayShell(
                                 it.dest == Dest.SERIES -> showSeries
                                 it.dest == Dest.CONTINUE -> showContinue
                                 it.dest == Dest.PLAYLISTS -> showPlaylists
+                                it.dest == Dest.CINEMA_HUB -> showCinemaHub
+                                it.dest == Dest.SETTINGS -> true
                                 else -> true
                             }
                         }.forEach { item ->
@@ -245,6 +252,7 @@ fun RayShell(
                                 item.dest == Dest.CONTINUE -> continueFocusRequester
                                 item.dest == Dest.PLAYLISTS -> playlistsFocusRequester
                                 item.dest == Dest.CATCHUP -> catchupFocusRequester
+                                item.dest == Dest.CINEMA_HUB -> cinemaHubFocusRequester
                                 item.dest == Dest.SETTINGS -> settingsFocusRequester
                                 else -> null
                             }

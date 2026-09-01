@@ -239,6 +239,7 @@ data class RaySettings(
     val railContinue: Boolean = true,
     val railPlaylists: Boolean = true,
     val railRepeat: Boolean = true,
+    val railCinemaHub: Boolean = false,
     val lastRefreshMs: Long = 0L,
     val imageCacheMb: Int = 256,
     val vodInfoEngine: VodInfoEngine = VodInfoEngine.AUTO,
@@ -372,6 +373,7 @@ class SettingsRepository @Inject constructor(
             railContinue = p[Keys.rCont] ?: true,
             railPlaylists = p[Keys.rPlay] ?: true,
             railRepeat = p[Keys.rRepeat] ?: true,
+            railCinemaHub = p[Keys.rCinemaHub] ?: false,
             lastRefreshMs = p[Keys.lastRefresh] ?: 0L,
             imageCacheMb = p[Keys.imgCache] ?: 256,
             vodInfoEngine = parseEnum(p[Keys.vodEngine], VodInfoEngine.AUTO),
@@ -553,6 +555,7 @@ class SettingsRepository @Inject constructor(
     suspend fun setRailContinue(v: Boolean) = ds.edit { it[Keys.rCont] = v }
     suspend fun setRailPlaylists(v: Boolean) = ds.edit { it[Keys.rPlay] = v }
     suspend fun setRailRepeat(v: Boolean) = ds.edit { it[Keys.rRepeat] = v }
+    suspend fun setRailCinemaHub(v: Boolean) = ds.edit { it[Keys.rCinemaHub] = v }
     suspend fun setKeyMapJson(v: String) = ds.edit { it[Keys.keyMap] = v }
     suspend fun setCustomUserAgent(v: String) = ds.edit { it[Keys.uaCustom] = v }
     suspend fun setLastRefresh(v: Long) = ds.edit { it[Keys.lastRefresh] = v }
@@ -652,6 +655,7 @@ class SettingsRepository @Inject constructor(
         it[Keys.rCont] = s.railContinue
         it[Keys.rPlay] = s.railPlaylists
         it[Keys.rRepeat] = s.railRepeat
+        it[Keys.rCinemaHub] = s.railCinemaHub
         it[Keys.keyMap] = s.keyMapJson
     }
 
@@ -779,6 +783,7 @@ class SettingsRepository @Inject constructor(
         val rCont = booleanPreferencesKey("r_cont")
         val rPlay = booleanPreferencesKey("r_play")
         val rRepeat = booleanPreferencesKey("r_repeat")
+        val rCinemaHub = booleanPreferencesKey("r_cinema_hub")
         val keyMap = stringPreferencesKey("key_map")
         val searchHist = stringPreferencesKey("search_hist_home")
         val autoBackupInt = stringPreferencesKey("auto_backup_interval")
