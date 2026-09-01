@@ -11,14 +11,14 @@ plugins {
 
 android {
     namespace = "com.ray.iptv"
-    compileSdk = 35
+    compileSdk = 36
 
     defaultConfig {
         applicationId = "com.ray.iptv.player"
         minSdk = 26
-        targetSdk = 35
-        versionCode = 27
-        versionName = "1.3.23"
+        targetSdk = 36
+        versionCode = 35
+        versionName = "1.3.24"
         vectorDrawables.useSupportLibrary = true
         ndk {
             abiFilters += listOf("armeabi-v7a", "arm64-v8a")
@@ -124,7 +124,7 @@ dependencies {
     implementation(libs.firebase.firestore)
     implementation(libs.firebase.config)
     implementation(libs.firebase.messaging)
-    implementation("com.android.billingclient:billing-ktx:7.1.1")
+    implementation("com.android.billingclient:billing-ktx:8.0.0")
 
     testImplementation("junit:junit:4.13.2")
 }
