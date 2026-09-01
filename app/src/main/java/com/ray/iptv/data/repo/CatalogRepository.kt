@@ -142,6 +142,10 @@ class CatalogRepository @Inject constructor(
         else db.channels().observeCounts(sourceId)
     suspend fun listChannels(sourceId: String, categoryId: String) =
         db.channels().list(sourceId, categoryId)
+    suspend fun listChannelsCombine(categoryId: String) =
+        db.channels().list("", categoryId)
+    suspend fun allLiveChannelsDirect() =
+        db.channels().all().filter { !it.hidden }
     suspend fun channelsByIds(ids: List<String>) =
         if (ids.isEmpty()) emptyList() else db.channels().byIds(ids)
     suspend fun channelsByAnyKeys(keys: List<String>) =

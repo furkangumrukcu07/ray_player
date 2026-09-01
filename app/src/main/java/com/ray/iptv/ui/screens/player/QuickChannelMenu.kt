@@ -76,36 +76,70 @@ import androidx.compose.ui.input.key.key
 import androidx.compose.ui.input.key.type
 import androidx.compose.ui.input.key.onPreviewKeyEvent
 
-private data class QuickTape(
+private data class QuickTapeTab(
     val id: String,
-    val name: String,
-    val channels: List<ChannelEntity>
+    val name: String
 )
 
 private val CyanAccent = Color(0xFF18FFFF)
 
 @Composable
 fun QuickChannelMenu(
-    channels: List<ChannelEntity>,
+    initialChannels: List<ChannelEntity> = emptyList(),
     categories: List<CategoryEntity>,
     playingId: String,
     playingUrl: String,
     copy: Copy,
+    loadCategoryChannels: suspend (String) -> List<ChannelEntity> = { emptyList() },
     loadNowMap: suspend (List<String>) -> Map<String, EpgEntity>,
     onPick: (ChannelEntity) -> Unit,
     onClose: () -> Unit
 ) {
-    val tapes = remember(channels, categories, copy.allChannels) {
-        buildTapes(channels, categories, copy.allChannels)
+    val tabs = remember(categories, copy.allChannels) {
+        val list = mutableListOf<QuickTapeTab>()
+        list.add(QuickTapeTab("all", copy.allChannels))
+        categories.forEach { cat ->
+            list.add(QuickTapeTab(cat.id, cat.name))
+        }
+        list
     }
-    if (tapes.isEmpty()) return
-    val start = remember(playingId, tapes) {
-        tapes.indexOfFirst { tape -> tape.channels.any { it.id == playingId } }.coerceAtLeast(0)
+    if (tabs.isEmpty()) return
+
+    val catChannelsMap = remember { androidx.compose.runtime.mutableStateMapOf<String, List<ChannelEntity>>() }
+
+    val start = remember(playingId, initialChannels, tabs) {
+        val playingCatId = initialChannels.firstOrNull { it.id == playingId }?.categoryId.orEmpty()
+        val foundIdx = if (playingCatId.isNotBlank()) tabs.indexOfFirst { it.id == playingCatId } else -1
+        if (foundIdx >= 0) foundIdx else 0
     }
+
     var catIndex by remember { mutableIntStateOf(start) }
     var tick by remember { mutableIntStateOf(0) }
     var focusedId by remember { mutableStateOf(playingId) }
-    val tape = tapes[catIndex.coerceIn(0, tapes.lastIndex)]
+    val currentTab = tabs[catIndex.coerceIn(0, tabs.lastIndex)]
+
+    LaunchedEffect(Unit) {
+        if (initialChannels.isNotEmpty()) {
+            val playingCatId = initialChannels.firstOrNull { it.id == playingId }?.categoryId.orEmpty()
+            if (playingCatId.isNotBlank()) {
+                catChannelsMap[playingCatId] = initialChannels
+            } else {
+                catChannelsMap["all"] = initialChannels
+            }
+        }
+    }
+
+    LaunchedEffect(currentTab.id) {
+        if (currentTab.id !in catChannelsMap) {
+            val list = loadCategoryChannels(currentTab.id)
+            catChannelsMap[currentTab.id] = list
+        }
+    }
+
+    val currentChannels = catChannelsMap[currentTab.id]
+        ?: if (currentTab.id == "all" || currentTab.id == initialChannels.firstOrNull()?.categoryId) initialChannels
+        else emptyList()
+
     var nowMap by remember { mutableStateOf<Map<String, EpgEntity>>(emptyMap()) }
     val listState = rememberLazyListState()
     val focusReq = remember { FocusRequester() }
@@ -119,33 +153,34 @@ fun QuickChannelMenu(
 
     fun bump() { tick++ }
     fun shift(delta: Int) {
-        if (tapes.size <= 1) return
+        if (tabs.size <= 1) return
         bump()
-        val nextIdx = (catIndex + delta + tapes.size) % tapes.size
+        val nextIdx = (catIndex + delta + tabs.size) % tabs.size
         catIndex = nextIdx
-        val nextTape = tapes[nextIdx]
-        focusedId = nextTape.channels.firstOrNull()?.id.orEmpty()
+        val nextTab = tabs[nextIdx]
+        val cached = catChannelsMap[nextTab.id]
+        focusedId = cached?.firstOrNull()?.id.orEmpty()
     }
 
-    LaunchedEffect(tape.id, tape.channels.size, tape.channels.firstOrNull()?.id, tape.channels.lastOrNull()?.id, playingId) {
-        val ids = tape.channels.map { it.id }
+    LaunchedEffect(currentTab.id, currentChannels.size, currentChannels.firstOrNull()?.id, currentChannels.lastOrNull()?.id, playingId) {
+        val ids = currentChannels.map { it.id }
         val target = ids.indexOfFirst { it == playingId }.let { if (it >= 0) it else 0 }
         val from = (target - 10).coerceAtLeast(0)
         val to = (target + 30).coerceAtMost(ids.size)
         nowMap = if (ids.isEmpty()) emptyMap() else loadNowMap(ids.subList(from, to))
-        if (tape.channels.none { it.id == focusedId }) {
-            focusedId = tape.channels.getOrNull(target)?.id.orEmpty()
+        if (currentChannels.none { it.id == focusedId }) {
+            focusedId = currentChannels.getOrNull(target)?.id.orEmpty()
         }
-        if (tape.channels.isNotEmpty()) {
+        if (currentChannels.isNotEmpty()) {
             listState.scrollToItem(target)
             delay(40)
             runCatching { focusReq.requestFocus() }
         }
     }
 
-    val focused = tape.channels.firstOrNull { it.id == focusedId } ?: tape.channels.firstOrNull()
+    val focused = currentChannels.firstOrNull { it.id == focusedId } ?: currentChannels.firstOrNull()
     val focusedEpg = focused?.let { nowMap[it.id] }
-    val focusIndex = tape.channels.indexOfFirst { it.id == focusedId }.coerceAtLeast(0)
+    val focusIndex = currentChannels.indexOfFirst { it.id == focusedId }.coerceAtLeast(0)
 
     BoxWithConstraints(
         Modifier
@@ -195,10 +230,10 @@ fun QuickChannelMenu(
                     .fillMaxHeight()
             ) {
                 CategoryPill(
-                    name = tape.name,
+                    name = currentTab.name,
                     index = catIndex + 1,
-                    total = tapes.size,
-                    showArrows = tapes.size > 1,
+                    total = tabs.size,
+                    showArrows = tabs.size > 1,
                     onPrev = { shift(-1) },
                     onNext = { shift(1) }
                 )
@@ -208,7 +243,7 @@ fun QuickChannelMenu(
                     verticalArrangement = Arrangement.spacedBy(8.dp),
                     modifier = Modifier.fillMaxSize()
                 ) {
-                    itemsIndexed(tape.channels, key = { _, ch -> ch.id }) { index, ch ->
+                    itemsIndexed(currentChannels, key = { _, ch -> ch.id }) { index, ch ->
                         ChannelRow(
                             channel = ch,
                             epg = nowMap[ch.id],
@@ -600,30 +635,3 @@ private fun streamTransport(url: String): String {
     }
 }
 
-private fun buildTapes(
-    channels: List<ChannelEntity>,
-    categories: List<CategoryEntity>,
-    allChannelsTitle: String = "Tüm Kanallar"
-): List<QuickTape> {
-    val live = channels.filter { !it.hidden }
-    if (live.isEmpty()) return emptyList()
-    val grouped = live.groupBy { it.categoryId }
-    val tapes = mutableListOf<QuickTape>()
-
-    // 1. Tüm Kanallar
-    tapes.add(QuickTape("all", allChannelsTitle, live.sortedBy { if (it.number > 0) it.number else Int.MAX_VALUE }))
-
-    // 2. Kategoriler
-    categories.forEach { cat ->
-        val list = grouped[cat.id].orEmpty()
-        if (list.isNotEmpty()) {
-            tapes.add(QuickTape(cat.id, cat.name, list.sortedBy { if (it.number > 0) it.number else Int.MAX_VALUE }))
-        }
-    }
-
-    if (tapes.size > 1) return tapes
-
-    val byName = live.groupBy { it.categoryName.ifBlank { "Live" } }
-        .map { (name, list) -> QuickTape(name, name, list.sortedBy { if (it.number > 0) it.number else Int.MAX_VALUE }) }
-    return if (byName.isNotEmpty()) byName else tapes
-}

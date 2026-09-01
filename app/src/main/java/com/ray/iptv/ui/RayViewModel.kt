@@ -74,6 +74,7 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOf
@@ -877,6 +878,38 @@ class RayViewModel @Inject constructor(
             }
             toast.value = if (turnOn) strings.listEnabled else strings.listDisabled
         }.onFailure { toast.value = playlistError(it) }
+    }
+
+    suspend fun loadChannelsForCategory(catId: String): List<ChannelEntity> = withContext(Dispatchers.IO) {
+        val src = activeSource.value ?: return@withContext emptyList()
+        val s = settings.value
+        val list = when {
+            catId == "all" || catId.isBlank() -> {
+                if (s.combineM3u) catalog.allLiveChannelsDirect()
+                else catalog.listChannels(src.id, "")
+            }
+            catId == "fav" -> {
+                val favIds = favorites.value.filter { it.kind == "LIVE" }.map { it.mediaId }
+                catalog.channelsByIds(favIds)
+            }
+            catId == "recent" -> {
+                val p = activeProfile.value
+                val recent = if (p != null) catalog.recentLive(p.id).firstOrNull() ?: emptyList() else emptyList()
+                val ids = recent.map { it.mediaId }
+                catalog.channelsByIds(ids)
+            }
+            catId.startsWith("group:") -> {
+                catalog.groupChannels(catId.removePrefix("group:")).firstOrNull() ?: emptyList()
+            }
+            else -> {
+                if (s.combineM3u) catalog.listChannelsCombine(catId)
+                else catalog.listChannels(src.id, catId)
+            }
+        }
+        val profile = activeProfile.value
+        if (s.hideAdult || profile?.isKids == true) {
+            list.filter { !Parental.isAnyAdult(it.name, it.categoryName) }
+        } else list
     }
 
     fun moveSource(id: String, delta: Int) = viewModelScope.launch {

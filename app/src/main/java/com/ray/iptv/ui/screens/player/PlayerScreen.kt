@@ -171,6 +171,7 @@ fun RayPlayerRoute(vm: RayViewModel, strings: Copy) {
         channels = channels,
         allChannels = channels,
         categories = categories,
+        loadCategoryChannels = { catId -> vm.loadChannelsForCategory(catId) },
         loadNowMap = { ids -> vm.nowMap(ids) },
         now = nowNext.first,
         next = nowNext.second,
@@ -239,6 +240,7 @@ fun PlayerScreen(
     channels: List<ChannelEntity>,
     allChannels: List<ChannelEntity> = emptyList(),
     categories: List<CategoryEntity> = emptyList(),
+    loadCategoryChannels: suspend (String) -> List<ChannelEntity> = { emptyList() },
     loadNowMap: suspend (List<String>) -> Map<String, EpgEntity> = { emptyMap() },
     now: EpgEntity?,
     next: EpgEntity?,
@@ -625,11 +627,12 @@ fun PlayerScreen(
             com.ray.iptv.ui.player.PlayerGlassLevelOverlay(gestureState)
             if (peek) {
                 QuickChannelMenu(
-                    channels = allChannels.ifEmpty { channels },
+                    initialChannels = allChannels.ifEmpty { channels },
                     categories = categories,
                     playingId = playback.mediaId,
                     playingUrl = playback.url,
                     copy = copy,
+                    loadCategoryChannels = loadCategoryChannels,
                     loadNowMap = loadNowMap,
                     onPick = onChannel,
                     onClose = { peek = false; showOsd() }
