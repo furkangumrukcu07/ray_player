@@ -292,14 +292,18 @@ fun PlayerScreen(
     val seekbarFocusRequester = remember { FocusRequester() }
     val screenFocusRequester = remember { FocusRequester() }
     var isSeekbarFocused by remember { mutableStateOf(false) }
+    var lastOsdOpenMs by remember { mutableLongStateOf(0L) }
     val hideAfterMs = osdHideMs.coerceAtLeast(7_000L)
     fun showOsd() {
+        if (!overlay) {
+            lastOsdOpenMs = android.os.SystemClock.uptimeMillis()
+        }
         overlay = true
         hideGen += 1
     }
     LaunchedEffect(overlay, peek, guide) {
         if (overlay) {
-            delay(50)
+            delay(150)
             runCatching { playPauseFocusRequester.requestFocus() }
         } else if (!peek && !guide) {
             delay(50)
@@ -483,11 +487,7 @@ fun PlayerScreen(
                     }
                     KeyEvent.KEYCODE_DPAD_CENTER, KeyEvent.KEYCODE_ENTER, KeyEvent.KEYCODE_NUMPAD_ENTER -> {
                         if (peek) return@onPreviewKeyEvent false
-                        if (!overlay) {
-                            showOsd()
-                        } else {
-                            if (st.playing) rayPlayer.pause() else rayPlayer.resume()
-                        }
+                        showOsd()
                         true
                     }
                     KeyEvent.KEYCODE_MEDIA_NEXT -> {
@@ -773,6 +773,9 @@ fun PlayerScreen(
                                     runCatching { playPauseFocusRequester.requestFocus() }
                                 },
                                 onTogglePlayPause = {
+                                    if (android.os.SystemClock.uptimeMillis() - lastOsdOpenMs < 350L) {
+                                        return@VodSeekRow
+                                    }
                                     showOsd()
                                     if (tick.playing) rayPlayer.pause() else rayPlayer.resume()
                                 },
@@ -798,6 +801,9 @@ fun PlayerScreen(
                                 if (playback.live) onZapUp() else onRewind(-SkipMs)
                             },
                             onPlayPause = {
+                                if (android.os.SystemClock.uptimeMillis() - lastOsdOpenMs < 350L) {
+                                    return@MinaOsdBar
+                                }
                                 showOsd()
                                 if (tick.playing) rayPlayer.pause() else rayPlayer.resume()
                             },
